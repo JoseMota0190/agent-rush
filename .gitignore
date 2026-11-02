@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets — nunca commitear API keys
+.env
+.env.*
+!.env.example
+
+# Runtime artifacts
+*.db
+*.db-wal
+*.db-shm
+runs/
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini

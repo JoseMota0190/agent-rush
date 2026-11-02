@@ -1,25 +1,21 @@
-# Dependencias para el AI Escape Room - Agent Rush Hackathon
-# Para ejecución real, instala con: pip install -r requirements.txt
+# Dependencias del proyecto AGENT RUSH
+# Python 3.10+ (probado en 3.10 y 3.12)
+#
+# El núcleo (referee, retos, sandbox) usa solo la librería estándar.
+# Estas dependencias son para la capa de API / LLM.
 
-# Core dependencies
-pydantic>=2.0.0       # Gestión de tipos y estado
-subprocess32          # Ejecución segura de subprocesses (Python 3.11+ no estrictamente necesario)
+pydantic>=2.0.0        # estado tipado del run
+python-dotenv>=1.0.0   # carga de .env (API keys fuera del repo)
 
-# LLM/API connections (elige según tu modelo)
-# OpenRouter para modelos gratuitos
-openrouter-python>=1.0.0
+# --- LLM: Vultr Serverless Inference (requisito del challenge 1) ---
+# Es OpenAI-compatible, así que basta el SDK oficial apuntando a
+# https://api.vultrinference.com/v1
+openai>=1.30.0
 
-# Opcional: OpenAI API
-# openai>=1.0.0
+# --- API / streaming (día 3) ---
+fastapi>=0.110.0
+uvicorn[standard]>=0.29.0
+sse-starlette>=2.0.0
 
-# Opcional: Anthropic
-# anthropic>=0.5.0
-
-# Web/Interface (opcional para demo)
-# fastapi>=0.100.0     # API REST para la interfaz
-# uvicorn>=0.20.0      # Servidor ASGI
-# react fast (para frontend) - separado
-
-# Utilities
-python-dotenv>=1.0.0   # Manejo de variables de entorno
-rich>=13.0.0           # Outputs coloreados en terminal
+# --- tests ---
+pytest>=8.0.0

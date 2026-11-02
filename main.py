@@ -1,4 +1,4 @@
-"""
+﻿"""
 Punto de entrada principal del AI Escape Room.
 Orquesta el flujo completo entre los tres agentes (Strategist, Coder, Auditor)
 y soporta ambos modos: Modo Espectador (autónomo) y Modo Orquestador (human-in-the-loop).
@@ -105,8 +105,7 @@ if __name__ == "__main__":
     main()'''
     
     def _mock_audit_response(self, system_prompt: str) -> str:
-        """Retorna respuesta de evaluador simulada."""
-        # En modo demo, simulamos varios escenarios
+        """Retorna evaluation basada en stdout/stderr simulados."""
         import random
         scenarios = [
             # Éxito directo
@@ -144,7 +143,7 @@ def run_escape_room(mode: str = "spectator") -> GameResult:
     Ejecuta la partida completa del Escape Room.
     
     Modos disponibles:
-    - "spectator": Modo 100% autónomo (agentes deciding solos)
+    - "spectator": Modo 100% autónomo (agentes decidiendo solos)
     - "orchestrator": Modo human-in-the-loop con intervención opcional
     
     Returns GameResult con el resumen de la partida.
@@ -161,21 +160,9 @@ def run_escape_room(mode: str = "spectator") -> GameResult:
     orchestrator = type(orchestrator)()
     orchestrator.state = AgentState(start_time=datetime.now())
     orchestrator.room_challenges = {
-        1: type(RoomChallenge)(
-            id=1, name="The Encrypted Terminal", 
-            description="Parse corrupted logs to find the door password",
-            success_criteria="Extract valid hash from logs"
-        )(),
-        2: type(RoomChallenge)(
-            id=2, name="The Memory Enigma", 
-            description="Debug and fix the memory leak script",
-            success_criteria="Script runs without errors and outputs FLAG"
-        )(),
-        3: type(RoomChallenge)(
-            id=3, name="Network Hack", 
-            description="Bypass the emulated firewall with correct signatures",
-            success_criteria="Successful API handshake and FLAG retrieved"
-        )(),
+        1: RoomChallenge(id=1, name="The Encrypted Terminal", description="Parse corrupted logs to find the door password", success_criteria="Extract valid hash from logs"),
+        2: RoomChallenge(id=2, name="The Memory Enigma", description="Debug and fix the memory leak script", success_criteria="Script runs without errors and outputs FLAG"),
+        3: RoomChallenge(id=3, name="Network Hack", description="Bypass the emulated firewall with correct signatures", success_criteria="Successful API handshake and FLAG retrieved"),
     }
     orchestrator.current_room = 1
     orchestrator.start_time = datetime.now()
@@ -400,8 +387,7 @@ def main():
     print("\nModos disponibles:")
     print("1. Modo Espectador ('spectator') - IA 100% autónoma")
     print("   - Los 3 agentes (Estratega, Coder, Evaluator) trabajan solos")
-    print   "- Ideal para demostrar resiliencia y self-healing")
-    print("   - Perfecto para la demo de la hackatón")
+    print("   - Ideal para demostrar resiliencia y self-healing")
     print()
     print("2. Modo Orquestador ('orchestrator') - Human-in-the-loop")
     print("   - Tú decides aprobar o modificar antes de cada ejecución")

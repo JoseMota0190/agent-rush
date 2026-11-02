@@ -21,6 +21,39 @@ my-agent-system/
 └── requirements.txt        # Dependencias
 ```
 
+## 🖥️ Interfaz web (frontend)
+
+Prototipo navegable de los dos modos, sin dependencias ni build step:
+
+```bash
+python run_web.py          # abre http://localhost:8000
+python run_web.py --no-open
+```
+
+- `?mode=orchestrator` abre directamente el modo orquestador (útil para el video).
+- Atajos: `1` espectador · `2` orquestador · `espacio` pausa el stream.
+
+```
+web/
+├── index.html   # estructura de las dos escenas + paneles
+├── styles.css   # estética cyberpunk: vidrio, neón, rejilla de suelo
+├── app.js       # cambio de modo, log stream, IDE con resaltado, leaderboard
+├── preview-spectator.png
+└── preview-orchestrator.png
+```
+
+**Modo espectador:** sala de observación tras cristal polarizado, tres robots
+(Strategist / Coder / Auditor) alrededor de la mesa holográfica, panel de logs
+en vivo y leaderboard free tier.
+
+**Modo orquestador:** POV sentado a la mesa, panel de estado de las 3 salas y
+panel IDE con el código del reto, botones `EDIT CODE`, `SEND TO SANDBOX`,
+`REQUEST HINT`, `SKIP TASK` y los límites del sandbox visibles en el pie.
+
+El front consume `/api/events` (SSE) si el backend está presente; si no,
+usa un feed de demo que reproduce el pipeline real (incluido el fallo y el
+self-healing) para poder ensayar la demo sin red.
+
 ## 🏗️ Arquitectura
 
 ### Patrón Supervisor + Subagentes Especializados

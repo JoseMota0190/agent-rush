@@ -1,3 +1,4 @@
+import sys
 """
 Herramientas de integración con Vultr Sandbox.
 Maneja el ciclo de vida: crear contenedor efímero, ejecutar código, capturar salida,
