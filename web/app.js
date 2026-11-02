@@ -1,10 +1,11 @@
 /* ============================================================
-   AGENT RUSH — front-end controller
-   - mode switching (spectator / orchestrator)
-   - live log stream (SSE if backend present, demo feed otherwise)
-   - leaderboard / room status updates
-   - IDE panel with syntax highlighting + line numbers
+   AGENT RUSH — controlador de la interfaz
+   - escena 3D (Three.js) + rail de paneles
+   - stream de logs (SSE si hay backend, demo si no)
+   - leaderboard, estado de salas e IDE
    ============================================================ */
+
+import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=23";
 
 (() => {
   "use strict";
@@ -13,8 +14,17 @@
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
   /* ---------------------------------------------------------
-     1. MODE SWITCH
+     1. ESCENA 3D
      --------------------------------------------------------- */
+  const canvas = $("#scene3d");
+  const labelLayer = $("#labels");
+  initScene(canvas, labelLayer);
+
+  const ROOM_LABEL = {
+    spectator: "SALA DE OBSERVACIÓN · CRISTAL POLARIZADO",
+    orchestrator: "MESA TÁCTICA · PUNTO DE VISTA DEL ORQUESTADOR",
+  };
+
   const modeButtons = $$(".mode-btn");
 
   function setMode(target) {
@@ -24,6 +34,11 @@
       b.classList.toggle("is-active", active);
       b.setAttribute("aria-selected", String(active));
     });
+
+    const label = $("[data-mode-label]");
+    if (label) label.textContent = ROOM_LABEL[target] ?? "";
+
+    setSceneMode(target);
     if (target === "orchestrator") renderIDE();
   }
 
@@ -32,7 +47,7 @@
   });
 
   /* ---------------------------------------------------------
-     2. IDE PANEL
+     2. IDE
      --------------------------------------------------------- */
   const CODE = `def fix_memory_leak(chunks):
     """Room 2 — repair the leaking accumulator."""
@@ -62,7 +77,6 @@ def verify(results, expected):
   const escapeHTML = (s) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-  // One-pass tokenizer: strings, numbers, keywords, calls
   const TOKEN_RE =
     /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+\b)|([A-Za-z_][A-Za-z0-9_]*)(?=\s*\()|([A-Za-z_][A-Za-z0-9_]*)/g;
 
@@ -75,17 +89,12 @@ def verify(results, expected):
       out += escapeHTML(text.slice(last, m.index));
 
       const [raw, str, num, call, word] = m;
-      if (str) {
-        out += `<span class="str">${escapeHTML(str)}</span>`;
-      } else if (num) {
-        out += `<span class="num">${num}</span>`;
-      } else if (call) {
-        out += `<span class="fn">${call}</span>`;
-      } else if (word && KEYWORDS.has(word)) {
-        out += `<span class="kw">${word}</span>`;
-      } else {
-        out += escapeHTML(raw);
-      }
+      if (str)        out += `<span class="str">${escapeHTML(str)}</span>`;
+      else if (num)   out += `<span class="num">${num}</span>`;
+      else if (call)  out += `<span class="fn">${call}</span>`;
+      else if (word && KEYWORDS.has(word)) out += `<span class="kw">${word}</span>`;
+      else            out += escapeHTML(raw);
+
       last = m.index + raw.length;
     }
 
@@ -134,15 +143,8 @@ def verify(results, expected):
     pauseBtn.style.color = metrics.paused ? "var(--amber)" : "";
   });
 
-  function stamp() {
-    const d = new Date();
-    return d.toTimeString().slice(0, 8);
-  }
+  const stamp = () => new Date().toTimeString().slice(0, 8);
 
-  /**
-   * Append one log line.
-   * @param {{src:string, cls?:string, msg:string, tokens?:number}} evt
-   */
   function appendLog(evt) {
     if (!logStream) return;
 
@@ -172,42 +174,41 @@ def verify(results, expected):
   }
 
   /* ---------------------------------------------------------
-     4. DEMO SCRIPT — mirrors the real run pipeline
+     4. GUION DEMO — reproduce el pipeline real
      --------------------------------------------------------- */
   const SCRIPT = [
-    { src: "system",  msg: "run_started · mode=spectator · seed=7f3a…c19e", tokens: 0 },
+    { src: "system",  msg: "run_started · mode=spectator · seed=7f3a…c19e" },
     { src: "system",  msg: "INITIATING LEVEL 1 (ENCRYPTED TERMINAL)", tokens: 42 },
-    { src: "model",   msg: "strategist → parse corrupted auth.log with regex, target SHA256 token", tokens: 318 },
+    { src: "model",   msg: "strategist → parse corrupted auth.log, target SHA256 token", tokens: 318 },
     { src: "model",   msg: "coder → generated script_v1.py (41 lines)", tokens: 902 },
-    { src: "sandbox", msg: "spin_up · image=python:3.12-slim · net=none · mem=256m", tokens: 0 },
-    { src: "sandbox", msg: "executing script_v1.py …", tokens: 0 },
-    { src: "sandbox", msg: "exit=1 · SyntaxError: line 15, unexpected EOF", cls: "is-error", tokens: 0 },
+    { src: "sandbox", msg: "spin_up · image=python:3.12-slim · net=none · mem=256m" },
+    { src: "sandbox", msg: "executing script_v1.py …" },
+    { src: "sandbox", msg: "exit=1 · SyntaxError: line 15, unexpected EOF", cls: "is-error" },
     { src: "model",   msg: "auditor → syntax error detected, requesting patch (1/3)", tokens: 274 },
     { src: "model",   msg: "coder → regenerated script_v2.py", tokens: 611 },
-    { src: "sandbox", msg: "tear_down · container destroyed (0.4s)", tokens: 0 },
-    { src: "sandbox", msg: "spin_up · fresh container · exec script_v2.py …", tokens: 0 },
-    { src: "sandbox", msg: "exit=0 · extracted token 0b50ff21…f03d", cls: "is-ok", tokens: 0 },
-    { src: "referee", msg: "flag_validated · room=1 · HMAC match · ROOM 1 SOLVED", cls: "is-ok", tokens: 0 },
-    { src: "system",  msg: "advancing to LEVEL 2 (MEMORY ENIGMA)", tokens: 0 },
-    { src: "model",   msg: "strategist → locate leak in accumulator loop, remove infinite while", tokens: 296 },
+    { src: "sandbox", msg: "tear_down · container destroyed (0.4s)" },
+    { src: "sandbox", msg: "spin_up · fresh container · exec script_v2.py …" },
+    { src: "sandbox", msg: "exit=0 · extracted token 0b50ff21…f03d", cls: "is-ok" },
+    { src: "referee", msg: "flag_validated · room=1 · HMAC match · ROOM 1 SOLVED", cls: "is-ok" },
+    { src: "system",  msg: "advancing to LEVEL 2 (MEMORY ENIGMA)" },
+    { src: "model",   msg: "strategist → locate leak in accumulator loop", tokens: 296 },
     { src: "model",   msg: "coder → patch applied: return results before loop", tokens: 742 },
-    { src: "sandbox", msg: "executing patched script …", tokens: 0 },
-    { src: "sandbox", msg: "exit=1 · AssertionError: checksum mismatch (attempt 2/5)", cls: "is-error", tokens: 0 },
+    { src: "sandbox", msg: "executing patched script …" },
+    { src: "sandbox", msg: "exit=1 · AssertionError: checksum mismatch (attempt 2/5)", cls: "is-error" },
     { src: "model",   msg: "auditor → off-by-one in range; regenerating", tokens: 388 },
-    { src: "sandbox", msg: "executing script_v3.py …", tokens: 0 },
-    { src: "sandbox", msg: "exit=0 · PROOF emitted", cls: "is-ok", tokens: 0 },
-    { src: "referee", msg: "flag_validated · room=2 · HMAC match · ROOM 2 SOLVED", cls: "is-ok", tokens: 0 },
-    { src: "system",  msg: "advancing to LEVEL 3 (FIREWALL)", tokens: 0 },
-    { src: "model",   msg: "strategist → 3-step handshake on loopback, derive nonce", tokens: 341 },
-    { src: "sandbox", msg: "executing handshake client …", tokens: 0 },
-    { src: "sandbox", msg: "step 1 HELLO ok · step 2 nonce ok · step 3 signature pending", tokens: 0 },
-    { src: "sandbox", msg: "exit=0 · SUCCESS · escape token received", cls: "is-ok", tokens: 0 },
-    { src: "referee", msg: "flag_validated · room=3 · RUN COMPLETE · 3/3 in 03:41", cls: "is-ok", tokens: 0 },
+    { src: "sandbox", msg: "executing script_v3.py …" },
+    { src: "sandbox", msg: "exit=0 · PROOF emitted", cls: "is-ok" },
+    { src: "referee", msg: "flag_validated · room=2 · HMAC match · ROOM 2 SOLVED", cls: "is-ok" },
+    { src: "system",  msg: "advancing to LEVEL 3 (FIREWALL)" },
+    { src: "model",   msg: "strategist → 3-step handshake on loopback", tokens: 341 },
+    { src: "sandbox", msg: "executing handshake client …" },
+    { src: "sandbox", msg: "step 1 HELLO ok · step 2 nonce ok · step 3 signature pending" },
+    { src: "sandbox", msg: "exit=0 · SUCCESS · escape token received", cls: "is-ok" },
+    { src: "referee", msg: "flag_validated · room=3 · RUN COMPLETE · 3/3 in 03:41", cls: "is-ok" },
   ];
 
   let cursor = 0;
   let tickTimer = null;
-  let restartTimer = null;
 
   function tick() {
     if (metrics.paused) return;
@@ -220,63 +221,58 @@ def verify(results, expected):
     if (cursor >= SCRIPT.length) {
       cursor = 0;
       clearInterval(tickTimer);
-      restartTimer = setTimeout(() => {
+      setTimeout(() => {
         appendLog({ src: "system", msg: "replay · same seed · same rooms", cls: "is-dim" });
-        tickTimer = setInterval(tick, 1100);
-      }, 6000);
+        tickTimer = setInterval(tick, 1200);
+      }, 6500);
     }
   }
 
+  /* ---------------------------------------------------------
+     5. REACCIÓN A EVENTOS
+     --------------------------------------------------------- */
   function reactToEvent(evt) {
     const msg = evt.msg;
 
-    // bot states
-    const setBot = (role, state, label) => {
-      const bot = $(`.bot[data-role="${role}"]`);
-      const badge = bot?.querySelector(".bot-state");
-      if (!badge) return;
-      badge.dataset.state = state;
-      badge.textContent = label;
-    };
-
-    if (msg.includes("strategist")) setBot("strategist", "thinking", "THINKING");
-    if (msg.includes("coder →"))    setBot("coder", "typing", "TYPING");
-    if (msg.includes("auditor"))    setBot("auditor", "thinking", "VERIFYING");
+    if (msg.includes("strategist")) setBotState("strategist", "thinking");
+    if (msg.includes("coder →"))    setBotState("coder", "typing");
+    if (msg.includes("auditor"))    setBotState("auditor", "thinking");
+    if (msg.includes("executing"))  setBotState("coder", "typing");
     if (msg.includes("exit=1")) {
-      setBot("auditor", "error", "ERROR FOUND");
-      setBot("coder", "thinking", "PATCHING");
+      setBotState("auditor", "error");
+      setBotState("coder", "thinking");
     }
     if (msg.includes("exit=0")) {
-      setBot("auditor", "idle", "APPROVED");
-      setBot("coder", "typing", "TYPING");
+      setBotState("auditor", "approved");
+      setTimeout(() => setBotState("auditor", "idle"), 2200);
     }
 
-    // room status (orchestrator view)
-    if (msg.includes("ROOM 1 SOLVED")) markRoom(0, "is-done", "resuelta · 00:48");
-    if (msg.includes("ROOM 2 SOLVED")) markRoom(1, "is-done", "resuelta · 01:22");
-    if (msg.includes("RUN COMPLETE"))  markRoom(2, "is-done", "resuelta · 01:31");
-
-    // leaderboard flash on completion
-    if (msg.includes("RUN COMPLETE")) flashLeaderboard("03:41");
+    if (msg.includes("ROOM 1 SOLVED")) markRoom(0, "resuelta · 00:48");
+    if (msg.includes("ROOM 2 SOLVED")) markRoom(1, "resuelta · 01:22");
+    if (msg.includes("RUN COMPLETE"))  { markRoom(2, "resuelta · 01:31"); flashLeaderboard("03:41"); }
   }
 
-  function markRoom(index, cls, meta) {
+  function markRoom(index, meta) {
     const rooms = $$("#roomList .room");
     if (!rooms[index]) return;
+
     rooms[index].classList.remove("is-active");
-    rooms[index].classList.add(cls);
+    rooms[index].classList.add("is-done");
     const metaEl = rooms[index].querySelector(".room-meta");
     if (metaEl && meta) metaEl.textContent = meta;
 
-    // promote next room
     const next = rooms[index + 1];
     if (next) {
       next.classList.add("is-active");
       const nm = next.querySelector(".room-meta");
       if (nm) nm.textContent = "en curso · intento 1/5";
     }
+
+    const level = String(Math.min(3, index + 2));
     const lvl = $("#currentLevel");
-    if (lvl) lvl.textContent = String(Math.min(3, index + 2));
+    const lvlFoot = $("#currentLevelFoot");
+    if (lvl) lvl.textContent = level;
+    if (lvlFoot) lvlFoot.textContent = level;
   }
 
   function flashLeaderboard(time) {
@@ -288,36 +284,33 @@ def verify(results, expected):
   }
 
   /* ---------------------------------------------------------
-     5. IDE ACTION BUTTONS
+     6. ACCIONES DEL IDE
      --------------------------------------------------------- */
   $$(".action").forEach((btn) => {
     btn.addEventListener("click", () => {
-      const action = btn.dataset.action;
       const map = {
-        edit: { src: "system", msg: "manual edit · orchestrator took control of buffer" },
+        edit: { src: "system",  msg: "manual edit · orchestrator took control of buffer" },
         run:  { src: "sandbox", msg: "dispatch → sandbox · exec room2.py (10s cap)" },
-        hint: { src: "referee", msg: "hint ladder 1/3 · check the loop bound, not the accumulator" },
-        skip: { src: "system", msg: "skip requested · requires referee approval", cls: "is-error" },
+        hint: { src: "referee", msg: "hint 1/3 · check the loop bound, not the accumulator" },
+        skip: { src: "system",  msg: "skip requested · requires referee approval", cls: "is-error" },
       };
-      const evt = map[action];
+      const evt = map[btn.dataset.action];
       if (evt) appendLog(evt);
     });
   });
 
   /* ---------------------------------------------------------
-     6. START
+     7. ARRANQUE
      --------------------------------------------------------- */
-  // deep link: ?mode=orchestrator (after renderIDE is available)
   const params = new URLSearchParams(location.search);
   if (params.get("mode") === "orchestrator") setMode("orchestrator");
 
-  tickTimer = setInterval(tick, 1100);
   appendLog({ src: "system", msg: "connecting to run stream …", cls: "is-dim" });
+  tickTimer = setInterval(tick, 1200);
 
-  // keyboard shortcuts: 1 = spectator, 2 = orchestrator
   document.addEventListener("keydown", (e) => {
     if (e.key === "1" || e.key === "2") {
-      const btn = $$(".mode-btn")[e.key === "1" ? 0 : 1];
+      const btn = modeButtons[e.key === "1" ? 0 : 1];
       btn?.click();
     }
     if (e.key === " ") {
@@ -326,15 +319,16 @@ def verify(results, expected):
     }
   });
 
-  // Optional real backend: GET /api/events (SSE). Silently ignored if absent.
+  // Backend real opcional: /api/events (SSE). Si no existe, se ignora.
   try {
     const es = new EventSource("/api/events");
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
         appendLog({ src: data.src || "system", msg: data.msg, cls: data.cls, tokens: data.tokens });
-      } catch { /* ignore malformed */ }
+        if (data.role && data.state) setBotState(data.role, data.state);
+      } catch { /* ignore */ }
     };
     es.onerror = () => es.close();
-  } catch { /* no backend — demo feed only */ }
+  } catch { /* demo feed only */ }
 })();

@@ -23,7 +23,7 @@ my-agent-system/
 
 ## 🖥️ Interfaz web (frontend)
 
-Prototipo navegable de los dos modos, sin dependencias ni build step:
+Escena 3D real con Three.js, sin build step (módulo vendorizado en `web/vendor/`):
 
 ```bash
 python run_web.py          # abre http://localhost:8000
@@ -35,24 +35,32 @@ python run_web.py --no-open
 
 ```
 web/
-├── index.html   # estructura de las dos escenas + paneles
-├── styles.css   # estética cyberpunk: vidrio, neón, rejilla de suelo
-├── app.js       # cambio de modo, log stream, IDE con resaltado, leaderboard
+├── index.html   # estructura: canvas 3D + rail de paneles
+├── styles.css   # estética cyberpunk, paneles, labels proyectados
+├── scene.js     # sala, mesa holográfica, sillas, 3 robots, cámaras, luces
+├── app.js       # modos, log stream, IDE, leaderboard, wiring de estados
+├── vendor/three.module.js
 ├── preview-spectator.png
 └── preview-orchestrator.png
 ```
 
-**Modo espectador:** sala de observación tras cristal polarizado, tres robots
-(Strategist / Coder / Auditor) alrededor de la mesa holográfica, panel de logs
-en vivo y leaderboard free tier.
+**Escena 3D:** sala con piso en rejilla, techo con tiras de luz, mesa holográfica
+con anillos giratorios, tres robots humanoides **sentados en sillas** con brazos
+sobre la mesa, visores emisivos por rol y animación idle/typing/error.
 
-**Modo orquestador:** POV sentado a la mesa, panel de estado de las 3 salas y
-panel IDE con el código del reto, botones `EDIT CODE`, `SEND TO SANDBOX`,
-`REQUEST HINT`, `SKIP TASK` y los límites del sandbox visibles en el pie.
+**Modo espectador:** cámara detrás del cristal polarizado (overlay CSS de
+reflejos y viñeta), panel de logs en vivo y leaderboard free tier.
 
-El front consume `/api/events` (SSE) si el backend está presente; si no,
-usa un feed de demo que reproduce el pipeline real (incluido el fallo y el
-self-healing) para poder ensayar la demo sin red.
+**Modo orquestador:** cámara baja con silueta humana en primer plano (POV),
+panel de estado de las 3 salas y panel IDE con el código del reto y los botones
+`EDIT CODE`, `SEND TO SANDBOX`, `REQUEST HINT`, `SKIP TASK` apilados a la derecha.
+
+El front consume `/api/events` (SSE) si el backend está presente; si no, usa un
+feed de demo que reproduce el pipeline real (incluido el fallo y el self-healing)
+para poder ensayar la demo sin red.
+
+> Nota: si tocás `scene.js`, subí el `?v=` del import en `app.js` para evitar
+> que el navegador sirva el módulo cacheado.
 
 ## 🏗️ Arquitectura
 

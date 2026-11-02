@@ -34,157 +34,37 @@
   <!-- ================= MAIN STAGE ================= -->
   <main class="stage">
 
-    <!-- ---------- SCENE COLUMN ---------- -->
-    <section class="scene" aria-label="Escena del escape room">
+    <!-- ---------- 3D SCENE ---------- -->
+    <section class="scene" id="scene">
+      <canvas id="scene3d"></canvas>
 
-      <!-- ============ SPECTATOR SCENE ============ -->
-      <div class="scene-view scene-spectator">
-        <div class="room-label">SALA DE OBSERVACIÓN · CRISTAL POLARIZADO</div>
+      <!-- projected robot labels -->
+      <div class="labels" id="labels" aria-hidden="true"></div>
 
-        <div class="hud">
-          <span class="hud-chip">RUN #0042</span>
-          <span class="hud-chip">SEED 7f3a…c19e</span>
-          <span class="hud-chip ok">SANDBOX ACTIVE</span>
-        </div>
-
-        <div class="interrogation-room">
-          <!-- ceiling + floor -->
-          <div class="ceiling"><span></span><span></span><span></span><span></span></div>
-          <div class="floor" aria-hidden="true"></div>
-
-          <!-- back wall -->
-          <div class="wall">
-            <div class="wall-line"></div>
-            <div class="wall-display">
-              <span class="wd-title">SECTOR 07 · CONTAINMENT</span>
-              <span class="wd-sub">AIRGAP · NET NONE · EPHEMERAL</span>
-            </div>
-            <div class="neon-sign">
-              <span class="neon-tube">AGENT</span>
-              <span class="neon-tube alt">RUSH</span>
-            </div>
-            <div class="wall-screen left"></div>
-            <div class="wall-screen right"></div>
-          </div>
-
-          <!-- three bots around table -->
-          <div class="table-group">
-            <div class="holo-table">
-              <div class="holo-ring"></div>
-              <div class="holo-core"></div>
-              <div class="holo-scan"></div>
-            </div>
-
-            <figure class="bot bot-left" data-role="strategist">
-              <div class="bot-tag">STRATEGIST <span>(MODEL 1)</span></div>
-              <svg class="bot-figure" viewBox="0 0 120 160" aria-hidden="true">
-                <use href="#robot" />
-              </svg>
-              <div class="bot-state" data-state="thinking">THINKING</div>
-            </figure>
-
-            <figure class="bot bot-center" data-role="coder">
-              <div class="bot-tag">CODER <span>(MODEL 2)</span></div>
-              <svg class="bot-figure" viewBox="0 0 120 160" aria-hidden="true">
-                <use href="#robot" />
-              </svg>
-              <div class="bot-state" data-state="typing">TYPING</div>
-            </figure>
-
-            <figure class="bot bot-right" data-role="auditor">
-              <div class="bot-tag">AUDITOR <span>(MODEL 3)</span></div>
-              <svg class="bot-figure" viewBox="0 0 120 160" aria-hidden="true">
-                <use href="#robot" />
-              </svg>
-              <div class="bot-state" data-state="idle">OBSERVING</div>
-            </figure>
-          </div>
-        </div>
-
-        <!-- glass overlay -->
-        <div class="glass-overlay" aria-hidden="true">
-          <div class="glass-streak s1"></div>
-          <div class="glass-streak s2"></div>
-          <div class="glass-streak s3"></div>
-          <div class="glass-tint"></div>
-          <div class="glass-vignette"></div>
-          <div class="glass-frame"></div>
-        </div>
-
-        <div class="scene-footer">
-          <span class="live-dot"></span> TRANSMISIÓN EN VIVO · SIN INTERVENCIÓN HUMANA
-        </div>
+      <div class="room-label" data-mode-label>
+        SALA DE OBSERVACIÓN · CRISTAL POLARIZADO
       </div>
 
-      <!-- ============ ORCHESTRATOR SCENE ============ -->
-      <div class="scene-view scene-orchestrator">
-        <div class="room-label">MESA TÁCTICA · PUNTO DE VISTA DEL ORQUESTADOR</div>
+      <div class="hud">
+        <span class="hud-chip">RUN #0042</span>
+        <span class="hud-chip">SEED 7f3a…c19e</span>
+        <span class="hud-chip ok">SANDBOX ACTIVE</span>
+      </div>
 
-        <div class="hud">
-          <span class="hud-chip amber">CONTROL MANUAL</span>
-          <span class="hud-chip">ROOM 2 · 02/05</span>
-          <span class="hud-chip ok">10s CAP</span>
-        </div>
+      <!-- glass overlay: only in spectator mode -->
+      <div class="glass-overlay" aria-hidden="true">
+        <div class="glass-streak s1"></div>
+        <div class="glass-streak s2"></div>
+        <div class="glass-streak s3"></div>
+        <div class="glass-tint"></div>
+        <div class="glass-vignette"></div>
+        <div class="glass-frame"></div>
+      </div>
 
-        <div class="tactical-room">
-          <div class="ceiling"><span></span><span></span><span></span><span></span></div>
-          <div class="floor" aria-hidden="true"></div>
-
-          <div class="wall">
-            <div class="wall-line"></div>
-            <div class="neon-sign small">
-              <span class="neon-tube">AGENT</span>
-              <span class="neon-tube alt">RUSH</span>
-            </div>
-            <div class="neon-sign vultr">
-              <span class="neon-tube blue">VULTR</span>
-              <span class="neon-tube blue small">SANDBOX</span>
-            </div>
-          </div>
-
-          <div class="table-group pov">
-            <div class="holo-table">
-              <div class="holo-ring"></div>
-              <div class="holo-core"></div>
-              <div class="holo-scan"></div>
-            </div>
-
-            <figure class="bot bot-left" data-role="debugger">
-              <div class="bot-tag">ROBOT DEBUGGER</div>
-              <svg class="bot-figure" viewBox="0 0 120 160" aria-hidden="true">
-                <use href="#robot" />
-              </svg>
-              <div class="bot-state" data-state="typing">PATCHING</div>
-            </figure>
-
-            <figure class="bot bot-center" data-role="coder">
-              <div class="bot-tag">ROBOT CODER</div>
-              <svg class="bot-figure" viewBox="0 0 120 160" aria-hidden="true">
-                <use href="#robot" />
-              </svg>
-              <div class="bot-state" data-state="thinking">WRITING</div>
-            </figure>
-
-            <figure class="bot bot-right" data-role="auditor">
-              <div class="bot-tag">ROBOT AUDITOR</div>
-              <svg class="bot-figure" viewBox="0 0 120 160" aria-hidden="true">
-                <use href="#robot" />
-              </svg>
-              <div class="bot-state" data-state="idle">VERIFYING</div>
-            </figure>
-
-            <!-- human POV silhouette -->
-            <div class="pov-human" aria-hidden="true">
-              <div class="pov-head"></div>
-              <div class="pov-shoulders"></div>
-              <div class="pov-screen"></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="scene-footer">
-          <span class="live-dot amber"></span> CONTROL MANUAL · PUEDES EDITAR ANTES DE EJECUTAR
-        </div>
+      <div class="scene-footer">
+        <span class="live-dot"></span>
+        <span class="footer-spectator">TRANSMISIÓN EN VIVO · SIN INTERVENCIÓN HUMANA</span>
+        <span class="footer-orchestrator">CONTROL MANUAL · PUEDES EDITAR ANTES DE EJECUTAR</span>
       </div>
     </section>
 
@@ -274,6 +154,10 @@
               </div>
             </li>
           </ol>
+          <footer class="panel-foot level-foot">
+            <span>CURRENT LEVEL</span>
+            <b class="level-num" id="currentLevelFoot">2</b>
+          </footer>
         </section>
 
         <section class="panel panel-ide">
@@ -289,7 +173,7 @@
 
           <div class="ide-actions">
             <button class="action" data-action="edit" type="button">EDIT CODE</button>
-            <button class="action primary" data-action="run" type="button">SEND TO SANDBOX</button>
+            <button class="action" data-action="run" type="button">SEND TO SANDBOX</button>
             <button class="action" data-action="hint" type="button">REQUEST HINT</button>
             <button class="action danger" data-action="skip" type="button">SKIP TASK</button>
           </div>
@@ -305,49 +189,6 @@
     </aside>
   </main>
 
-  <!-- ================= SVG DEFS ================= -->
-  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
-    <defs>
-      <linearGradient id="metal" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#3a4a5e"/>
-        <stop offset="55%" stop-color="#1c2735"/>
-        <stop offset="100%" stop-color="#0d141d"/>
-      </linearGradient>
-      <linearGradient id="visor" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stop-color="#7ef0ff"/>
-        <stop offset="100%" stop-color="#1b9cc4"/>
-      </linearGradient>
-      <radialGradient id="core" cx="50%" cy="50%" r="50%">
-        <stop offset="0%" stop-color="#bff7ff"/>
-        <stop offset="45%" stop-color="#38cdf0"/>
-        <stop offset="100%" stop-color="#0b6b8a" stop-opacity="0"/>
-      </radialGradient>
-
-      <symbol id="robot" viewBox="0 0 120 160">
-        <!-- arms on table -->
-        <path d="M28 104 L14 132 L30 138 L44 112 Z" fill="url(#metal)" stroke="#2b3d52" stroke-width="1.5"/>
-        <path d="M92 104 L106 132 L90 138 L76 112 Z" fill="url(#metal)" stroke="#2b3d52" stroke-width="1.5"/>
-        <!-- torso -->
-        <path d="M40 82 Q60 74 80 82 L86 118 Q60 128 34 118 Z" fill="url(#metal)" stroke="#2b3d52" stroke-width="1.5"/>
-        <!-- chest core -->
-        <circle cx="60" cy="100" r="12" fill="url(#core)"/>
-        <circle cx="60" cy="100" r="4" fill="#bff7ff"/>
-        <!-- neck -->
-        <rect x="54" y="66" width="12" height="12" rx="3" fill="#22303f"/>
-        <!-- head -->
-        <rect x="42" y="30" width="36" height="40" rx="12" fill="url(#metal)" stroke="#2b3d52" stroke-width="1.5"/>
-        <!-- visor -->
-        <rect x="47" y="42" width="26" height="11" rx="5.5" fill="url(#visor)" opacity="0.95"/>
-        <rect x="47" y="42" width="26" height="11" rx="5.5" fill="none" stroke="#9df3ff" stroke-width="0.8" opacity="0.8"/>
-        <!-- antenna -->
-        <line x1="60" y1="30" x2="60" y2="20" stroke="#2b3d52" stroke-width="2"/>
-        <circle cx="60" cy="18" r="3" fill="#38cdf0"/>
-        <!-- jaw vents -->
-        <line x1="50" y1="61" x2="70" y2="61" stroke="#2b3d52" stroke-width="1.5"/>
-      </symbol>
-    </defs>
-  </svg>
-
-  <script src="app.js"></script>
+  <script type="module" src="app.js"></script>
 </body>
 </html>
