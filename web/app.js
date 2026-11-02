@@ -5,7 +5,7 @@
    - leaderboard, estado de salas e IDE
    ============================================================ */
 
-import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=23";
+import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=24";
 
 (() => {
   "use strict";

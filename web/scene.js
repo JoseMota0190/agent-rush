@@ -14,9 +14,9 @@ const ACCENTS = {
 };
 
 const ROBOT_SLOTS = [
-  { role: "strategist", angle: Math.PI + 0.55 },
+  { role: "strategist", angle: Math.PI + 0.42 },
   { role: "coder",      angle: Math.PI },
-  { role: "auditor",    angle: Math.PI - 0.55 },
+  { role: "auditor",    angle: Math.PI - 0.42 },
 ];
 
 const ORCH_SLOTS = [
@@ -347,14 +347,14 @@ function buildChair(angle) {
 
 function buildRobot(role) {
   const accent = ACCENTS[role] ?? 0x35d6ff;
-  const bodyMat = mat(0x223040, { metalness: 0.86, roughness: 0.34 });
-  const jointMat = mat(0x101b26, { metalness: 0.72, roughness: 0.48 });
-  const plateMat = mat(0x2b3a4a, { metalness: 0.9, roughness: 0.26 });
+  const bodyMat = mat(0x2b3c4e, { metalness: 0.7, roughness: 0.42 });
+  const jointMat = mat(0x14202c, { metalness: 0.72, roughness: 0.48 });
+  const plateMat = mat(0x35485c, { metalness: 0.85, roughness: 0.3 });
 
   const visorMat = new THREE.MeshStandardMaterial({
-    color: 0x061a22,
+    color: 0x0a2029,
     emissive: accent,
-    emissiveIntensity: 2.2,
+    emissiveIntensity: 3.2,
     metalness: 0.3,
     roughness: 0.2,
   });
@@ -378,9 +378,14 @@ function buildRobot(role) {
   core.position.set(0, 1.03, -0.175);
   root.add(core);
 
-  const coreGlow = makeGlow(accent, 0.42, 0.75);
+  const coreGlow = makeGlow(accent, 0.55, 0.85);
   coreGlow.position.copy(core.position);
   root.add(coreGlow);
+
+  // accent light so amber/violet read as clearly as cyan
+  const accentLight = new THREE.PointLight(accent, 1.8, 2.4, 2);
+  accentLight.position.set(0, 1.02, -0.32);
+  root.add(accentLight);
 
   // ---- shoulders ----
   for (const side of [-1, 1]) {
@@ -783,7 +788,7 @@ function animate() {
     }
 
     // visor breathing
-    const base = bot.state === "idle" ? 1.1 : 2.6;
+    const base = bot.state === "idle" ? 1.8 : 3.2;
     bot.visorMat.emissiveIntensity = base + Math.sin(t * 2.2 + phase) * 0.35;
   }
 
