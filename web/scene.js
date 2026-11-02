@@ -14,9 +14,9 @@ const ACCENTS = {
 };
 
 const ROBOT_SLOTS = [
-  { role: "strategist", angle: Math.PI + 0.42 },
+  { role: "strategist", angle: Math.PI + 0.72 },
   { role: "coder",      angle: Math.PI },
-  { role: "auditor",    angle: Math.PI - 0.42 },
+  { role: "auditor",    angle: Math.PI - 0.72 },
 ];
 
 const ORCH_SLOTS = [
@@ -25,7 +25,7 @@ const ORCH_SLOTS = [
   { role: "auditor",  angle: Math.PI - 0.55 },
 ];
 
-const ROBOT_RADIUS = 1.50;
+const ROBOT_RADIUS = 1.74;
 
 /* ------------------------------------------------------------
    renderer / scene / camera
@@ -48,7 +48,7 @@ let camFov = 40;
 let raf = 0;
 
 const CAMS = {
-  spectator:    { pos: new THREE.Vector3(0, 2.00, 4.85), target: new THREE.Vector3(0, 1.02, -0.95), fov: 38 },
+  spectator:    { pos: new THREE.Vector3(0, 1.96, 4.55), target: new THREE.Vector3(0, 1.02, -0.95), fov: 40 },
   orchestrator: { pos: new THREE.Vector3(0, 1.56, 2.85), target: new THREE.Vector3(0, 1.10, -1.00), fov: 52 },
 };
 
@@ -342,6 +342,90 @@ function buildChair(angle) {
 }
 
 /* ------------------------------------------------------------
+   texturas de pecho y consola
+   ------------------------------------------------------------ */
+
+function chestTexture(role, sub, accentHex) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 256;
+  const ctx = c.getContext("2d");
+
+  // dark display backing so the text reads against the metal chest
+  ctx.fillStyle = "rgba(4,10,17,0.92)";
+  ctx.fillRect(0, 0, c.width, c.height);
+  ctx.strokeStyle = accentHex;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(6, 6, c.width - 12, c.height - 12);
+  ctx.globalAlpha = 1;
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.shadowColor = accentHex;
+  ctx.shadowBlur = 16;
+
+  ctx.fillStyle = accentHex;
+  let roleSize = 126;
+  ctx.font = `800 ${roleSize}px Bahnschrift, "Segoe UI", system-ui, sans-serif`;
+  const roleWidth = ctx.measureText(role).width;
+  const roleMax = c.width - 60;
+  if (roleWidth > roleMax) {
+    roleSize = Math.floor(roleSize * (roleMax / roleWidth));
+    ctx.font = `800 ${roleSize}px Bahnschrift, "Segoe UI", system-ui, sans-serif`;
+  }
+  ctx.fillText(role, 256, 104);
+
+  ctx.globalAlpha = 0.85;
+  ctx.font = '500 52px Bahnschrift, "Segoe UI", system-ui, sans-serif';
+  ctx.fillText(sub, 256, 196);
+
+  // thin rule under the role
+  ctx.globalAlpha = 0.55;
+  ctx.fillRect(96, 156, 320, 3);
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+function consoleTexture(accentHex) {
+  const c = document.createElement("canvas");
+  c.width = 512;
+  c.height = 320;
+  const ctx = c.getContext("2d");
+
+  ctx.fillStyle = "rgba(5,12,20,0.96)";
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  // header bar
+  ctx.fillStyle = accentHex;
+  ctx.globalAlpha = 0.85;
+  ctx.fillRect(0, 0, c.width, 26);
+  ctx.globalAlpha = 1;
+
+  // fake code lines
+  ctx.fillStyle = "#5f8ba6";
+  const widths = [210, 300, 150, 330, 240, 190, 290, 120];
+  widths.forEach((w, i) => {
+    const y = 62 + i * 30;
+    ctx.globalAlpha = 0.35 + Math.random() * 0.35;
+    ctx.fillRect(34, y, w, 8);
+  });
+
+  // accent cursor
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = accentHex;
+  ctx.fillRect(34, 302, 46, 10);
+
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
+
+/* ------------------------------------------------------------
    robot
    ------------------------------------------------------------ */
 
@@ -364,27 +448,59 @@ function buildRobot(role) {
   // ---- pelvis / torso ----
   root.add(part(new THREE.BoxGeometry(0.34, 0.16, 0.24), jointMat, 0, 0.7, 0));
 
-  const torso = part(new THREE.BoxGeometry(0.4, 0.44, 0.26), bodyMat, 0, 0.98, 0);
+  const torso = part(new THREE.BoxGeometry(0.46, 0.46, 0.28), bodyMat, 0, 0.98, 0);
   torso.geometry.translate(0, 0, 0);
   root.add(torso);
 
-  // chest plate
-  const chest = part(new THREE.BoxGeometry(0.3, 0.26, 0.06), plateMat, 0, 1.03, -0.14);
+  // chest plate with the model name engraved
+  const chest = part(new THREE.BoxGeometry(0.5, 0.38, 0.06), mat(0x16232f, { metalness: 0.55, roughness: 0.6 }), 0, 1.03, -0.15);
   root.add(chest);
 
-  // core light
-  const core = new THREE.Mesh(new THREE.SphereGeometry(0.045, 16, 16),
+  const accentHex = `#${new THREE.Color(accent).getHexString()}`;
+  const roleLabel = {
+    strategist: "STRATEGIST",
+    coder: "CODER",
+    auditor: "AUDITOR",
+  }[role] ?? role.toUpperCase();
+  const modelLabel = {
+    strategist: "MODEL 1",
+    coder: "MODEL 2",
+    auditor: "MODEL 3",
+  }[role] ?? "";
+
+  const namePlate = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.48, 0.24),
+    new THREE.MeshBasicMaterial({
+      map: chestTexture(roleLabel, modelLabel, accentHex),
+      transparent: true,
+      toneMapped: false,
+    })
+  );
+  namePlate.position.set(0, 1.04, -0.184);
+  namePlate.rotation.y = Math.PI;
+  root.add(namePlate);
+
+  // status LED under the plate
+  const statusLed = new THREE.Mesh(
+    new THREE.BoxGeometry(0.24, 0.016, 0.012),
+    new THREE.MeshBasicMaterial({ color: 0x2b7f99, toneMapped: false })
+  );
+  statusLed.position.set(0, 0.86, -0.184);
+  root.add(statusLed);
+
+  // core light (below the plate)
+  const core = new THREE.Mesh(new THREE.SphereGeometry(0.035, 16, 16),
     new THREE.MeshBasicMaterial({ color: accent, toneMapped: false }));
-  core.position.set(0, 1.03, -0.175);
+  core.position.set(0, 0.80, -0.184);
   root.add(core);
 
-  const coreGlow = makeGlow(accent, 0.55, 0.85);
+  const coreGlow = makeGlow(accent, 0.22, 0.55);
   coreGlow.position.copy(core.position);
   root.add(coreGlow);
 
   // accent light so amber/violet read as clearly as cyan
-  const accentLight = new THREE.PointLight(accent, 1.8, 2.4, 2);
-  accentLight.position.set(0, 1.02, -0.32);
+  const accentLight = new THREE.PointLight(accent, 1.0, 2.0, 2);
+  accentLight.position.set(0, 0.95, -0.62);
   root.add(accentLight);
 
   // ---- shoulders ----
@@ -435,7 +551,7 @@ function buildRobot(role) {
 
     const elbow = new THREE.Group();
     elbow.position.set(0, -0.30, 0);
-    elbow.rotation.x = 0.50;
+    elbow.rotation.x = 0.38;
 
     const fore = part(new THREE.BoxGeometry(0.08, 0.28, 0.08), bodyMat, 0, -0.14, 0);
     elbow.add(fore);
@@ -444,10 +560,10 @@ function buildRobot(role) {
     elbow.add(hand);
 
     shoulder.add(elbow);
-    shoulder.rotation.x = 0.85;
+    shoulder.rotation.x = 0.62;
 
     root.add(shoulder);
-    arms[side < 0 ? "left" : "right"] = { shoulder, elbow, base: 0.85, elbowBase: 0.50 };
+    arms[side < 0 ? "left" : "right"] = { shoulder, elbow, base: 0.62, elbowBase: 0.38 };
   }
 
   // ---- legs (seated) ----
@@ -474,6 +590,38 @@ function buildRobot(role) {
     root.add(hip);
   }
 
+  // ---- console in front of the robot ----
+  const consoleGroup = new THREE.Group();
+  consoleGroup.position.set(0, 0, -0.46);
+
+  const desk = part(new THREE.BoxGeometry(0.46, 0.04, 0.3), jointMat, 0, 0.78, 0);
+  consoleGroup.add(desk);
+
+  const stand = part(new THREE.CylinderGeometry(0.03, 0.045, 0.3, 10), jointMat, 0, 0.62, 0.03);
+  consoleGroup.add(stand);
+
+  const screenMat = new THREE.MeshBasicMaterial({
+    map: consoleTexture(accentHex),
+    transparent: true,
+    toneMapped: false,
+    side: THREE.DoubleSide,
+  });
+  const screen = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 0.21), screenMat);
+  screen.rotation.x = -0.72;
+  screen.position.set(0, 0.88, -0.02);
+  consoleGroup.add(screen);
+
+  // thin glowing bezel
+  const bezel = new THREE.Mesh(
+    new THREE.BoxGeometry(0.37, 0.24, 0.012),
+    new THREE.MeshBasicMaterial({ color: accent, transparent: true, opacity: 0.1, toneMapped: false })
+  );
+  bezel.rotation.x = -0.72;
+  bezel.position.set(0, 0.88, -0.027);
+  consoleGroup.add(bezel);
+
+  root.add(consoleGroup);
+
   return {
     role,
     group: root,
@@ -481,6 +629,8 @@ function buildRobot(role) {
     visorMat,
     core,
     coreGlow,
+    statusLed,
+    screenMat,
     arms,
     state: "idle",
     phase: Math.random() * Math.PI * 2,
@@ -647,11 +797,6 @@ export function initScene(canvas, labels) {
     scene.add(bot.group);
     scene.add(buildChair(slot.angle));
     bots.set(slot.role, bot);
-
-    const sub = slot.role === "coder" ? "(MODEL 2)" : slot.role === "strategist" ? "(MODEL 1)" : "(MODEL 3)";
-    const name = slot.role.toUpperCase();
-    const el = makeLabel(slot.role, name, sub);
-    labelEls.set(slot.role, el);
   }
 
   // orchestrator labels are handled by relabeling the same three robots
@@ -676,20 +821,6 @@ export function setMode(mode, instant = false) {
   }
 
   if (human) human.visible = mode === "orchestrator";
-
-  // relabel bots for orchestrator mode
-  const relabel = {
-    strategist: mode === "orchestrator" ? "ROBOT DEBUGGER" : "STRATEGIST",
-    coder: "CODER",
-    auditor: mode === "orchestrator" ? "ROBOT AUDITOR" : "AUDITOR",
-  };
-  for (const [role, el] of labelEls) {
-    if (role === "debugger") continue;
-    const isOrch = mode === "orchestrator";
-    const sub = isOrch ? "" : role === "coder" ? "(MODEL 2)" : role === "strategist" ? "(MODEL 1)" : "(MODEL 3)";
-    el.tag.innerHTML = `${relabel[role] ?? role.toUpperCase()}${sub ? ` <span>${sub}</span>` : ""}`;
-    el.wrap.classList.toggle("is-orch", isOrch);
-  }
 }
 
 export function setBotState(role, state) {
@@ -697,29 +828,20 @@ export function setBotState(role, state) {
   if (!bot) return;
   bot.state = state;
 
-  const el = labelEls.get(role);
-  if (el) {
-    el.state.dataset.state = state;
-    el.state.textContent = {
-      idle: "OBSERVING",
-      thinking: "THINKING",
-      typing: "TYPING",
-      error: "ERROR FOUND",
-      approved: "APPROVED",
-    }[state] ?? state.toUpperCase();
-  }
-
   const colors = {
     idle: 0x2b7f99,
     thinking: 0xffb020,
-    typing: 0x35d6ff,
+    typing: 0x4dffa1,
     error: 0xff4d5e,
     approved: 0x4dffa1,
   };
   const c = colors[state] ?? 0x35d6ff;
+
   bot.visorMat.emissive.setHex(c);
-  bot.visorMat.emissiveIntensity = state === "idle" ? 1.1 : 2.6;
+  bot.visorMat.emissiveIntensity = state === "idle" ? 1.8 : 3.2;
   bot.core.material.color.setHex(c);
+  bot.statusLed.material.color.setHex(c);
+  bot.statusLed.scale.x = state === "typing" ? 1.0 + Math.random() * 0.3 : 1;
 }
 
 export function setRoomProgress(room) {
@@ -772,19 +894,19 @@ function animate() {
     headGroup.rotation.x = Math.sin(t * 0.9 + phase) * 0.04;
 
     if (state === "typing") {
-      arms.left.shoulder.rotation.x = 0.85 + Math.sin(t * 9) * 0.08;
-      arms.right.shoulder.rotation.x = 0.85 + Math.sin(t * 9 + Math.PI) * 0.08;
-      arms.left.elbow.rotation.x = 0.50 + Math.sin(t * 9 + 1) * 0.1;
-      arms.right.elbow.rotation.x = 0.50 + Math.sin(t * 9 + 2) * 0.1;
+      arms.left.shoulder.rotation.x = 0.62 + Math.sin(t * 9) * 0.06;
+      arms.right.shoulder.rotation.x = 0.62 + Math.sin(t * 9 + Math.PI) * 0.06;
+      arms.left.elbow.rotation.x = 0.38 + Math.sin(t * 9 + 1) * 0.08;
+      arms.right.elbow.rotation.x = 0.38 + Math.sin(t * 9 + 2) * 0.08;
     } else if (state === "error") {
       headGroup.rotation.y = Math.sin(t * 14) * 0.05;
-      arms.left.shoulder.rotation.x += (1.02 - arms.left.shoulder.rotation.x) * 0.08;
-      arms.right.shoulder.rotation.x += (1.02 - arms.right.shoulder.rotation.x) * 0.08;
+      arms.left.shoulder.rotation.x += (0.8 - arms.left.shoulder.rotation.x) * 0.08;
+      arms.right.shoulder.rotation.x += (0.8 - arms.right.shoulder.rotation.x) * 0.08;
     } else {
-      arms.left.shoulder.rotation.x += (0.85 - arms.left.shoulder.rotation.x) * 0.08;
-      arms.right.shoulder.rotation.x += (0.85 - arms.right.shoulder.rotation.x) * 0.08;
-      arms.left.elbow.rotation.x += (0.50 - arms.left.elbow.rotation.x) * 0.08;
-      arms.right.elbow.rotation.x += (0.50 - arms.right.elbow.rotation.x) * 0.08;
+      arms.left.shoulder.rotation.x += (0.62 - arms.left.shoulder.rotation.x) * 0.08;
+      arms.right.shoulder.rotation.x += (0.62 - arms.right.shoulder.rotation.x) * 0.08;
+      arms.left.elbow.rotation.x += (0.38 - arms.left.elbow.rotation.x) * 0.08;
+      arms.right.elbow.rotation.x += (0.38 - arms.right.elbow.rotation.x) * 0.08;
     }
 
     // visor breathing
@@ -814,14 +936,7 @@ function animate() {
     human.position.y = Math.sin(t * 1.1) * 0.006;
   }
 
-  // labels
-  for (const [role, bot] of bots) {
-    const el = labelEls.get(role);
-    if (!el) continue;
-    projectLabel(bot, el, 1.85);
-    // state chip sits just below the name
-    el.wrap.style.setProperty("--state-offset", "26px");
-  }
+  // (labels are engraved on the chest plates now)
 
   renderer.render(scene, camera);
 }
