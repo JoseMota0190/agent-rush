@@ -1,0 +1,25 @@
+# Dependencias para el AI Escape Room - Agent Rush Hackathon
+# Para ejecución real, instala con: pip install -r requirements.txt
+
+# Core dependencies
+pydantic>=2.0.0       # Gestión de tipos y estado
+subprocess32          # Ejecución segura de subprocesses (Python 3.11+ no estrictamente necesario)
+
+# LLM/API connections (elige según tu modelo)
+# OpenRouter para modelos gratuitos
+openrouter-python>=1.0.0
+
+# Opcional: OpenAI API
+# openai>=1.0.0
+
+# Opcional: Anthropic
+# anthropic>=0.5.0
+
+# Web/Interface (opcional para demo)
+# fastapi>=0.100.0     # API REST para la interfaz
+# uvicorn>=0.20.0      # Servidor ASGI
+# react fast (para frontend) - separado
+
+# Utilities
+python-dotenv>=1.0.0   # Manejo de variables de entorno
+rich>=13.0.0           # Outputs coloreados en terminal
