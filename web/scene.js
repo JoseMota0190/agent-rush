@@ -48,7 +48,7 @@ let camFov = 40;
 let raf = 0;
 
 const CAMS = {
-  spectator:    { pos: new THREE.Vector3(0, 1.96, 4.55), target: new THREE.Vector3(0, 1.02, -0.95), fov: 40 },
+  spectator:    { pos: new THREE.Vector3(0, 2.10, 5.25), target: new THREE.Vector3(0, 1.05, -1.55), fov: 42 },
   orchestrator: { pos: new THREE.Vector3(0, 1.56, 2.85), target: new THREE.Vector3(0, 1.10, -1.00), fov: 52 },
 };
 
@@ -106,57 +106,214 @@ function makeGlow(color, size, opacity = 0.9) {
 function buildRoom() {
   const room = new THREE.Group();
 
-  // floor
-  const floor = new THREE.Mesh(
-    new THREE.PlaneGeometry(18, 14),
-    mat(0x070e16, { metalness: 0.5, roughness: 0.75 })
-  );
+  const W = 15;      // ancho
+  const D = 11;      // profundidad
+  const H = 4.8;     // alto
+  const BACK = -D / 2;
+  const HALF_W = W / 2;
+
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: 0x18283a,
+    metalness: 0.55,
+    roughness: 0.62,
+    emissive: 0x0a1a28,
+    emissiveIntensity: 0.55,
+  });
+  const panelMat = new THREE.MeshStandardMaterial({
+    color: 0x21344a,
+    metalness: 0.7,
+    roughness: 0.42,
+    emissive: 0x0c1e2e,
+    emissiveIntensity: 0.4,
+  });
+  const trimMat = new THREE.MeshStandardMaterial({
+    color: 0x3a5168,
+    metalness: 0.85,
+    roughness: 0.28,
+  });
+  const floorMat = new THREE.MeshStandardMaterial({
+    color: 0x0d1824,
+    metalness: 0.8,
+    roughness: 0.35,
+  });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x4fd4ff, toneMapped: false });
+
+  // ---------------- floor ----------------
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), floorMat);
   floor.rotation.x = -Math.PI / 2;
   floor.receiveShadow = true;
   room.add(floor);
 
-  // floor grid
-  const grid = new THREE.GridHelper(18, 36, 0x1d4a63, 0x102a3a);
-  grid.position.y = 0.005;
+  const grid = new THREE.GridHelper(W, 30, 0x2c6285, 0x14324a);
+  grid.position.y = 0.012;
   grid.material.transparent = true;
-  grid.material.opacity = 0.45;
+  grid.material.opacity = 0.55;
   room.add(grid);
 
-  // back wall
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(18, 5.2), mat(0x0a1622, { metalness: 0.35, roughness: 0.85 }));
-  back.position.set(0, 2.6, -5.0);
-  back.receiveShadow = true;
-  room.add(back);
+  // pool of light under the table
+  const floorGlow = new THREE.Mesh(
+    new THREE.CircleGeometry(3.2, 64),
+    new THREE.MeshBasicMaterial({
+      color: 0x2a7fae,
+      transparent: true,
+      opacity: 0.22,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      toneMapped: false,
+    })
+  );
+  floorGlow.rotation.x = -Math.PI / 2;
+  floorGlow.position.y = 0.02;
+  room.add(floorGlow);
 
-  // wall panels (vertical seams)
-  const seamMat = mat(0x0d1c2a, { metalness: 0.5, roughness: 0.6 });
-  for (let x = -7.5; x <= 7.5; x += 1.5) {
-    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.03, 5.0, 0.06), seamMat);
-    seam.position.set(x, 2.5, -4.96);
+  // ---------------- back wall ----------------
+  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), wallMat);
+  backWall.position.set(0, H / 2, BACK);
+  backWall.receiveShadow = true;
+  room.add(backWall);
+
+  // wall panel seams
+  for (let x = -HALF_W + 1.2; x <= HALF_W - 1.2; x += 1.5) {
+    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.03, H - 0.4, 0.05), trimMat);
+    seam.position.set(x, H / 2, BACK + 0.03);
     room.add(seam);
   }
+  // horizontal wall bands
+  for (const y of [0.35, 3.9]) {
+    const band = new THREE.Mesh(new THREE.BoxGeometry(W - 0.2, 0.05, 0.06), trimMat);
+    band.position.set(0, y, BACK + 0.04);
+    room.add(band);
+  }
 
-  // ceiling
-  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(18, 14), mat(0x060b12, { metalness: 0.3, roughness: 0.9 }));
-  ceil.rotation.x = Math.PI / 2;
-  ceil.position.y = 4.4;
-  room.add(ceil);
-
-  // ceiling light strips
-  const stripMat = new THREE.MeshBasicMaterial({ color: 0xbfefff, toneMapped: false });
-  for (let i = 0; i < 4; i++) {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 3.2), stripMat);
-    strip.position.set(-3.3 + i * 2.2, 4.36, -1.4);
+  // glowing baseboard (floor/wall junction) — the "closed room" cue
+  for (const cfg of [
+    { w: W - 0.3, pos: [0, 0.1, BACK + 0.08], rot: 0 },
+    { w: D - 0.3, pos: [-HALF_W + 0.08, 0.1, 0], rot: Math.PI / 2 },
+    { w: D - 0.3, pos: [HALF_W - 0.08, 0.1, 0], rot: Math.PI / 2 },
+  ]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, 0.045, 0.05), glowMat);
+    strip.position.set(...cfg.pos);
+    strip.rotation.y = cfg.rot;
     room.add(strip);
   }
 
-  // side wall vents (kept subtle; no bright monitors in frame)
-  const ventMat = mat(0x0a141f, { metalness: 0.6, roughness: 0.6 });
-  for (const x of [-4.2, 4.2]) {
-    for (let i = 0; i < 5; i++) {
-      const slat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.03, 0.05), ventMat);
-      slat.position.set(x, 1.9 + i * 0.11, -4.9);
-      room.add(slat);
+  // upper glowing trim (reads as ceiling edge)
+  for (const cfg of [
+    { w: W - 0.3, pos: [0, H - 0.25, BACK + 0.08], rot: 0 },
+    { w: D - 0.3, pos: [-HALF_W + 0.08, H - 0.25, 0], rot: Math.PI / 2 },
+    { w: D - 0.3, pos: [HALF_W - 0.08, H - 0.25, 0], rot: Math.PI / 2 },
+  ]) {
+    const strip = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, 0.03, 0.04), glowMat);
+    strip.position.set(...cfg.pos);
+    strip.rotation.y = cfg.rot;
+    strip.material = new THREE.MeshBasicMaterial({ color: 0x2f8fb8, toneMapped: false });
+    room.add(strip);
+  }
+
+  // ---------------- door on the back wall ----------------
+  const door = new THREE.Group();
+  const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.9, 0.1), panelMat);
+  doorPanel.position.set(0, 1.95, BACK + 0.06);
+  door.add(doorPanel);
+
+  for (const x of [-1.12, 1.12]) {
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.14, 4.15, 0.22), trimMat);
+    jamb.position.set(x, 2.06, BACK + 0.1);
+    door.add(jamb);
+  }
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.14, 0.22), trimMat);
+  lintel.position.set(0, 4.14, BACK + 0.1);
+  door.add(lintel);
+
+  // door split line + handle
+  const split = new THREE.Mesh(new THREE.BoxGeometry(0.03, 3.7, 0.03), trimMat);
+  split.position.set(0, 1.95, BACK + 0.12);
+  door.add(split);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.05), trimMat);
+  handle.position.set(0.72, 2.0, BACK + 0.14);
+  door.add(handle);
+
+  // door glow line + frame accents so the exit reads in the dark
+  const doorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.02), glowMat);
+  doorGlow.position.set(0, 4.0, BACK + 0.16);
+  door.add(doorGlow);
+
+  for (const x of [-1.12, 1.12]) {
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 3.9, 0.02), glowMat);
+    edge.position.set(x, 2.0, BACK + 0.17);
+    door.add(edge);
+  }
+  const topEdge = new THREE.Mesh(new THREE.BoxGeometry(2.26, 0.02, 0.02), glowMat);
+  topEdge.position.set(0, 3.95, BACK + 0.17);
+  door.add(topEdge);
+
+  room.add(door);
+
+  // side panels next to the door
+  for (const x of [-4.9, 4.9]) {
+    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.6, 0.1), panelMat);
+    panel.position.set(x, 2.4, BACK + 0.05);
+    room.add(panel);
+    for (let i = 0; i < 4; i++) {
+      const vent = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.035, 0.04), trimMat);
+      vent.position.set(x, 1.7 + i * 0.32, BACK + 0.09);
+      room.add(vent);
+    }
+  }
+
+  // ---------------- side walls ----------------
+  for (const side of [-1, 1]) {
+    const wall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat);
+    wall.position.set(side * HALF_W, H / 2, 0);
+    wall.rotation.y = side * -Math.PI / 2;
+    wall.receiveShadow = true;
+    room.add(wall);
+
+    // vertical seams + horizontal bands on the side walls
+    for (let z = -D / 2 + 1.5; z <= D / 2 - 1.5; z += 2) {
+      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.05, H - 0.4, 0.03), trimMat);
+      seam.position.set(side * (HALF_W - 0.03), H / 2, z);
+      room.add(seam);
+    }
+    for (const y of [0.35, 3.9]) {
+      const band = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, D - 0.2), trimMat);
+      band.position.set(side * (HALF_W - 0.04), y, 0);
+      room.add(band);
+    }
+
+    // wall panel blocks
+    for (const z of [-3, 0.5, 3.5]) {
+      const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 1.4), panelMat);
+      p.position.set(side * (HALF_W - 0.06), 2.3, z);
+      room.add(p);
+    }
+  }
+
+  // ---------------- corner pillars ----------------
+  for (const x of [-HALF_W + 0.14, HALF_W - 0.14]) {
+    for (const z of [BACK + 0.14, D / 2 - 0.14]) {
+      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.34, H, 0.34), panelMat);
+      pillar.position.set(x, H / 2, z);
+      room.add(pillar);
+      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, H - 1.2, 0.05), glowMat);
+      strip.position.set(x, H / 2, z);
+      room.add(strip);
+    }
+  }
+
+  // ---------------- ceiling ----------------
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(W, D), mat(0x101c28, { metalness: 0.45, roughness: 0.8 }));
+  ceil.rotation.x = Math.PI / 2;
+  ceil.position.y = H;
+  room.add(ceil);
+
+  // recessed light bars
+  const stripMat = new THREE.MeshBasicMaterial({ color: 0x9fe6ff, toneMapped: false });
+  for (const z of [-3.4, 0, 3.4]) {
+    for (const x of [-2.4, 2.4]) {
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.04, 2.6), stripMat);
+      bar.position.set(x, H - 0.03, z);
+      room.add(bar);
     }
   }
 
@@ -220,22 +377,26 @@ function buildSigns() {
     new THREE.PlaneGeometry(2.0, 1.0),
     new THREE.MeshBasicMaterial({ map: agentTex, transparent: true, toneMapped: false })
   );
-  agent.position.set(2.9, 2.55, -4.9);
-  agent.rotation.z = -0.035;
+  agent.position.set(3.05, 3.15, -5.26);
+  agent.rotation.z = -0.03;
   scene.add(agent);
 
-  neonLight = new THREE.PointLight(0xffb020, 9, 9, 2);
-  neonLight.position.set(2.9, 2.4, -4.2);
+  neonLight = new THREE.PointLight(0xffb020, 10, 10, 2);
+  neonLight.position.set(3.05, 3.0, -4.6);
   scene.add(neonLight);
 
   // VULTR SANDBOX
   const vultrTex = signTexture(["VULTR", "SANDBOX"], { color: "#5fe4ff", size: 200 });
   const vultr = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.15, 0.57),
+    new THREE.PlaneGeometry(1.5, 0.75),
     new THREE.MeshBasicMaterial({ map: vultrTex, transparent: true, toneMapped: false })
   );
-  vultr.position.set(-3.25, 2.55, -4.88);
+  vultr.position.set(-3.05, 3.15, -5.26);
   scene.add(vultr);
+
+  const vultrLight = new THREE.PointLight(0x5fe4ff, 5, 8, 2);
+  vultrLight.position.set(-3.05, 3.0, -4.6);
+  scene.add(vultrLight);
 }
 
 /* ------------------------------------------------------------
@@ -756,36 +917,46 @@ export function initScene(canvas, labels) {
   scene.add(human);
 
   // lights
-  scene.add(new THREE.AmbientLight(0x12222f, 1.9));
-  scene.add(new THREE.HemisphereLight(0x2a4a66, 0x04070c, 0.85));
+  scene.add(new THREE.AmbientLight(0x1a3040, 2.6));
+  scene.add(new THREE.HemisphereLight(0x3a6486, 0x060c14, 1.15));
 
-  const key = new THREE.DirectionalLight(0x9fd8ff, 0.85);
-  key.position.set(-4, 6, 4);
+  const key = new THREE.DirectionalLight(0x9fd8ff, 1.15);
+  key.position.set(-4, 7, 5);
   key.castShadow = true;
   key.shadow.mapSize.set(1024, 1024);
-  key.shadow.camera.left = -8;
-  key.shadow.camera.right = 8;
-  key.shadow.camera.top = 8;
-  key.shadow.camera.bottom = -8;
+  key.shadow.camera.left = -9;
+  key.shadow.camera.right = 9;
+  key.shadow.camera.top = 9;
+  key.shadow.camera.bottom = -9;
+  key.shadow.bias = -0.0008;
   scene.add(key);
 
-  const rim = new THREE.PointLight(0x2f8fb0, 3, 9, 2);
-  rim.position.set(-4.5, 2.8, -3.4);
+  const rim = new THREE.PointLight(0x2f8fb0, 6, 11, 2);
+  rim.position.set(-5.5, 3.2, -3.8);
   scene.add(rim);
 
-  const fill = new THREE.PointLight(0x1d4a63, 2.2, 9, 2);
-  fill.position.set(4.5, 2.6, 1.5);
+  const fill = new THREE.PointLight(0x1d4a63, 5, 11, 2);
+  fill.position.set(5.5, 3.0, 2.0);
   scene.add(fill);
 
-  // back rim light: outlines the seated robots against the dark wall
-  const backRim = new THREE.PointLight(0x63d8ff, 5.5, 7, 2);
-  backRim.position.set(0, 2.1, -3.6);
+  // back rim light: outlines the seated robots against the wall
+  const backRim = new THREE.PointLight(0x63d8ff, 7, 8, 2);
+  backRim.position.set(0, 2.4, -3.8);
   scene.add(backRim);
 
   // front fill: keeps the robot plating readable from the camera side
-  const frontFill = new THREE.PointLight(0xa9dcff, 3.2, 8, 2);
-  frontFill.position.set(0, 2.2, 3.4);
+  const frontFill = new THREE.PointLight(0xa9dcff, 4, 9, 2);
+  frontFill.position.set(0, 2.4, 3.4);
   scene.add(frontFill);
+
+  // wall wash: makes the enclosure readable instead of a black void
+  const wallWashL = new THREE.PointLight(0x2f7fa8, 6, 9, 2);
+  wallWashL.position.set(-5.0, 3.6, -4.2);
+  scene.add(wallWashL);
+
+  const wallWashR = new THREE.PointLight(0x2f7fa8, 6, 9, 2);
+  wallWashR.position.set(5.0, 3.6, -4.2);
+  scene.add(wallWashR);
 
   // robots + chairs + labels
   for (const slot of ROBOT_SLOTS) {
