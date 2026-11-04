@@ -1,8 +1,9 @@
 /* ============================================================
-   AGENT RUSH — controlador de la interfaz
+   AGENT RUSH  -  controlador de la interfaz
    - escena 3D (Three.js) + rail de paneles
-   - stream de logs (SSE si hay backend, demo si no)
-   - leaderboard, estado de salas e IDE
+   - compuerta de inicio + challenge card (sin guion demo)
+   - stream de logs por SSE (cuando exista backend)
+   - estado de salas e IDE
    ============================================================ */
 
 import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=42";
@@ -13,6 +14,41 @@ import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=42
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
+  const i18n = window.AgentRushI18n;
+  const t = (key, vars) => (i18n ? i18n.t(key, vars) : key);
+
+  /* ---------------------------------------------------------
+     0. MODO Y GUARDIA DE SELECCIÓN
+     --------------------------------------------------------- */
+  const params = new URLSearchParams(location.search);
+  const MODES = ["spectator", "orchestrator"];
+
+  let targetMode = params.get("mode");
+  if (!MODES.includes(targetMode)) {
+    targetMode = sessionStorage.getItem("agentrush.mode");
+  }
+  if (!MODES.includes(targetMode)) targetMode = "spectator";
+
+  function hasModelSelection() {
+    try {
+      const raw = sessionStorage.getItem("agentrush.models");
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      return Boolean(
+        parsed && parsed.strategist && parsed.coder && parsed.auditor
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
+  if (!hasModelSelection()) {
+    window.location.replace(
+      "/?select=1&mode=" + encodeURIComponent(targetMode)
+    );
+    return;
+  }
+
   /* ---------------------------------------------------------
      1. ESCENA 3D
      --------------------------------------------------------- */
@@ -20,58 +56,54 @@ import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=42
   const labelLayer = $("#labels");
   initScene(canvas, labelLayer);
 
-  const ROOM_LABEL = {
-    spectator: "SALA DE OBSERVACIÓN · CRISTAL POLARIZADO",
-    orchestrator: "MESA TÁCTICA · PUNTO DE VISTA DEL ORQUESTADOR",
+  const ROOM_LABEL_KEY = {
+    spectator: "game.roomLabel.spectator",
+    orchestrator: "game.roomLabel.orchestrator",
   };
 
-  const modeButtons = $$(".mode-btn");
-
-  function setMode(target) {
-    document.body.dataset.mode = target;
-    modeButtons.forEach((b) => {
-      const active = b.dataset.target === target;
-      b.classList.toggle("is-active", active);
-      b.setAttribute("aria-selected", String(active));
-    });
-
-    const label = $("[data-mode-label]");
-    if (label) label.textContent = ROOM_LABEL[target] ?? "";
-
-    setSceneMode(target);
-    if (target === "orchestrator") renderIDE();
+  function updateModeBadge() {
+    const badge = $("#modeBadgeText");
+    const mode = document.body.dataset.mode || targetMode;
+    if (badge) badge.textContent = t("modes." + mode + ".title");
   }
 
-  modeButtons.forEach((btn) => {
-    btn.addEventListener("click", () => setMode(btn.dataset.target));
-  });
+  function setMode(mode) {
+    document.body.dataset.mode = mode;
+
+    const label = $("[data-mode-label]");
+    if (label) label.textContent = t(ROOM_LABEL_KEY[mode] || "");
+
+    setSceneMode(mode);
+    if (mode === "orchestrator") renderIDE();
+    updateModeBadge();
+  }
 
   /* ---------------------------------------------------------
      2. IDE
      --------------------------------------------------------- */
-  const CODE = `def fix_memory_leak(chunks):
-    """Room 2 — repair the leaking accumulator."""
-    results = []
-    for chunk in chunks:
-        acc = 0
-        for item in chunk:
-            acc += item          # leak: acc never released
-        results.append(acc)
+  const CODE = `import hashlib
 
-    # BUG: infinite loop — never returns
-    while True:
-        pass
+def find_token(log_path):
+    """Room 1  -  recover the access token from auth.log."""
+    token = None
+    with open(log_path) as fh:
+        for line in fh:
+            if "ACCESS_TOKEN=" in line:
+                token = line.split("=", 1)[1].strip()
+    if token is None:
+        raise ValueError("token not found")
 
-    return results
+    return hashlib.sha256(token.encode()).hexdigest()
 
 
-def verify(results, expected):
-    assert results == expected, "checksum mismatch"
-    return "PROOF:" + hmac_sha(results)`;
+def verify(proof, expected):
+    assert proof == expected, "checksum mismatch"
+    return "PROOF:" + proof`;
 
   const KEYWORDS = new Set([
     "def", "for", "in", "while", "return", "if", "else", "elif", "assert",
     "import", "from", "class", "with", "as", "pass", "True", "False", "None",
+    "raise", "not", "and", "or", "is", "try", "except", "lambda",
   ]);
 
   const escapeHTML = (s) =>
@@ -85,6 +117,7 @@ def verify(results, expected):
     let last = 0;
     let m;
 
+    TOKEN_RE.lastIndex = 0;
     while ((m = TOKEN_RE.exec(text)) !== null) {
       out += escapeHTML(text.slice(last, m.index));
 
@@ -128,20 +161,82 @@ def verify(results, expected):
   renderIDE();
 
   /* ---------------------------------------------------------
-     3. LOG STREAM
+     3. LOG STREAM / ENERGÍA
      --------------------------------------------------------- */
   const logStream = $("#logStream");
   const logCountEl = $("#logCount");
   const tokenCountEl = $("#tokenCount");
+  const logFoot = $("#logFoot");
   const pauseBtn = $("#pauseLogs");
 
+  const energyChip = $("#energy");
+  const energyUsedEl = $("#energyUsed");
+  const energyBudgetEl = $("#energyBudget");
+  const energyFillEl = $("#energyFill");
+
   const metrics = { events: 0, tokens: 0, paused: false };
+  const TOKEN_BUDGET =
+    Number(new URLSearchParams(location.search).get("budget")) || 100000;
+
+  let started = false;
+  let disqualified = false;
+
+  if (energyBudgetEl) {
+    energyBudgetEl.textContent = TOKEN_BUDGET.toLocaleString("en-US");
+  }
+
+  function updateLogCount() {
+    if (logCountEl) logCountEl.textContent = t("game.events", { n: metrics.events });
+  }
+
+  function updatePauseLabel() {
+    if (!pauseBtn) return;
+    pauseBtn.textContent = metrics.paused ? t("game.resume") : t("game.pause");
+    pauseBtn.style.color = metrics.paused ? "var(--amber)" : "";
+  }
 
   pauseBtn?.addEventListener("click", () => {
     metrics.paused = !metrics.paused;
-    pauseBtn.textContent = metrics.paused ? "REANUDAR" : "PAUSA";
-    pauseBtn.style.color = metrics.paused ? "var(--amber)" : "";
+    updatePauseLabel();
   });
+
+  function updateEnergy() {
+    if (!energyUsedEl || !energyFillEl) return;
+
+    const used = metrics.tokens;
+    const pct = Math.min(100, (used / TOKEN_BUDGET) * 100);
+
+    energyUsedEl.textContent = used.toLocaleString("en-US");
+    energyFillEl.style.width = pct + "%";
+
+    if (!energyChip) return;
+
+    energyChip.classList.remove("is-warn", "is-danger", "is-dead");
+
+    const label = energyChip.querySelector(".energy-label");
+    if (label) {
+      label.textContent =
+        used >= TOKEN_BUDGET ? t("game.energy.dead") : t("game.energy.label");
+    }
+
+    if (used >= TOKEN_BUDGET) {
+      energyChip.classList.add("is-dead");
+      if (!disqualified) {
+        disqualified = true;
+        setTimeout(() => {
+          appendLog({
+            src: "system",
+            msg: t("game.log.disqualified"),
+            cls: "is-error",
+          });
+        }, 0);
+      }
+    } else if (pct >= 90) {
+      energyChip.classList.add("is-danger");
+    } else if (pct >= 70) {
+      energyChip.classList.add("is-warn");
+    }
+  }
 
   const stamp = () => new Date().toTimeString().slice(0, 8);
 
@@ -151,9 +246,9 @@ def verify(results, expected):
     const line = document.createElement("div");
     line.className = `log-line src-${evt.src} ${evt.cls || ""}`.trim();
 
-    const t = document.createElement("span");
-    t.className = "t";
-    t.textContent = stamp();
+    const timeEl = document.createElement("span");
+    timeEl.className = "t";
+    timeEl.textContent = stamp();
 
     const src = document.createElement("span");
     src.className = "src";
@@ -163,135 +258,121 @@ def verify(results, expected):
     msg.className = "msg";
     msg.textContent = evt.msg;
 
-    line.append(t, src, msg);
+    line.append(timeEl, src, msg);
     logStream.appendChild(line);
     logStream.scrollTop = logStream.scrollHeight;
 
     metrics.events += 1;
     metrics.tokens += evt.tokens ?? 0;
-    if (logCountEl) logCountEl.textContent = `${metrics.events} eventos`;
+    updateLogCount();
     if (tokenCountEl) tokenCountEl.textContent = metrics.tokens.toLocaleString("en-US");
+
+    updateEnergy();
   }
 
   /* ---------------------------------------------------------
-     4. GUION DEMO — reproduce el pipeline real
+     4. ESTADO DE SALAS
      --------------------------------------------------------- */
-  const SCRIPT = [
-    { src: "system",  msg: "run_started · mode=spectator · seed=7f3a…c19e" },
-    { src: "system",  msg: "INITIATING LEVEL 1 (ENCRYPTED TERMINAL)", tokens: 42 },
-    { src: "model",   msg: "strategist → parse corrupted auth.log, target SHA256 token", tokens: 318 },
-    { src: "model",   msg: "coder → generated script_v1.py (41 lines)", tokens: 902 },
-    { src: "sandbox", msg: "spin_up · image=python:3.12-slim · net=none · mem=256m" },
-    { src: "sandbox", msg: "executing script_v1.py …" },
-    { src: "sandbox", msg: "exit=1 · SyntaxError: line 15, unexpected EOF", cls: "is-error" },
-    { src: "model",   msg: "auditor → syntax error detected, requesting patch (1/3)", tokens: 274 },
-    { src: "model",   msg: "coder → regenerated script_v2.py", tokens: 611 },
-    { src: "sandbox", msg: "tear_down · container destroyed (0.4s)" },
-    { src: "sandbox", msg: "spin_up · fresh container · exec script_v2.py …" },
-    { src: "sandbox", msg: "exit=0 · extracted token 0b50ff21…f03d", cls: "is-ok" },
-    { src: "referee", msg: "flag_validated · room=1 · HMAC match · ROOM 1 SOLVED", cls: "is-ok" },
-    { src: "system",  msg: "advancing to LEVEL 2 (MEMORY ENIGMA)" },
-    { src: "model",   msg: "strategist → locate leak in accumulator loop", tokens: 296 },
-    { src: "model",   msg: "coder → patch applied: return results before loop", tokens: 742 },
-    { src: "sandbox", msg: "executing patched script …" },
-    { src: "sandbox", msg: "exit=1 · AssertionError: checksum mismatch (attempt 2/5)", cls: "is-error" },
-    { src: "model",   msg: "auditor → off-by-one in range; regenerating", tokens: 388 },
-    { src: "sandbox", msg: "executing script_v3.py …" },
-    { src: "sandbox", msg: "exit=0 · PROOF emitted", cls: "is-ok" },
-    { src: "referee", msg: "flag_validated · room=2 · HMAC match · ROOM 2 SOLVED", cls: "is-ok" },
-    { src: "system",  msg: "advancing to LEVEL 3 (FIREWALL)" },
-    { src: "model",   msg: "strategist → 3-step handshake on loopback", tokens: 341 },
-    { src: "sandbox", msg: "executing handshake client …" },
-    { src: "sandbox", msg: "step 1 HELLO ok · step 2 nonce ok · step 3 signature pending" },
-    { src: "sandbox", msg: "exit=0 · SUCCESS · escape token received", cls: "is-ok" },
-    { src: "referee", msg: "flag_validated · room=3 · RUN COMPLETE · 3/3 in 03:41", cls: "is-ok" },
+  const roomsState = [
+    { state: "active", attempt: 1, max: 5 },
+    { state: "locked" },
+    { state: "locked" },
   ];
 
-  let cursor = 0;
-  let tickTimer = null;
+  function renderRooms() {
+    $$("#roomList .room").forEach((room, i) => {
+      const info = roomsState[i];
+      if (!info) return;
 
-  function tick() {
-    if (metrics.paused) return;
+      room.classList.toggle("is-done", info.state === "done");
+      room.classList.toggle("is-active", info.state === "active");
 
-    const evt = SCRIPT[cursor % SCRIPT.length];
-    appendLog(evt);
-    reactToEvent(evt);
-    cursor += 1;
+      const meta = room.querySelector(".room-meta");
+      if (!meta) return;
 
-    if (cursor >= SCRIPT.length) {
-      cursor = 0;
-      clearInterval(tickTimer);
-      setTimeout(() => {
-        appendLog({ src: "system", msg: "replay · same seed · same rooms", cls: "is-dim" });
-        tickTimer = setInterval(tick, 1200);
-      }, 6500);
+      if (info.state === "done") {
+        meta.textContent = t("game.room.meta.resolved", {
+          status: t("game.room.resolved"),
+          time: info.time || "00:00",
+        });
+      } else if (info.state === "active") {
+        meta.textContent = t("game.room.meta.inProgress", {
+          status: t("game.room.inProgress"),
+          attempt: info.attempt ?? 1,
+          max: info.max ?? 5,
+        });
+      } else {
+        meta.textContent = t("game.room.locked");
+      }
+    });
+  }
+
+  function setLevel(level) {
+    const value = String(level);
+    const lvl = $("#currentLevel");
+    const lvlFoot = $("#currentLevelFoot");
+    if (lvl) lvl.textContent = value;
+    if (lvlFoot) lvlFoot.textContent = value;
+  }
+
+  function markRoom(index, time) {
+    if (!roomsState[index]) return;
+
+    roomsState[index] = { state: "done", time };
+    if (roomsState[index + 1]) {
+      roomsState[index + 1] = { state: "active", attempt: 1, max: 5 };
     }
+    renderRooms();
+    setLevel(Math.min(3, index + 2));
   }
 
   /* ---------------------------------------------------------
-     5. REACCIÓN A EVENTOS
+     5. INICIO DE PARTIDA
      --------------------------------------------------------- */
-  function reactToEvent(evt) {
-    const msg = evt.msg;
+  function startRun() {
+    if (started) return;
+    started = true;
 
-    if (msg.includes("strategist")) setBotState("strategist", "thinking");
-    if (msg.includes("coder →"))    setBotState("coder", "typing");
-    if (msg.includes("auditor"))    setBotState("auditor", "thinking");
-    if (msg.includes("executing"))  setBotState("coder", "typing");
-    if (msg.includes("exit=1")) {
-      setBotState("auditor", "error");
-      setBotState("coder", "thinking");
-    }
-    if (msg.includes("exit=0")) {
-      setBotState("auditor", "approved");
-      setTimeout(() => setBotState("auditor", "idle"), 2200);
-    }
+    document.body.classList.add("is-started");
 
-    if (msg.includes("ROOM 1 SOLVED")) markRoom(0, "resuelta · 00:48");
-    if (msg.includes("ROOM 2 SOLVED")) markRoom(1, "resuelta · 01:22");
-    if (msg.includes("RUN COMPLETE"))  { markRoom(2, "resuelta · 01:31"); flashLeaderboard("03:41"); }
+    $$("[data-start-gate]").forEach((el) => { el.hidden = true; });
+    $$("[data-challenge]").forEach((el) => { el.hidden = false; });
+
+    if (logStream) logStream.hidden = false;
+    if (logFoot) logFoot.hidden = false;
+    if (pauseBtn) pauseBtn.hidden = false;
+
+    const statusContent = $("#statusContent");
+    if (statusContent) statusContent.hidden = false;
+
+    const idePanel = $("#idePanel");
+    if (idePanel) idePanel.hidden = false;
+
+    roomsState[0] = { state: "active", attempt: 1, max: 5 };
+    roomsState[1] = { state: "locked" };
+    roomsState[2] = { state: "locked" };
+    renderRooms();
+    setLevel(1);
+
+    updateLogCount();
+    updateEnergy();
   }
 
-  function markRoom(index, meta) {
-    const rooms = $$("#roomList .room");
-    if (!rooms[index]) return;
-
-    rooms[index].classList.remove("is-active");
-    rooms[index].classList.add("is-done");
-    const metaEl = rooms[index].querySelector(".room-meta");
-    if (metaEl && meta) metaEl.textContent = meta;
-
-    const next = rooms[index + 1];
-    if (next) {
-      next.classList.add("is-active");
-      const nm = next.querySelector(".room-meta");
-      if (nm) nm.textContent = "en curso · intento 1/5";
-    }
-
-    const level = String(Math.min(3, index + 2));
-    const lvl = $("#currentLevel");
-    const lvlFoot = $("#currentLevelFoot");
-    if (lvl) lvl.textContent = level;
-    if (lvlFoot) lvlFoot.textContent = level;
-  }
-
-  function flashLeaderboard(time) {
-    const row = $("#leaderboard .lb-row");
-    if (!row) return;
-    row.querySelector(".mono").textContent = time;
-    row.classList.add("flash");
-    setTimeout(() => row.classList.remove("flash"), 1600);
-  }
+  $$("[data-start]").forEach((btn) => {
+    btn.addEventListener("click", startRun);
+  });
 
   /* ---------------------------------------------------------
      6. ACCIONES DEL IDE
      --------------------------------------------------------- */
   $$(".action").forEach((btn) => {
     btn.addEventListener("click", () => {
+      if (!started) return;
+
       const map = {
         edit: { src: "system",  msg: "manual edit · orchestrator took control of buffer" },
-        run:  { src: "sandbox", msg: "dispatch → sandbox · exec room2.py (10s cap)" },
-        hint: { src: "referee", msg: "hint 1/3 · check the loop bound, not the accumulator" },
+        run:  { src: "sandbox", msg: "dispatch → sandbox · exec room1.py (10s cap)" },
+        hint: { src: "referee", msg: "hint 1/3 · the token lives in auth.log" },
         skip: { src: "system",  msg: "skip requested · requires referee approval", cls: "is-error" },
       };
       const evt = map[btn.dataset.action];
@@ -300,20 +381,26 @@ def verify(results, expected):
   });
 
   /* ---------------------------------------------------------
-     7. ARRANQUE
+     7. SALIDA
      --------------------------------------------------------- */
-  const params = new URLSearchParams(location.search);
-  if (params.get("mode") === "orchestrator") setMode("orchestrator");
+  const exitBtn = $("#exitRoom");
+  exitBtn?.addEventListener("click", () => {
+    if (started && !window.confirm(t("game.exit.confirm"))) return;
+    window.location.href = "/";
+  });
 
-  appendLog({ src: "system", msg: "connecting to run stream …", cls: "is-dim" });
-  tickTimer = setInterval(tick, 1200);
+  /* ---------------------------------------------------------
+     8. ARRANQUE
+     --------------------------------------------------------- */
+  setMode(targetMode);
+  renderRooms();
+  setLevel(1);
+  updatePauseLabel();
+  updateLogCount();
+  updateEnergy();
 
   document.addEventListener("keydown", (e) => {
-    if (e.key === "1" || e.key === "2") {
-      const btn = modeButtons[e.key === "1" ? 0 : 1];
-      btn?.click();
-    }
-    if (e.key === " ") {
+    if (e.key === " " && !pauseBtn?.hidden) {
       e.preventDefault();
       pauseBtn?.click();
     }
@@ -325,10 +412,29 @@ def verify(results, expected):
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
-        appendLog({ src: data.src || "system", msg: data.msg, cls: data.cls, tokens: data.tokens });
+        if (!started) startRun();
+        appendLog({
+          src: data.src || "system",
+          msg: data.msg,
+          cls: data.cls,
+          tokens: data.tokens,
+        });
         if (data.role && data.state) setBotState(data.role, data.state);
-      } catch { /* ignore */ }
+      } catch (_) { /* ignore */ }
     };
     es.onerror = () => es.close();
-  } catch { /* demo feed only */ }
+  } catch (_) { /* no backend */ }
+
+  // Cambio de idioma: re-render del contenido dinámico
+  document.addEventListener("agentrush:langchange", () => {
+    const label = $("[data-mode-label]");
+    if (label) {
+      label.textContent = t(ROOM_LABEL_KEY[document.body.dataset.mode] || "");
+    }
+    updateModeBadge();
+    renderRooms();
+    updatePauseLabel();
+    updateEnergy();
+    updateLogCount();
+  });
 })();

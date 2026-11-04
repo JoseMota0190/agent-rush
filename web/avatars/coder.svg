@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-hidden="true">
+  <defs>
+    <radialGradient id="bgCoder" cx="50%" cy="36%" r="72%">
+      <stop offset="0" stop-color="#0d2634"/>
+      <stop offset=".65" stop-color="#070d16"/>
+      <stop offset="1" stop-color="#04060a"/>
+    </radialGradient>
+    <linearGradient id="metalCoder" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3b5269"/>
+      <stop offset=".45" stop-color="#2b3c4e"/>
+      <stop offset="1" stop-color="#1a2735"/>
+    </linearGradient>
+    <linearGradient id="visorCoder" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#35d6ff" stop-opacity=".45"/>
+      <stop offset=".5" stop-color="#c8f6ff" stop-opacity=".95"/>
+      <stop offset="1" stop-color="#35d6ff" stop-opacity=".45"/>
+    </linearGradient>
+    <filter id="glowCoder" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <clipPath id="clipCoder"><circle cx="128" cy="128" r="118"/></clipPath>
+  </defs>
+
+  <circle cx="128" cy="128" r="120" fill="url(#bgCoder)"/>
+  <circle cx="128" cy="128" r="118" fill="none" stroke="#35d6ff" stroke-opacity=".55" stroke-width="2.5"/>
+  <circle cx="128" cy="128" r="109" fill="none" stroke="#35d6ff" stroke-opacity=".12" stroke-width="1"/>
+
+  <g clip-path="url(#clipCoder)">
+    <ellipse cx="128" cy="118" rx="88" ry="92" fill="#35d6ff" opacity=".07"/>
+
+    <path d="M38 256 C38 204 78 186 128 186 C178 186 218 204 218 256 Z" fill="url(#metalCoder)"/>
+    <path d="M38 256 C38 204 78 186 128 186 C178 186 218 204 218 256" fill="none" stroke="#0e1922" stroke-width="3"/>
+    <ellipse cx="64" cy="212" rx="27" ry="21" fill="#35485c" stroke="#14202c" stroke-width="2"/>
+    <ellipse cx="192" cy="212" rx="27" ry="21" fill="#35485c" stroke="#14202c" stroke-width="2"/>
+
+    <rect x="92" y="214" width="72" height="36" rx="5" fill="#16232f" stroke="#35485c" stroke-width="1.5"/>
+    <rect x="100" y="222" width="56" height="3" rx="1.5" fill="#35d6ff" opacity=".75"/>
+    <rect x="100" y="230" width="32" height="3" rx="1.5" fill="#7f96aa" opacity=".45"/>
+    <circle cx="151" cy="233" r="4" fill="#35d6ff" filter="url(#glowCoder)"/>
+    <circle cx="128" cy="205" r="5" fill="#35d6ff" filter="url(#glowCoder)"/>
+
+    <rect x="118" y="168" width="20" height="24" rx="4" fill="#14202c"/>
+    <rect x="113" y="175" width="30" height="4" rx="2" fill="#35485c"/>
+
+    <rect x="72" y="56" width="112" height="114" rx="18" fill="url(#metalCoder)" stroke="#0e1922" stroke-width="3"/>
+    <path d="M92 56 h72 l-9 -13 h-54 Z" fill="#35485c" stroke="#14202c" stroke-width="2" stroke-linejoin="round"/>
+    <rect x="104" y="38" width="48" height="4" rx="2" fill="#35d6ff" opacity=".85"/>
+    <rect x="64" y="92" width="10" height="38" rx="4" fill="#35485c" stroke="#14202c" stroke-width="1.5"/>
+    <rect x="182" y="92" width="10" height="38" rx="4" fill="#35485c" stroke="#14202c" stroke-width="1.5"/>
+
+    <rect x="86" y="88" width="84" height="36" rx="8" fill="#0a2029" stroke="#35d6ff" stroke-opacity=".5" stroke-width="2"/>
+    <rect x="94" y="97" width="68" height="18" rx="4" fill="url(#visorCoder)" filter="url(#glowCoder)"/>
+
+    <path d="M107 103 l9 5.5 -9 5.5" fill="none" stroke="#0a2029" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity=".65"/>
+    <path d="M123 113 h13" stroke="#0a2029" stroke-width="3" stroke-linecap="round" opacity=".65"/>
+    <rect x="143" y="102" width="7" height="11" rx="1.5" fill="#0a2029" opacity=".55"/>
+
+    <rect x="104" y="140" width="48" height="10" rx="3" fill="#0f1a24"/>
+    <path d="M111 145 h34" stroke="#7f96aa" stroke-width="1.6" stroke-linecap="round" opacity=".65"/>
+    <circle cx="128" cy="160" r="3" fill="#35d6ff" opacity=".9" filter="url(#glowCoder)"/>
+  </g>
+
+  <circle cx="128" cy="128" r="118" fill="none" stroke="#000" stroke-opacity=".32" stroke-width="6"/>
+</svg>

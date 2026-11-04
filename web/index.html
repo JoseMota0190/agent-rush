@@ -1,191 +1,531 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AGENT RUSH — AI Escape Room</title>
 <link rel="stylesheet" href="styles.css" />
-</head>
-<body data-mode="spectator">
+<style>
+  /* Override global overflow:hidden for the landing page */
+  html, body { height: auto; min-height: 100%; overflow-x: hidden; overflow-y: auto; }
+  
+  /* ===== LANDING ===== */
+  .landing-hero {
+    padding: 80px 24px;
+    text-align: center;
+    background: linear-gradient(180deg, rgba(3,8,20,0) 0%, rgba(3,8,20,.6) 100%);
+  }
 
-  <!-- ================= TOP BAR ================= -->
+  .landing-brand {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+
+  .landing-brand .mark {
+    color: var(--amber);
+    font-size: 32px;
+  }
+
+  .landing-brand .text {
+    font-size: 48px;
+    font-weight: 700;
+    letter-spacing: .2em;
+  }
+
+  .landing-brand .text em {
+    color: var(--amber);
+    font-style: normal;
+  }
+
+  .landing-tagline {
+    font-size: 20px;
+    color: var(--cyan);
+    font-weight: 600;
+    margin-bottom: 20px;
+    letter-spacing: .08em;
+  }
+
+  .landing-subtitle {
+    font-size: 16px;
+    color: var(--text-dim);
+    max-width: 680px;
+    margin: 0 auto 40px;
+    line-height: 1.6;
+  }
+
+  .landing-cta {
+    display: inline-block;
+    padding: 14px 32px;
+    background: linear-gradient(180deg, var(--amber), #e08f20);
+    color: #05070d;
+    text-decoration: none;
+    border-radius: 6px;
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    box-shadow: 0 6px 20px rgba(255,176,32,.35);
+    transition: all .2s;
+  }
+
+  .landing-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(255,176,32,.45);
+  }
+
+  .landing-section {
+    padding: 60px 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .landing-section-title {
+    text-align: center;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 40px;
+    color: var(--text);
+    letter-spacing: .08em;
+  }
+
+  .landing-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+  }
+
+  @media (max-width: 900px) {
+    .landing-cards {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 600px) {
+    .landing-cards {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .landing-card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 28px;
+    transition: all .2s;
+  }
+
+  .landing-card:hover {
+    border-color: var(--cyan);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(53,214,255,.15);
+  }
+
+  .landing-card-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+    font-size: 24px;
+    font-weight: 700;
+  }
+
+  .landing-card-title {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: var(--cyan);
+  }
+
+  .landing-card-desc {
+    font-size: 14px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .landing-how-it-works .landing-card-icon {
+    background: rgba(255,176,32,.15);
+    color: var(--amber);
+    border: 1px solid rgba(255,176,32,.3);
+  }
+
+  .landing-how-it-works .landing-card:nth-child(2) .landing-card-icon {
+    background: rgba(53,214,255,.15);
+    color: var(--cyan);
+    border: 1px solid rgba(53,214,255,.3);
+  }
+
+  .landing-how-it-works .landing-card:nth-child(3) .landing-card-icon {
+    background: rgba(169,112,255,.15);
+    color: var(--violet);
+    border: 1px solid rgba(169,112,255,.3);
+  }
+
+  .landing-modes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 32px;
+    margin-top: 40px;
+  }
+
+  @media (max-width: 900px) {
+    .landing-modes {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .landing-mode-card {
+    background: var(--panel-2);
+    border: 2px solid var(--line);
+    border-radius: 16px;
+    padding: 36px;
+    text-align: center;
+    transition: all .3s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .landing-mode-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--cyan), var(--green));
+  }
+
+  .landing-mode-card.amber-mode::before {
+    background: linear-gradient(90deg, var(--amber), var(--red));
+  }
+
+  .landing-mode-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 40px rgba(0,0,0,.4);
+    border-color: var(--cyan);
+  }
+
+  .landing-mode-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: var(--cyan);
+  }
+
+  .landing-mode-card.amber-mode .landing-mode-title {
+    color: var(--amber);
+  }
+
+  .landing-mode-subtitle {
+    font-size: 14px;
+    color: var(--text-mute);
+    margin-bottom: 24px;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+
+  .landing-mode-btn {
+    display: inline-block;
+    padding: 12px 28px;
+    background: transparent;
+    color: var(--cyan);
+    text-decoration: none;
+    border: 1px solid var(--cyan);
+    border-radius: 6px;
+    font-family: var(--display);
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    transition: all .2s;
+  }
+
+  .landing-mode-card.amber-mode .landing-mode-btn {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+
+  .landing-mode-btn:hover {
+    background: rgba(53,214,255,.08);
+    box-shadow: 0 0 20px rgba(53,214,255,.2);
+  }
+
+  .landing-mode-card.amber-mode .landing-mode-btn:hover {
+    background: rgba(255,176,32,.08);
+    box-shadow: 0 0 20px rgba(255,176,32,.2);
+  }
+
+  .landing-model-placeholder,
+  .landing-leaderboards-placeholder {
+    background: var(--panel);
+    border: 1px dashed var(--line);
+    border-radius: 12px;
+    padding: 60px 24px;
+    text-align: center;
+    margin: 40px 0;
+  }
+
+  .landing-model-placeholder h3,
+  .landing-leaderboards-placeholder h3 {
+    font-size: 20px;
+    color: var(--text-dim);
+    margin-bottom: 12px;
+  }
+
+  .landing-model-placeholder p,
+  .landing-leaderboards-placeholder p {
+    font-size: 14px;
+    color: var(--text-mute);
+  }
+
+  .topbar {
+    padding: 0 24px;
+    background: transparent;
+    border-bottom: 1px solid rgba(255,255,255,.1);
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+  }
+
+  .topbar .brand {
+    margin: 0 auto;
+  }
+
+  .topbar .topbar-lang-switch {
+    position: absolute;
+    right: 24px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  @media (max-width: 600px) {
+    .topbar .topbar-lang-switch { position: static; transform: none; }
+    .topbar .brand { margin: 0; }
+    .topbar { justify-content: space-between; }
+  }
+
+  .topbar nav {
+    display: none;
+  }
+
+  .topbar .sys-status {
+    display: none;
+  }
+
+  .landing-footer {
+    background: #020306;
+    border-top: 1px solid var(--line);
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  .landing-footer-text {
+    color: var(--text-mute);
+    font-size: 14px;
+    margin-bottom: 12px;
+  }
+
+  .landing-footer-links {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+  }
+
+  .landing-footer-links a {
+    color: var(--cyan);
+    text-decoration: none;
+    font-size: 13px;
+    transition: color .2s;
+  }
+
+  .landing-footer-links a:hover {
+    color: var(--amber);
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body data-page="landing">
   <header class="topbar">
     <div class="brand">
       <span class="brand-mark">◆</span>
       <span class="brand-text">AGENT<em>RUSH</em></span>
     </div>
-
-    <nav class="mode-switch" role="tablist" aria-label="Modo de juego">
-      <button class="mode-btn is-active" data-target="spectator" role="tab" aria-selected="true">
-        <span class="dot"></span> MODO ESPECTADOR
-      </button>
-      <button class="mode-btn" data-target="orchestrator" role="tab" aria-selected="false">
-        <span class="dot"></span> MODO ORQUESTRADOR
-      </button>
-    </nav>
-
-    <div class="sys-status">
-      <span class="pulse"></span>
-      <span class="sys-label">VULTR SANDBOX</span>
-      <span class="sys-value">ONLINE</span>
-    </div>
+    <div class="topbar-lang-switch"></div>
   </header>
 
-  <!-- ================= MAIN STAGE ================= -->
-  <main class="stage">
-
-    <!-- ---------- 3D SCENE ---------- -->
-    <section class="scene" id="scene">
-      <canvas id="scene3d"></canvas>
-
-      <div class="room-label" data-mode-label>
-        SALA DE OBSERVACIÓN · CRISTAL POLARIZADO
+  <main>
+    <section class="landing-hero">
+      <div class="landing-brand">
+        <span class="mark">◆</span>
+        <span class="text">AGENT<em>RUSH</em></span>
       </div>
-
-      <div class="hud">
-        <span class="hud-chip">RUN #0042</span>
-        <span class="hud-chip">SEED 7f3a…c19e</span>
-        <span class="hud-chip ok">SANDBOX ACTIVE</span>
+      
+      <div class="landing-tagline" data-i18n="hero.tagline">DETERMINISTIC AI ESCAPE ROOM</div>
+      
+      <div class="landing-subtitle" data-i18n="hero.subtitle">
+        An escape room where 3 AI agents (Strategist, Coder, Auditor) write code, run it in an isolated sandbox, and break out of 3 rooms validated by an HMAC referee.
       </div>
+      
+      <a href="/game.html" class="landing-cta" data-i18n="hero.cta" id="enter-game">ENTER THE GAME</a>
+    </section>
 
-      <!-- glass overlay: only in spectator mode -->
-      <div class="glass-overlay" aria-hidden="true">
-        <div class="glass-streak s1"></div>
-        <div class="glass-streak s2"></div>
-        <div class="glass-streak s3"></div>
-        <div class="glass-tint"></div>
-        <div class="glass-vignette"></div>
-        <div class="glass-frame"></div>
-      </div>
-
-      <div class="scene-footer">
-        <span class="live-dot"></span>
-        <span class="footer-spectator">TRANSMISIÓN EN VIVO · SIN INTERVENCIÓN HUMANA</span>
-        <span class="footer-orchestrator">CONTROL MANUAL · PUEDES EDITAR ANTES DE EJECUTAR</span>
+    <section class="landing-section landing-how-it-works">
+      <h2 class="landing-section-title" data-i18n="how.title">HOW IT WORKS</h2>
+      
+      <div class="landing-cards">
+        <div class="landing-card">
+          <div class="landing-card-icon">
+            <img src="avatars/strategist.svg" alt="Avatar del agente Strategist" class="landing-card-avatar" data-i18n-alt="avatar.alt.strategist" width="76" height="76" />
+            <span class="landing-card-step" aria-hidden="true">1</span>
+          </div>
+          <h3 class="landing-card-title" data-i18n="how.card1.title">STRATEGIST</h3>
+          <p class="landing-card-desc" data-i18n="how.card1.desc">Analyzes each challenge and plots the optimal escape strategy, spotting cryptographic patterns and obstacles.</p>
+        </div>
+        
+        <div class="landing-card">
+          <div class="landing-card-icon">
+            <img src="avatars/coder.svg" alt="Avatar del agente Coder" class="landing-card-avatar" data-i18n-alt="avatar.alt.coder" width="76" height="76" />
+            <span class="landing-card-step" aria-hidden="true">2</span>
+          </div>
+          <h3 class="landing-card-title" data-i18n="how.card2.title">CODER</h3>
+          <p class="landing-card-desc" data-i18n="how.card2.desc">Writes code in an ephemeral, isolated sandbox and runs it to clear each room of the escape room.</p>
+        </div>
+        
+        <div class="landing-card">
+          <div class="landing-card-icon">
+            <img src="avatars/auditor.svg" alt="Avatar del agente Auditor" class="landing-card-avatar" data-i18n-alt="avatar.alt.auditor" width="76" height="76" />
+            <span class="landing-card-step" aria-hidden="true">3</span>
+          </div>
+          <h3 class="landing-card-title" data-i18n="how.card3.title">AUDITOR</h3>
+          <p class="landing-card-desc" data-i18n="how.card3.desc">Refines the code, applies patches and verifies it with the deterministic referee to guarantee a safe escape.</p>
+        </div>
       </div>
     </section>
 
-    <!-- ---------- RIGHT RAIL ---------- -->
-    <aside class="rail">
-
-      <!-- ===== spectator rail ===== -->
-      <div class="rail-view rail-spectator">
-        <section class="panel panel-logs">
-          <header class="panel-head">
-            <h2>LOGS DE PARTIDA <span class="muted">[ESPECTADOR]</span></h2>
-            <button id="pauseLogs" class="ghost-btn" type="button">PAUSA</button>
-          </header>
-          <div class="log-stream" id="logStream" aria-live="polite"></div>
-          <footer class="panel-foot">
-            <span id="logCount">0 eventos</span>
-            <span class="tok">TOKENS <b id="tokenCount">0</b></span>
-          </footer>
-        </section>
-
-        <section class="panel panel-leaderboard">
-          <header class="panel-head">
-            <h2>LEADERBOARD <span class="muted">— FREE TIER</span></h2>
-            <span class="badge">LIVE</span>
-          </header>
-          <table class="lb-table">
-            <thead>
-              <tr><th>#</th><th>SQUAD</th><th>TIME</th><th>HEAL</th></tr>
-            </thead>
-            <tbody id="leaderboard">
-              <tr class="lb-row top">
-                <td>1</td>
-                <td class="squad">LLAMA-3 + QWEN + DEEPSEEK</td>
-                <td class="mono">3:15</td>
-                <td class="mono heal">0.86</td>
-              </tr>
-              <tr class="lb-row">
-                <td>2</td>
-                <td class="squad">GEMINI + GEMINI + GEMINI</td>
-                <td class="mono">4:02</td>
-                <td class="mono heal">0.61</td>
-              </tr>
-              <tr class="lb-row">
-                <td>3</td>
-                <td class="squad">QWEN + QWEN + LLAMA-3</td>
-                <td class="mono">4:38</td>
-                <td class="mono heal">0.55</td>
-              </tr>
-              <tr class="lb-row">
-                <td>4</td>
-                <td class="squad">DEEPSEEK-R1 × 3</td>
-                <td class="mono">5:11</td>
-                <td class="mono heal">0.48</td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
+    <section class="landing-section">
+      <h2 class="landing-section-title" data-i18n="modes.title">TWO GAME MODES</h2>
+      
+      <div class="landing-modes">
+        <div class="landing-mode-card">
+          <h3 class="landing-mode-title" data-i18n="modes.spectator.title">SPECTATOR MODE</h3>
+          <div class="landing-mode-subtitle" data-i18n="modes.spectator.subtitle">100% autonomous AI, no human intervention</div>
+          <a href="/game.html?mode=spectator" class="landing-mode-btn" data-i18n="modes.spectator.cta" data-wizard-mode="spectator">WATCH SPECTATOR MODE</a>
+        </div>
+        
+        <div class="landing-mode-card amber-mode">
+          <h3 class="landing-mode-title" data-i18n="modes.orchestrator.title">ORCHESTRATOR MODE</h3>
+          <div class="landing-mode-subtitle" data-i18n="modes.orchestrator.subtitle">Human-in-the-loop: edit the code before it reaches the sandbox</div>
+          <a href="/game.html?mode=orchestrator" class="landing-mode-btn" data-i18n="modes.orchestrator.cta" data-wizard-mode="orchestrator">PLAY AS ORCHESTRATOR</a>
+        </div>
       </div>
+    </section>
 
-      <!-- ===== orchestrator rail ===== -->
-      <div class="rail-view rail-orchestrator">
-        <section class="panel panel-status">
-          <header class="panel-head">
-            <h2>STATUS DE PARTIDA</h2>
-            <span class="badge amber">LEVEL <b id="currentLevel">2</b></span>
-          </header>
-          <ol class="room-list" id="roomList">
-            <li class="room is-done">
-              <span class="room-node"></span>
-              <div class="room-body">
-                <span class="room-name">ROOM 1: THE LOGS</span>
-                <span class="room-meta">resuelta · 00:48</span>
-              </div>
-            </li>
-            <li class="room is-active">
-              <span class="room-node"></span>
-              <div class="room-body">
-                <span class="room-name">ROOM 2: MEMORY LEAK</span>
-                <span class="room-meta">en curso · intento 2/5</span>
-              </div>
-            </li>
-            <li class="room">
-              <span class="room-node"></span>
-              <div class="room-body">
-                <span class="room-name">ROOM 3: FIREWALL</span>
-                <span class="room-meta">bloqueada</span>
-              </div>
-            </li>
-          </ol>
-          <footer class="panel-foot level-foot">
-            <span>CURRENT LEVEL</span>
-            <b class="level-num" id="currentLevelFoot">2</b>
-          </footer>
-        </section>
-
-        <section class="panel panel-ide">
-          <header class="panel-head">
-            <h2>PANEL DE CONTROL / IDE <span class="muted">[ORQUESTRADOR]</span></h2>
-            <span class="badge">room2.py</span>
-          </header>
-
-          <div class="ide">
-            <div class="ide-gutter" id="ideGutter"></div>
-            <pre class="ide-code" id="ideCode"></pre>
+    <section id="modelos" class="landing-section">
+      <h2 class="landing-section-title" data-i18n="models.title">VULTR MODELS</h2>
+      
+      <div class="vultr-catalog">
+        <header class="vultr-catalog-head">
+          <img src="assets/vultr-logo.svg" alt="Vultr" class="vultr-logo" width="180" height="32" />
+          <div class="vultr-catalog-copy">
+            <h3 data-i18n="models.catalog.title">Vultr Serverless Inference</h3>
+            <p data-i18n="models.catalog.subtitle">All chat models available through Vultr. You will assign them to the three agents right before entering the room.</p>
           </div>
-
-          <div class="ide-actions">
-            <button class="action" data-action="edit" type="button">EDIT CODE</button>
-            <button class="action" data-action="run" type="button">SEND TO SANDBOX</button>
-            <button class="action" data-action="hint" type="button">REQUEST HINT</button>
-            <button class="action danger" data-action="skip" type="button">SKIP TASK</button>
-          </div>
-
-          <footer class="panel-foot">
-            <span>sandbox: <b class="ok">efímero</b></span>
-            <span>net: <b class="ok">none</b></span>
-            <span>mem: <b class="ok">256m</b></span>
-            <span>timeout: <b class="ok">10s</b></span>
-          </footer>
-        </section>
+          <span class="vultr-count" id="model-count" aria-live="polite"></span>
+        </header>
+        <div id="model-catalog" class="vultr-model-grid" aria-live="polite"></div>
+        <footer class="vultr-catalog-foot" data-i18n="models.catalog.hint">Read-only catalog. Model selection happens when you start a run.</footer>
       </div>
-    </aside>
+    </section>
+
+    <section id="leaderboards" class="landing-section">
+      <h2 class="landing-section-title" data-i18n="leaderboards.title">LEADERBOARDS</h2>
+      
+      <div id="leaderboards-slot"></div>
+    </section>
   </main>
 
-  <script type="module" src="app.js"></script>
+  <footer class="landing-footer">
+    <div class="landing-footer-text" data-i18n="footer.text">AGENT RUSH · Vultr Agent Rush Hackathon</div>
+    <div class="landing-footer-links">
+      <a href="/game.html" data-i18n="footer.game">Play</a>
+      <a href="/" data-i18n="footer.home">Home</a>
+      <a href="#modelos" data-i18n="footer.models">Models</a>
+      <a href="#leaderboards" data-i18n="footer.leaderboards">Leaderboards</a>
+    </div>
+  </footer>
+  
+  <div class="wizard-overlay" id="wizard" hidden>
+  <div class="wizard" role="dialog" aria-modal="true" aria-labelledby="wizard-title">
+    <header class="wizard-head">
+      <div>
+        <div class="wizard-step" id="wizard-step"></div>
+        <h2 class="wizard-title" id="wizard-title">Choose your mode</h2>
+      </div>
+      <button class="wizard-close" id="wizard-close" type="button" aria-label="Close" data-i18n-aria="wizard.close">×</button>
+    </header>
+
+    <div class="wizard-body">
+      <section class="wizard-pane" data-pane="mode">
+        <p class="wizard-hint" data-i18n="wizard.mode.hint">How do you want to play this run?</p>
+        <div class="wizard-modes">
+          <button class="wizard-mode" data-mode="spectator" type="button">
+            <span class="wizard-mode-kicker"><span data-i18n="wizard.modeWord">MODE</span> 01</span>
+            <span class="wizard-mode-title" data-i18n="modes.spectator.title">SPECTATOR MODE</span>
+            <span class="wizard-mode-desc" data-i18n="modes.spectator.subtitle">100% autonomous AI, no human intervention</span>
+          </button>
+          <button class="wizard-mode amber" data-mode="orchestrator" type="button">
+            <span class="wizard-mode-kicker"><span data-i18n="wizard.modeWord">MODE</span> 02</span>
+            <span class="wizard-mode-title" data-i18n="modes.orchestrator.title">ORCHESTRATOR MODE</span>
+            <span class="wizard-mode-desc" data-i18n="modes.orchestrator.subtitle">Human-in-the-loop: edit the code before it reaches the sandbox</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="wizard-pane" data-pane="models" hidden>
+        <div class="wizard-mode-chip" id="wizard-mode-chip"></div>
+
+        <div class="wizard-fields">
+          <label class="wizard-row" for="wiz-preset">
+            <span data-i18n="models.preset">Preset</span>
+            <select id="wiz-preset"></select>
+          </label>
+          <label class="wizard-row" for="wiz-strategist">
+            <span data-i18n="models.strategist">Strategist</span>
+            <select id="wiz-strategist"></select>
+          </label>
+          <label class="wizard-row" for="wiz-coder">
+            <span data-i18n="models.coder">Coder</span>
+            <select id="wiz-coder"></select>
+          </label>
+          <label class="wizard-row" for="wiz-auditor">
+            <span data-i18n="models.auditor">Auditor</span>
+            <select id="wiz-auditor"></select>
+          </label>
+        </div>
+
+        <p class="wizard-note" data-i18n="models.note">All 3 AIs share 100,000 tokens of energy per run.</p>
+        <p class="wizard-error" id="wizard-error" hidden></p>
+      </section>
+    </div>
+
+    <footer class="wizard-foot">
+      <span class="wizard-required" id="wizard-required" data-i18n="wizard.required">Select a model for all three agents.</span>
+      <div class="wizard-actions">
+        <button class="wizard-back" id="wizard-back" type="button" data-i18n="wizard.back">Back</button>
+        <button class="wizard-submit" id="wizard-submit" type="button" disabled data-i18n="wizard.enter">Enter the escape room</button>
+      </div>
+    </footer>
+  </div>
+</div>
+  <script src="i18n.js"></script>
+  <script src="catalog.js"></script>
+
+  <script src="wizard.js"></script>
+
+  <script src="leaderboard.js"></script>
 </body>
 </html>

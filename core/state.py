@@ -21,6 +21,10 @@ class AgentState(BaseModel):
     total_time: Optional[float] = None
     attempts_per_room: Dict[int, int] = Field(default_factory=lambda: {1: 0, 2: 0, 3: 0})
     model_usage: Dict[str, int] = Field(default_factory=dict)  # track token usage per model
+    token_budget: int = 0
+    tokens_used: int = 0
+    tokens_by_agent: Dict[str, int] = Field(default_factory=dict)
+    disqualified: bool = False
     
     class Config:
         frozen = False  # Allow updates but structured
@@ -55,6 +59,9 @@ class GameResult(BaseModel):
     attempts_total: int
     models_used: list
     final_flag: Optional[str] = None
+    tokens_used: int = 0
+    token_budget: int = 0
+    disqualified: bool = False
 
 
 # ---- ORCHESTRATOR LOGIC ----

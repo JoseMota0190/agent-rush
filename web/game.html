@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AGENT RUSH — AI Escape Room</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body data-mode="spectator" data-page="game">
+
+  <!-- ================= TOP BAR ================= -->
+  <header class="topbar">
+    <div class="brand brand-static">
+      <span class="brand-mark">◆</span>
+      <span class="brand-text">AGENT<em>RUSH</em></span>
+    </div>
+
+    <div class="mode-badge" id="modeBadge" aria-live="polite">
+      <span class="dot"></span>
+      <span id="modeBadgeText">SPECTATOR MODE</span>
+    </div>
+
+    <div class="energy" id="energy" title="Shared energy for this run" data-i18n-title="game.energy.title">
+      <span class="energy-label" data-i18n="game.energy.label">⚡ ENERGY</span>
+      <span class="energy-value"><b id="energyUsed">0</b> / <span id="energyBudget">100,000</span></span>
+      <div class="energy-bar"><span class="energy-fill" id="energyFill"></span></div>
+    </div>
+
+    <div class="sys-status">
+      <span class="pulse"></span>
+      <span class="sys-label">VULTR SANDBOX</span>
+      <span class="sys-value">ONLINE</span>
+    </div>
+
+    <div class="topbar-lang-switch"></div>
+
+    <button class="exit-btn" id="exitRoom" type="button"
+            aria-label="Exit room" title="Exit room"
+            data-i18n-aria="game.exit.title" data-i18n-title="game.exit.title">
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M14 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+        <path d="M10 8l-4 4 4 4M6 12h9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- ================= MAIN STAGE ================= -->
+  <main class="stage">
+
+    <!-- ---------- 3D SCENE ---------- -->
+    <section class="scene" id="scene">
+      <canvas id="scene3d"></canvas>
+
+      <div class="room-label" data-mode-label>
+        SPECTATOR ROOM · POLARIZED GLASS
+      </div>
+
+      <div class="hud">
+        <span class="hud-chip">RUN #0042</span>
+        <span class="hud-chip">SEED 7f3a…c19e</span>
+        <span class="hud-chip ok" data-i18n="game.hud.sandbox">SANDBOX ACTIVE</span>
+      </div>
+
+      <!-- glass overlay: only in spectator mode -->
+      <div class="glass-overlay" aria-hidden="true">
+        <div class="glass-streak s1"></div>
+        <div class="glass-streak s2"></div>
+        <div class="glass-streak s3"></div>
+        <div class="glass-tint"></div>
+        <div class="glass-vignette"></div>
+        <div class="glass-frame"></div>
+      </div>
+
+      <div class="scene-footer">
+        <span class="live-dot"></span>
+        <span class="footer-spectator" data-i18n="game.footer.spectator">LIVESTREAM · NO HUMAN INTERVENTION</span>
+        <span class="footer-orchestrator" data-i18n="game.footer.orchestrator">MANUAL CONTROL · EDIT BEFORE RUNNING</span>
+      </div>
+    </section>
+
+    <!-- ---------- RIGHT RAIL ---------- -->
+    <aside class="rail">
+
+      <!-- ===== spectator rail ===== -->
+      <div class="rail-view rail-spectator">
+        <section class="panel panel-logs">
+          <header class="panel-head">
+            <h2><span data-i18n="game.logs.title">RUN LOGS</span> <span class="muted" data-i18n="game.logs.tag.spectator">[SPECTATOR]</span></h2>
+            <button id="pauseLogs" class="ghost-btn" type="button" data-i18n="game.pause" hidden>PAUSA</button>
+          </header>
+
+          <div class="log-body">
+            <div class="start-gate" data-start-gate>
+              <div class="start-gate-mark" aria-hidden="true">◆</div>
+              <h3 data-i18n="game.start.title">READY TO ESCAPE?</h3>
+              <p data-i18n="game.start.hint">Press start to receive the challenge. The agents will then begin to reason and communicate.</p>
+              <button class="start-btn" data-start type="button">
+                <span class="start-btn-icon" aria-hidden="true">▶</span>
+                <span data-i18n="game.start.cta">CLICK TO START</span>
+              </button>
+            </div>
+
+            <article class="challenge-card" data-challenge hidden>
+              <div class="challenge-kicker" data-i18n="game.challenge.kicker">CHALLENGE · ROOM 1</div>
+              <h3 data-i18n="game.challenge.title">THE LOGS</h3>
+              <p data-i18n="game.challenge.desc">The access terminal is locked. Parse the corrupted auth.log, recover the token and open the door.</p>
+              <div class="challenge-goal">
+                <span class="challenge-goal-label" data-i18n="game.challenge.goalLabel">OBJECTIVE</span>
+                <span data-i18n="game.challenge.goal">Extract the valid hash from the logs.</span>
+              </div>
+              <p class="challenge-engine" data-i18n="game.start.engine">Run engine not connected yet. The challenge is ready; the agents are waiting for the backend.</p>
+            </article>
+
+            <div class="log-stream" id="logStream" aria-live="polite" hidden></div>
+          </div>
+
+          <footer class="panel-foot" id="logFoot" hidden>
+            <span id="logCount">0 events</span>
+            <span class="tok"><span data-i18n="game.tokens">TOKENS</span> <b id="tokenCount">0</b></span>
+          </footer>
+        </section>
+      </div>
+
+      <!-- ===== orchestrator rail ===== -->
+      <div class="rail-view rail-orchestrator">
+        <section class="panel panel-status">
+          <header class="panel-head">
+            <h2 data-i18n="game.status.title">RUN STATUS</h2>
+            <span class="badge amber"><span data-i18n="game.level">LEVEL</span> <b id="currentLevel">1</b></span>
+          </header>
+          <div class="start-gate compact" data-start-gate>
+            <h3 data-i18n="game.start.title">READY TO ESCAPE?</h3>
+            <p data-i18n="game.start.hint">Press start to receive the challenge. The agents will then begin to reason and communicate.</p>
+            <button class="start-btn" data-start type="button">
+              <span class="start-btn-icon" aria-hidden="true">▶</span>
+              <span data-i18n="game.start.cta">CLICK TO START</span>
+            </button>
+          </div>
+
+          <div class="status-content" id="statusContent" hidden>
+          <article class="challenge-card compact" data-challenge hidden>
+            <div class="challenge-kicker" data-i18n="game.challenge.kicker">CHALLENGE · ROOM 1</div>
+            <h3 data-i18n="game.challenge.title">THE LOGS</h3>
+            <p data-i18n="game.challenge.desc">The access terminal is locked. Parse the corrupted auth.log, recover the token and open the door.</p>
+            <div class="challenge-goal">
+              <span class="challenge-goal-label" data-i18n="game.challenge.goalLabel">OBJECTIVE</span>
+              <span data-i18n="game.challenge.goal">Extract the valid hash from the logs.</span>
+            </div>
+            <p class="challenge-engine" data-i18n="game.start.engine">Run engine not connected yet. The challenge is ready; the agents are waiting for the backend.</p>
+          </article>
+
+          <ol class="room-list" id="roomList">
+            <li class="room is-active">
+              <span class="room-node"></span>
+              <div class="room-body">
+                <span class="room-name" data-i18n="game.room.1">ROOM 1: THE LOGS</span>
+                <span class="room-meta">en curso · intento 1/5</span>
+              </div>
+            </li>
+            <li class="room">
+              <span class="room-node"></span>
+              <div class="room-body">
+                <span class="room-name" data-i18n="game.room.2">ROOM 2: MEMORY LEAK</span>
+                <span class="room-meta">bloqueada</span>
+              </div>
+            </li>
+            <li class="room">
+              <span class="room-node"></span>
+              <div class="room-body">
+                <span class="room-name" data-i18n="game.room.3">ROOM 3: FIREWALL</span>
+                <span class="room-meta">bloqueada</span>
+              </div>
+            </li>
+          </ol>
+          <footer class="panel-foot level-foot">
+            <span data-i18n="game.currentLevel">CURRENT LEVEL</span>
+            <b class="level-num" id="currentLevelFoot">1</b>
+          </footer>
+        </div>
+        </section>
+
+        <section class="panel panel-ide" id="idePanel" hidden>
+          <header class="panel-head">
+            <h2><span data-i18n="game.ide.title">CONTROL PANEL / IDE</span> <span class="muted" data-i18n="game.ide.tag">[ORCHESTRATOR]</span></h2>
+            <span class="badge" data-i18n="game.ide.badge">room1.py</span>
+          </header>
+
+          <div class="ide">
+            <div class="ide-gutter" id="ideGutter"></div>
+            <pre class="ide-code" id="ideCode"></pre>
+          </div>
+
+          <div class="ide-actions">
+            <button class="action" data-action="edit" type="button" data-i18n="game.ide.edit">EDIT CODE</button>
+            <button class="action" data-action="run" type="button" data-i18n="game.ide.run">SEND TO SANDBOX</button>
+            <button class="action" data-action="hint" type="button" data-i18n="game.ide.hint">REQUEST HINT</button>
+            <button class="action danger" data-action="skip" type="button" data-i18n="game.ide.skip">SKIP TASK</button>
+          </div>
+
+          <footer class="panel-foot">
+            <span><span data-i18n="game.sandbox.label">sandbox:</span> <b class="ok" data-i18n="game.sandbox.ephemeral">ephemeral</b></span>
+            <span><span data-i18n="game.sandbox.net">net:</span> <b class="ok" data-i18n="game.sandbox.none">none</b></span>
+            <span><span data-i18n="game.sandbox.mem">mem:</span> <b class="ok" data-i18n="game.sandbox.memValue">256m</b></span>
+            <span><span data-i18n="game.sandbox.timeout">timeout:</span> <b class="ok" data-i18n="game.sandbox.timeoutValue">10s</b></span>
+          </footer>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script src="i18n.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

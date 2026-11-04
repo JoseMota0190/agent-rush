@@ -26,19 +26,39 @@ my-agent-system/
 Escena 3D real con Three.js, sin build step (módulo vendorizado en `web/vendor/`):
 
 ```bash
-python run_web.py          # abre http://localhost:8000
-python run_web.py --no-open
+python run_server.py          # abre http://localhost:8000/ (landing)
+python run_server.py --no-open
 ```
 
-- `?mode=orchestrator` abre directamente el modo orquestador (útil para el video).
-- Atajos: `1` espectador · `2` orquestador · `espacio` pausa el stream.
+- `/` es la landing: intro, modos, catálogo de modelos Vultr y leaderboards.
+- **Inglés por defecto.** El español es una opción que se activa con el selector
+  `ES | EN` de la topbar (se mantiene durante la sesión del navegador) o con
+  `?lang=es`.
+- Flujo de entrada: **Enter the game** → elegir modo → elegir modelos de los 3
+  agentes → **Enter the escape room**. Las tarjetas de modo saltan directo al
+  paso de modelos.
+- `/game.html` es la sala 3D; `?mode=orchestrator` abre el modo orquestador.
+  Si no hay modelos seleccionados, redirige al wizard.
+- La sala abre **vacía**: energía en `0`, sin logs ficticios y con un botón
+  **CLICK TO START**. Al iniciarlo aparece la consigna de la sala 1.
+- Atajo: `espacio` pausa/reanuda los logs (cuando el motor esté conectado).
+- El leaderboard está **vacío a propósito**: solo mostrará runs reales
+  verificadas por el árbitro, sin datos simulados.
 
 ```
 web/
-├── index.html   # estructura: canvas 3D + rail de paneles
-├── styles.css   # estética cyberpunk, paneles, labels proyectados
-├── scene.js     # sala, mesa holográfica, sillas, 3 robots, cámaras, luces
-├── app.js       # modos, log stream, IDE, leaderboard, wiring de estados
+├── index.html      # landing: intro, modos, modelos, leaderboards
+├── game.html       # juego: canvas 3D + rail de paneles
+├── config.html     # redirect a /#modelos (compatibilidad)
+├── i18n.js         # diccionarios ES/EN + selector de idioma
+├── catalog.js      # catálogo Vultr de solo lectura
+├── wizard.js       # flujo modo → modelos → sala
+├── leaderboard.js  # fetch + render de los dos leaderboards
+├── styles.css      # estética cyberpunk, paneles, landing, energía, wizard
+├── scene.js        # sala, mesa holográfica, sillas, 3 robots, cámaras, luces
+├── app.js          # modos, compuerta de inicio, log stream, IDE, energía
+├── avatars/        # avatares SVG de Strategist, Coder y Auditor
+├── assets/         # vultr-logo.svg
 ├── vendor/three.module.js
 ├── preview-spectator.png
 └── preview-orchestrator.png
@@ -49,15 +69,17 @@ con anillos giratorios, tres robots humanoides **sentados en sillas** con brazos
 sobre la mesa, visores emisivos por rol y animación idle/typing/error.
 
 **Modo espectador:** cámara detrás del cristal polarizado (overlay CSS de
-reflejos y viñeta), panel de logs en vivo y leaderboard free tier.
+reflejos y viñeta) y panel de logs en vivo. El leaderboard vive en la landing,
+con una tabla por modo de juego.
 
 **Modo orquestador:** cámara baja con silueta humana en primer plano (POV),
 panel de estado de las 3 salas y panel IDE con el código del reto y los botones
 `EDIT CODE`, `SEND TO SANDBOX`, `REQUEST HINT`, `SKIP TASK` apilados a la derecha.
 
-El front consume `/api/events` (SSE) si el backend está presente; si no, usa un
-feed de demo que reproduce el pipeline real (incluido el fallo y el self-healing)
-para poder ensayar la demo sin red.
+El front deja el `EventSource` de `/api/events` preparado para el backend de
+runs. Mientras ese backend no exista, la sala **no genera logs ficticios**: abre
+vacía, con energía en `0` y la compuerta de inicio; al iniciar muestra la consigna
+y un aviso de que el motor todavía no está conectado.
 
 > Nota: si tocás `scene.js`, subí el `?v=` del import en `app.js` para evitar
 > que el navegador sirva el módulo cacheado.

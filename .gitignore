@@ -17,7 +17,17 @@ venv/
 runs/
 logs/
 
+# Selección local de modelos (por usuario)
+config/model_selection.json
+
 # OS
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Dev tooling
+.opencode/
+
+# Runtime DB
+data/
+*.log

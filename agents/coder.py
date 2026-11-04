@@ -57,7 +57,7 @@ class Coder:
         def main():
             data = sys.stdin.read()
             # ... lógica de solución
-            result = "FLAG{example}"
+            result = "FLAG{{example}}"
             print(result)
         
         if __name__ == "__main__":
