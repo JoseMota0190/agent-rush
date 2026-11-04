@@ -133,8 +133,8 @@ def wait_ssh(ip: str, timeout: int = 300) -> None:
             [
                 "ssh", "-i", str(SSH_KEY),
                 "-o", "StrictHostKeyChecking=accept-new",
-                "-o", "UserKnownHostsFile=NUL",
                 "-o", "ConnectTimeout=10",
+                "-o", "BatchMode=yes",
                 f"root@{ip}", "echo ok",
             ],
             capture_output=True,
@@ -220,11 +220,11 @@ def main() -> None:
         [
             "scp", "-i", str(SSH_KEY),
             "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "UserKnownHostsFile=NUL",
             str(tar_path), f"root@{ip}:/tmp/agent-rush.tgz",
         ],
         check=True,
     )
+    tar_path.unlink(missing_ok=True)
     remote = (
         "set -e; "
         "mkdir -p /opt/agent-rush; "
@@ -236,7 +236,6 @@ def main() -> None:
         [
             "ssh", "-i", str(SSH_KEY),
             "-o", "StrictHostKeyChecking=accept-new",
-            "-o", "UserKnownHostsFile=NUL",
             f"root@{ip}", remote,
         ],
         check=True,

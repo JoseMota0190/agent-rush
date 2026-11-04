@@ -42,8 +42,8 @@ python run_server.py --no-open
 - La sala abre **vacía**: energía en `0`, sin logs ficticios y con un botón
   **CLICK TO START**. Al iniciarlo aparece la consigna de la sala 1.
 - Atajo: `espacio` pausa/reanuda los logs (cuando el motor esté conectado).
-- El leaderboard está **vacío a propósito**: solo mostrará runs reales
-  verificadas por el árbitro, sin datos simulados.
+- El leaderboard solo muestra **runs reales** verificadas por el motor; no hay
+  datos simulados. Si la base está vacía, aparece el estado “NO VALID RUNS YET”.
 
 ```
 web/
@@ -76,10 +76,72 @@ con una tabla por modo de juego.
 panel de estado de las 3 salas y panel IDE con el código del reto y los botones
 `EDIT CODE`, `SEND TO SANDBOX`, `REQUEST HINT`, `SKIP TASK` apilados a la derecha.
 
-El front deja el `EventSource` de `/api/events` preparado para el backend de
-runs. Mientras ese backend no exista, la sala **no genera logs ficticios**: abre
-vacía, con energía en `0` y la compuerta de inicio; al iniciar muestra la consigna
-y un aviso de que el motor todavía no está conectado.
+## ⚙️ Motor de runs real
+
+La sala ya ejecuta partidas reales contra **Vultr Serverless Inference**:
+
+- `POST /api/runs` crea una run con modo + 3 modelos elegidos por el usuario.
+- `GET /api/runs/<id>/events` entrega eventos por **SSE**: consigna, estrategia,
+  código, ejecución en sandbox, tokens, salas resueltas y resultado final.
+- `POST /api/runs/<id>/abort` aborta la partida al salir de la sala.
+- Cada agente usa su propio modelo; todos comparten la **misma** key de Inference.
+- La energía sale del `usage` real de Vultr, con tope de 100k tokens por run.
+- El leaderboard se guarda en SQLite (`data/agent_rush.db`) y solo lista runs
+  exitosas.
+
+### Sandbox
+
+El código del Coder se ejecuta en un contenedor Docker efímero por intento:
+
+```
+docker run --rm -i \
+  --network none --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  --memory 256m --cpus 0.5 --pids-limit 64 \
+  --cap-drop ALL --security-opt no-new-privileges \
+  --user 65534:65534 python:3.12-slim python -c "<code>"
+```
+
+Probá la contención:
+
+```bash
+python tools/containment_probe.py
+```
+
+Debe mostrar bloqueados: escritura en `/`, secretos del host, conexión saliente y
+fork bomb.
+
+### Variables
+
+```env
+VULTR_API_KEY=              # key general de Vultr (deploy de la VM)
+VULTR_INFERENCE_API_KEY=    # key de la suscripción de Inference (modelos)
+VULTR_INFERENCE_BASE_URL=https://api.vultrinference.com/v1
+```
+
+`VULTR_INFERENCE_MODEL` no se fija acá: los modelos se eligen en el wizard.
+
+## ☁️ Deploy en Vultr
+
+1. Generá una key general en **Account → API Access** y guardala en `.env` como
+   `VULTR_API_KEY`.
+2. Generá el par SSH (si no existe):
+   ```bash
+   ssh-keygen -t ed25519 -f ~/.ssh/agent_rush -N ""
+   ```
+3. Deploy:
+   ```bash
+   python deploy/deploy.py --region sao --plan vc2-1c-2gb
+   ```
+
+El script crea la VM Ubuntu 24.04, carga la SSH key, copia el proyecto, instala
+Docker + Python, levanta la app con systemd y Caddy en un contenedor con HTTPS
+(`agent-rush.<ip>.sslip.io`). La app escucha en `127.0.0.1:8000` y Caddy hace el
+proxy público.
+
+> En Windows, Docker Desktop puede ocupar el puerto 8000. Para probar local usá
+> `python run_server.py --port 8010 --no-open` y abrí
+> `http://127.0.0.1:8010/`. En la VM se usa 8000.
 
 > Nota: si tocás `scene.js`, subí el `?v=` del import en `app.js` para evitar
 > que el navegador sirva el módulo cacheado.

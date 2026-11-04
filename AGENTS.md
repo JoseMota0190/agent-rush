@@ -44,8 +44,8 @@ Repo: `my-agent-system/` · docs en **español** · producto **bilingüe ES/EN**
 - **Catálogo Vultr** (`web/catalog.js`): lista de solo lectura con los modelos de
   `/api/models` + logo en `web/assets/vultr-logo.svg`. No asigna ni guarda nada.
 - **Leaderboards por modo** en la landing (`#leaderboards`): espectador y
-  orquestador, alimentados por `GET /api/leaderboard`. **Hoy están vacíos**
-  (sin simulaciones): se llenarán con runs reales verificadas por el árbitro.
+  orquestador, alimentados por `GET /api/leaderboard` desde SQLite. Solo lista
+  runs reales exitosas; si la base está vacía, muestra el estado vacío.
 - **Avatares de los agentes** en "CÓMO FUNCIONA" (`web/avatars/*.svg`), con los
   mismos colores y diseño que los robots de la sala 3D.
 - **i18n ES/EN** (`web/i18n.js`): **default inglés**, selector en la topbar,
@@ -56,14 +56,13 @@ Repo: `my-agent-system/` · docs en **español** · producto **bilingüe ES/EN**
 - Estructura de agentes (`agents/planner.py`, `coder.py`, `evaluator.py`).
 
 ### Es mock / falta
-- `main.py` usa `MockLLM` — no llama a ningún modelo real.
-- El sandbox (`tools/vultr_sandbox.py`) simula restricciones, no usa Docker real.
-- No hay motor de runs: el `EventSource` de `/api/events` está listo pero no hay
-  backend que lo sirva. El botón de inicio muestra la consigna y un aviso de
-  “Run engine not connected” en lugar de inventar logs.
-- La energía queda en `0` hasta que existan eventos reales (SSE + SQLite).
-  El leaderboard está vacío hasta que exista el backend de runs.
-- Todo corre en localhost, sin deploy.
+- `main.py` (CLI) sigue usando `MockLLM`; el motor web ya usa Vultr real.
+- `tools/vultr_sandbox.py` es el wrapper viejo/simulado. El motor web usa Docker
+  real desde `run_engine.py`; la prueba está en `tools/containment_probe.py`.
+- Falta el modo orquestador “real” (editar y re-ejecutar desde el IDE): la run
+  real es la misma, pero los botones del IDE todavía no modifican el código.
+- El deploy en Vultr está scripteado (`deploy/`) y pendiente de ejecutar con una
+  key general válida.
 
 ---
 
@@ -499,6 +498,48 @@ corrigió y completó los pasos que el subagente dejó a medias.
 - Cobertura i18n ES/EN de todas las claves nuevas (start, challenge, wizard).
 
 ### Pendiente
-- Backend real `POST /runs` + `GET /runs/{id}/events` (SSE), tokens reales,
-  sandbox real y leaderboard con SQLite. La compuerta de inicio ya está lista
-  para dispararlo.
+- Deploy en Vultr y video/submission.
+
+---
+
+## 13. Sesión 2026-11-04 (noche) — motor real, sandbox y deploy
+
+### Motor (`run_engine.py`)
+- Cliente Vultr **estricto** (`VultrChat`): no usa el fallback a MockLLM de
+  `llm/vultr.py`; si Vultr falla, emite `run_failed`.
+- 3 salas deterministas:
+  1. `THE LOGS`: hash válido entre señuelos (regex SHA256).
+  2. `MEMORY LEAK`: suma + SHA-256 del decimal.
+  3. `FIREWALL`: HMAC-SHA256 de key/message.
+- `EventBus` con historial + `seq` para SSE (el cliente salta duplicados).
+- `RunManager`: una run a la vez, SQLite `data/agent_rush.db`, leaderboard real.
+- Tokens reales con `TokenMeter` (100k), eventos `energy`.
+
+### Sandbox
+- Docker real con `--network none`, `--read-only`, `--tmpfs`, `--memory 256m`,
+  `--cpus 0.5`, `--pids-limit 64`, `--cap-drop ALL`,
+  `--security-opt no-new-privileges`, `--user 65534:65534`.
+- `tools/containment_probe.py` verifica escritura, secretos, red y fork bomb.
+
+### Web / SSE
+- `POST /api/runs`, `GET /api/runs/<id>/events`, `POST /api/runs/<id>/abort`.
+- `web/app.js` dispara la run real, consume SSE, actualiza logs, energía, bots,
+  salas, challenge y estado; salir aborta.
+- Corregido: `room_solved` duplicaba el log del referee; se quitó el append del
+  front. `strategist` se recorta a 240 chars.
+
+### Deploy
+- `deploy/deploy.py`: crea/reutiliza SSH key en Vultr, crea Ubuntu 24.04,
+  espera SSH, empaqueta y ejecuta `deploy/setup.sh`.
+- `deploy/setup.sh`: Docker, Python, systemd + Caddy en contenedor con red host
+  y HTTPS vía `sslip.io`; `.env` en `/opt/agent-rush/.env`.
+- Requiere `VULTR_API_KEY` general en `.env` (la key de Inference no sirve para
+  la API de Vultr). La key general anterior quedó inválida (401).
+
+### Gotchas
+- Docker Desktop en Windows ocupa `0.0.0.0:8000` (backend). Para desarrollo
+  local correr `python run_server.py --port 8010 --no-open`. En la VM, 8000.
+- La key de Inference se obtiene en **Products → Serverless → Inference →
+  suscripción → Overview**; NO en Account → API Access.
+- `.env` está gitignoreado; el tar de deploy lo incluye y se borra después.
+- Repo público: https://github.com/JoseMota0190/agent-rush (MIT).
