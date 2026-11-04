@@ -1,0 +1,17 @@
+[Unit]
+Description=AGENT RUSH - AI escape room (Vultr Serverless Inference + Docker sandbox)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/agent-rush
+EnvironmentFile=/opt/agent-rush/.env
+ExecStart=/usr/bin/python3 run_server.py --port 8000 --no-open
+Restart=always
+RestartSec=3
+User=root
+LimitNOFILE=65535
+
+[Install]
+WantedBy=multi-user.target

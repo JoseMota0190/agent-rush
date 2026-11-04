@@ -1,0 +1,11 @@
+{$AGENT_RUSH_HOST} {
+    encode gzip
+
+    @sse path /api/runs/*/events
+    header @sse Cache-Control "no-cache, no-transform"
+    header @sse X-Accel-Buffering "no"
+
+    reverse_proxy 127.0.0.1:8000 {
+        flush_interval -1
+    }
+}
