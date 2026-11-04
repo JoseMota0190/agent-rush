@@ -2105,3 +2105,8 @@ body.wizard-open {
   .start-btn { width: 100%; }
   .start-gate { padding: 26px 16px; }
 }
+
+/* ===== LOG SOURCE COLORS (real run agents) ===== */
+.log-line.src-strategist .src { color: var(--amber); }
+.log-line.src-coder .src { color: var(--cyan); }
+.log-line.src-auditor .src { color: var(--violet); }

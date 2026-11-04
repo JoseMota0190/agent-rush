@@ -327,12 +327,97 @@ def verify(proof, expected):
   }
 
   /* ---------------------------------------------------------
-     5. INICIO DE PARTIDA
+     5. INICIO DE PARTIDA (run real + SSE)
      --------------------------------------------------------- */
-  function startRun() {
-    if (started) return;
-    started = true;
+  let runState = "idle";
+  let currentRunId = null;
+  let runSource = null;
+  let runFinished = false;
+  let runRooms = 0;
+  let currentChallenge = null;
 
+  const RUN_LABELS = {
+    idle: "game.start.cta",
+    starting: "game.start.connecting",
+    running: "game.start.running",
+    completed: "game.start.completedShort",
+    failed: "game.start.failedShort",
+  };
+
+  function getSelectedModels() {
+    try {
+      const raw = sessionStorage.getItem("agentrush.models");
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.strategist && parsed.coder && parsed.auditor) {
+        return {
+          strategist: parsed.strategist,
+          coder: parsed.coder,
+          auditor: parsed.auditor,
+        };
+      }
+    } catch (_) {
+      /* ignore */
+    }
+    return null;
+  }
+
+  function renderRunNote() {
+    let note = t("game.start.engine");
+    if (runState === "starting") note = t("game.start.connecting");
+    if (runState === "running") note = t("game.start.running");
+    if (runState === "completed") note = t("game.start.completed", { rooms: runRooms });
+    if (runState === "failed") note = t("game.start.failed");
+
+    $$(".challenge-engine").forEach((el) => {
+      el.textContent = note;
+    });
+  }
+
+  function setRunState(next) {
+    runState = next;
+    const disabled = next !== "idle";
+
+    $$("[data-start]").forEach((btn) => {
+      btn.disabled = disabled;
+      const label = btn.querySelector("span:not(.start-btn-icon)");
+      if (label) label.textContent = t(RUN_LABELS[next] || "game.start.cta");
+    });
+
+    renderRunNote();
+  }
+
+  function renderChallenge(challenge) {
+    if (!challenge) return;
+    currentChallenge = challenge;
+
+    $$("[data-challenge]").forEach((card) => {
+      const kicker = card.querySelector(".challenge-kicker");
+      const title = card.querySelector("h3");
+      const desc = card.querySelector("p:not(.challenge-engine)");
+      const goal = card.querySelector(".challenge-goal span:last-child");
+
+      if (kicker) {
+        kicker.removeAttribute("data-i18n");
+        kicker.textContent = t("game.challenge.roomKicker", { n: challenge.room });
+      }
+      if (title) {
+        title.removeAttribute("data-i18n");
+        title.textContent = challenge.title;
+      }
+      if (desc) {
+        desc.removeAttribute("data-i18n");
+        desc.textContent = challenge.description;
+      }
+      if (goal) {
+        goal.removeAttribute("data-i18n");
+        goal.textContent = challenge.objective;
+      }
+    });
+  }
+
+  function showStartedUI() {
+    started = true;
     document.body.classList.add("is-started");
 
     $$("[data-start-gate]").forEach((el) => { el.hidden = true; });
@@ -353,9 +438,170 @@ def verify(proof, expected):
     roomsState[2] = { state: "locked" };
     renderRooms();
     setLevel(1);
-
     updateLogCount();
     updateEnergy();
+  }
+
+  function closeRunStream() {
+    if (runSource) {
+      runSource.close();
+      runSource = null;
+    }
+  }
+
+  function handleRunEvent(evt) {
+    if (!evt || !evt.type) return;
+
+    switch (evt.type) {
+      case "run_started":
+        appendLog({ src: "system", msg: `run_started · mode=${evt.mode}` });
+        break;
+
+      case "challenge":
+        renderChallenge(evt);
+        setBotState("strategist", "thinking");
+        break;
+
+      case "agent": {
+        const src = evt.agent === "system" ? "system" : evt.agent;
+        appendLog({ src, msg: evt.msg });
+        if (evt.agent === "strategist") setBotState("strategist", "thinking");
+        if (evt.agent === "coder") setBotState("coder", "typing");
+        if (evt.agent === "auditor") setBotState("auditor", "thinking");
+        break;
+      }
+
+      case "sandbox": {
+        appendLog({ src: "sandbox", msg: evt.msg, cls: evt.cls });
+        if (evt.stdout) {
+          evt.stdout.split("\n").filter(Boolean).slice(0, 20).forEach((line) => {
+            appendLog({ src: "sandbox", msg: "  " + line });
+          });
+        }
+        if (evt.stderr) {
+          evt.stderr.split("\n").filter(Boolean).slice(0, 20).forEach((line) => {
+            appendLog({ src: "sandbox", msg: "  " + line, cls: "is-error" });
+          });
+        }
+        break;
+      }
+
+      case "energy":
+        metrics.tokens = Number(evt.tokens) || 0;
+        if (tokenCountEl) tokenCountEl.textContent = metrics.tokens.toLocaleString("en-US");
+        updateEnergy();
+        break;
+
+      case "room_solved":
+        markRoom(evt.index, evt.time);
+        setBotState("auditor", "approved");
+        setTimeout(() => setBotState("auditor", "idle"), 1600);
+        break;
+
+      case "run_completed":
+        runFinished = true;
+        runRooms = Number(evt.rooms_solved) || 0;
+        closeRunStream();
+        setRunState("completed");
+        appendLog({
+          src: "referee",
+          msg: `RUN COMPLETE · ${runRooms}/3 rooms · ${evt.duration}s`,
+          cls: "is-ok",
+        });
+        break;
+
+      case "disqualified":
+        runFinished = true;
+        closeRunStream();
+        setRunState("failed");
+        if (energyChip) energyChip.classList.add("is-dead");
+        appendLog({
+          src: "system",
+          msg: evt.message || t("game.log.disqualified"),
+          cls: "is-error",
+        });
+        break;
+
+      case "run_failed":
+      case "aborted":
+        runFinished = true;
+        closeRunStream();
+        setRunState("failed");
+        appendLog({
+          src: "system",
+          msg: evt.message || "Run failed",
+          cls: "is-error",
+        });
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  function openRunStream() {
+    closeRunStream();
+    runSource = new EventSource(`/api/runs/${currentRunId}/events`);
+    runSource.onmessage = (e) => {
+      try {
+        handleRunEvent(JSON.parse(e.data));
+      } catch (_) {
+        /* ignore malformed event */
+      }
+    };
+    runSource.onerror = () => {
+      if (!runFinished) {
+        runFinished = true;
+        setRunState("failed");
+        appendLog({
+          src: "system",
+          msg: t("game.start.connectionLost"),
+          cls: "is-error",
+        });
+      }
+      closeRunStream();
+    };
+  }
+
+  async function startRun() {
+    if (runState !== "idle") return;
+
+    const models = getSelectedModels();
+    if (!models) {
+      window.location.href = "/?select=1&mode=" + encodeURIComponent(targetMode);
+      return;
+    }
+
+    setRunState("starting");
+    showStartedUI();
+
+    try {
+      const res = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: targetMode, models }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "HTTP " + res.status);
+      }
+      currentRunId = data.run_id;
+      setRunState("running");
+      appendLog({
+        src: "system",
+        msg: `connecting to run ${currentRunId} …`,
+        cls: "is-dim",
+      });
+      openRunStream();
+    } catch (err) {
+      runFinished = true;
+      setRunState("failed");
+      appendLog({
+        src: "system",
+        msg: t("game.start.error") + ": " + err.message,
+        cls: "is-error",
+      });
+    }
   }
 
   $$("[data-start]").forEach((btn) => {
@@ -386,6 +632,9 @@ def verify(proof, expected):
   const exitBtn = $("#exitRoom");
   exitBtn?.addEventListener("click", () => {
     if (started && !window.confirm(t("game.exit.confirm"))) return;
+    if (currentRunId && !runFinished) {
+      fetch(`/api/runs/${currentRunId}/abort`, { method: "POST" }).catch(() => {});
+    }
     window.location.href = "/";
   });
 
@@ -398,6 +647,7 @@ def verify(proof, expected):
   updatePauseLabel();
   updateLogCount();
   updateEnergy();
+  setRunState("idle");
 
   document.addEventListener("keydown", (e) => {
     if (e.key === " " && !pauseBtn?.hidden) {
@@ -405,25 +655,6 @@ def verify(proof, expected):
       pauseBtn?.click();
     }
   });
-
-  // Backend real opcional: /api/events (SSE). Si no existe, se ignora.
-  try {
-    const es = new EventSource("/api/events");
-    es.onmessage = (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (!started) startRun();
-        appendLog({
-          src: data.src || "system",
-          msg: data.msg,
-          cls: data.cls,
-          tokens: data.tokens,
-        });
-        if (data.role && data.state) setBotState(data.role, data.state);
-      } catch (_) { /* ignore */ }
-    };
-    es.onerror = () => es.close();
-  } catch (_) { /* no backend */ }
 
   // Cambio de idioma: re-render del contenido dinámico
   document.addEventListener("agentrush:langchange", () => {
@@ -436,5 +667,7 @@ def verify(proof, expected):
     updatePauseLabel();
     updateEnergy();
     updateLogCount();
+    setRunState(runState);
+    if (currentChallenge) renderChallenge(currentChallenge);
   });
 })();

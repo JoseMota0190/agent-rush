@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """
-Servidor web + API para AGENT RUSH (sin dependencias externas).
+Servidor web + API para AGENT RUSH (solo stdlib).
 
-Sirve la carpeta web/ y expone:
-    GET  /api/models   -> modelos de chat disponibles en Vultr
-    GET  /api/presets  -> presets de modelos (balanced/fast/quality)
-    GET  /api/agents   -> selección actual de modelos por agente
-    POST /api/agents   -> guarda la selección de modelos por agente
+Sirve web/ y expone:
+    GET  /api/models
+    GET  /api/presets
+    GET  /api/agents
+    POST /api/agents
+    GET  /api/leaderboard
+    POST /api/runs
+    GET  /api/runs/<id>/events   (SSE)
+    POST /api/runs/<id>/abort
 
 Uso:
     python run_server.py
@@ -19,23 +23,52 @@ import os
 import pathlib
 import sys
 import threading
+import time
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+BASE_DIR = pathlib.Path(__file__).parent
+sys.path.insert(0, str(BASE_DIR))
+
+
+def _load_env(path: str = ".env") -> None:
+    """Carga .env sin dependencias externas (no pisa variables ya definidas)."""
+    env_path = BASE_DIR / path
+    if not env_path.exists():
+        return
+    for line in env_path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key and value and key not in os.environ:
+            os.environ[key] = value
+
+
+_load_env()
 
 from config.models import discover_models, PRESETS
 from config.model_profiles import ModelProfile, load_selection, save_selection
+from run_engine import MANAGER, EngineError
 
-WEB_DIR = pathlib.Path(__file__).parent / "web"
+WEB_DIR = BASE_DIR / "web"
 
-# Leaderboard: todavía no hay runs reales verificadas por el árbitro.
-# Sin datos simulados. Se llenará desde SQLite cuando exista el backend de runs.
-LEADERBOARD = {
-    "spectator": {"mode": "spectator", "rows": [], "has_runs": False},
-    "orchestrator": {"mode": "orchestrator", "rows": [], "has_runs": False},
-}
+_MODELS_CACHE = {"ts": 0.0, "data": None}
+_MODELS_LOCK = threading.Lock()
+
+
+def get_models() -> list:
+    with _MODELS_LOCK:
+        now = time.time()
+        if _MODELS_CACHE["data"] is not None and now - _MODELS_CACHE["ts"] < 300:
+            return _MODELS_CACHE["data"]
+        data = discover_models(api_key=os.getenv("VULTR_INFERENCE_API_KEY"))
+        _MODELS_CACHE["data"] = data
+        _MODELS_CACHE["ts"] = now
+        return data
 
 
 def _profiles_to_json(profiles) -> dict:
@@ -43,6 +76,8 @@ def _profiles_to_json(profiles) -> dict:
 
 
 class AgentRushHandler(SimpleHTTPRequestHandler):
+    server_version = "AgentRush/1.0"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=str(WEB_DIR), **kwargs)
 
@@ -58,6 +93,59 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_json(self) -> dict:
+        try:
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
+            payload = json.loads(raw)
+            return payload if isinstance(payload, dict) else {}
+        except (ValueError, json.JSONDecodeError):
+            return {}
+
+    def _sse_event(self, event: dict) -> None:
+        data = json.dumps(event, ensure_ascii=False)
+        self.wfile.write(f"data: {data}\n\n".encode("utf-8"))
+        self.wfile.flush()
+
+    def _stream_run(self, run: dict) -> None:
+        bus = run["bus"]
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+        self.send_header("Cache-Control", "no-cache, no-transform")
+        self.send_header("Connection", "close")
+        self.send_header("X-Accel-Buffering", "no")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.close_connection = True
+
+        terminal = {"run_completed", "run_failed", "aborted", "disqualified"}
+        try:
+            self.wfile.write(b"retry: 3000\n\n")
+            self.wfile.flush()
+            last_seq = 0
+            for event in bus.history():
+                last_seq = max(last_seq, int(event.get("seq", 0)))
+                self._sse_event(event)
+                if event.get("type") in terminal:
+                    return
+
+            while True:
+                event = bus.next_event(timeout=15.0)
+                if event is None:
+                    if bus.closed:
+                        return
+                    self.wfile.write(b": ping\n\n")
+                    self.wfile.flush()
+                    continue
+                if int(event.get("seq", 0)) <= last_seq:
+                    continue
+                last_seq = int(event.get("seq", 0))
+                self._sse_event(event)
+                if event.get("type") in terminal:
+                    return
+        except (BrokenPipeError, ConnectionResetError, OSError):
+            return
+
     def do_OPTIONS(self) -> None:
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -65,75 +153,107 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
 
-    # ---- routes ----
+    # ---- GET ----
     def do_GET(self) -> None:
-        path = urlparse(self.path).path
+        parsed = urlparse(self.path)
+        path = parsed.path
+
         if path == "/api/models":
-            models = discover_models(api_key=os.getenv("VULTR_INFERENCE_API_KEY"))
-            return self._send_json({"models": models})
+            return self._send_json({"models": get_models()})
         if path == "/api/presets":
             return self._send_json({"presets": PRESETS})
         if path == "/api/agents":
             return self._send_json({"agents": _profiles_to_json(load_selection())})
         if path == "/api/leaderboard":
-            query = urlparse(self.path).query
-            params = {}
-            if query:
-                for pair in query.split("&"):
-                    if "=" in pair:
-                        key, value = pair.split("=", 1)
-                        params[key] = value
-            mode = params.get("mode", "").lower()
+            board = MANAGER.leaderboard()
+            params = parse_qs(parsed.query)
+            mode = params.get("mode", [""])[0].lower()
             if mode in ("spectator", "orchestrator"):
-                return self._send_json(LEADERBOARD[mode])
-            # Si mode está ausente o es inválido, devolver ambos modos
-            return self._send_json(
-                {
-                    "spectator": LEADERBOARD["spectator"],
-                    "orchestrator": LEADERBOARD["orchestrator"],
-                }
-            )
+                return self._send_json(board[mode])
+            return self._send_json(board)
+        if path == "/api/health":
+            return self._send_json({"ok": True, "has_key": bool(os.getenv("VULTR_INFERENCE_API_KEY"))})
+
+        parts = path.strip("/").split("/")
+        if len(parts) == 4 and parts[:2] == ["api", "runs"] and parts[3] == "events":
+            run = MANAGER.get_run(parts[2])
+            if not run:
+                return self._send_json({"error": "run no encontrada"}, 404)
+            return self._stream_run(run)
+
         return super().do_GET()
 
+    # ---- POST ----
     def do_POST(self) -> None:
-        path = urlparse(self.path).path
-        if path != "/api/agents":
-            return self._send_json({"error": "not found"}, 404)
+        parsed = urlparse(self.path)
+        path = parsed.path
 
-        try:
-            length = int(self.headers.get("Content-Length", 0))
-            raw = self.rfile.read(length).decode("utf-8") if length else "{}"
-            payload = json.loads(raw)
-        except (ValueError, json.JSONDecodeError):
-            return self._send_json({"error": "JSON inválido"}, 400)
+        if path == "/api/agents":
+            payload = self._read_json()
+            incoming = payload.get("agents", payload)
+            if not isinstance(incoming, dict):
+                return self._send_json({"error": "formato inválido"}, 400)
 
-        incoming = payload.get("agents", payload)
-        if not isinstance(incoming, dict):
-            return self._send_json({"error": "formato inválido"}, 400)
+            profiles = load_selection()
+            for agent, value in incoming.items():
+                if agent not in profiles:
+                    continue
+                base = profiles[agent]
+                if isinstance(value, str):
+                    model_id, extra = value, {}
+                elif isinstance(value, dict):
+                    model_id = value.get("model_id", base.model_id)
+                    extra = value
+                else:
+                    continue
+                profiles[agent] = ModelProfile(
+                    agent=agent,
+                    model_id=model_id,
+                    base_url=extra.get("base_url", base.base_url),
+                    api_key_env=extra.get("api_key_env", base.api_key_env),
+                    temperature=float(extra.get("temperature", base.temperature)),
+                    max_tokens=int(extra.get("max_tokens", base.max_tokens)),
+                )
+            save_selection(profiles)
+            return self._send_json({"ok": True, "agents": _profiles_to_json(profiles)})
 
-        profiles = load_selection()
-        for agent, value in incoming.items():
-            if agent not in profiles:
-                continue
-            base = profiles[agent]
-            if isinstance(value, str):
-                model_id, extra = value, {}
-            elif isinstance(value, dict):
-                model_id = value.get("model_id", base.model_id)
-                extra = value
-            else:
-                continue
-            profiles[agent] = ModelProfile(
-                agent=agent,
-                model_id=model_id,
-                base_url=extra.get("base_url", base.base_url),
-                api_key_env=extra.get("api_key_env", base.api_key_env),
-                temperature=float(extra.get("temperature", base.temperature)),
-                max_tokens=int(extra.get("max_tokens", base.max_tokens)),
+        if path == "/api/runs":
+            payload = self._read_json()
+            mode = payload.get("mode")
+            models = payload.get("models")
+            if mode not in ("spectator", "orchestrator"):
+                return self._send_json({"error": "modo inválido"}, 400)
+            if not isinstance(models, dict) or not all(
+                isinstance(models.get(agent), str) and models.get(agent)
+                for agent in ("strategist", "coder", "auditor")
+            ):
+                return self._send_json(
+                    {"error": "Elegí un modelo para los tres agentes."}, 400
+                )
+
+            available = {m.get("id") for m in get_models() if m.get("id")}
+            invalid = [models[a] for a in ("strategist", "coder", "auditor") if models[a] not in available]
+            if invalid:
+                return self._send_json(
+                    {"error": "Modelo no disponible: " + ", ".join(invalid)}, 400
+                )
+
+            try:
+                run = MANAGER.start(mode, {a: models[a] for a in ("strategist", "coder", "auditor")})
+            except EngineError as exc:
+                return self._send_json({"error": str(exc)}, 429 if "en curso" in str(exc) else 503)
+            return self._send_json(
+                {"run_id": run["id"], "mode": mode, "models": run["models"]}, 201
             )
 
-        save_selection(profiles)
-        return self._send_json({"ok": True, "agents": _profiles_to_json(profiles)})
+        parts = path.strip("/").split("/")
+        if len(parts) == 4 and parts[:2] == ["api", "runs"] and parts[3] == "abort":
+            ok = MANAGER.abort(parts[2])
+            if not ok:
+                return self._send_json({"error": "run no encontrada"}, 404)
+            return self._send_json({"ok": True})
+
+        return self._send_json({"error": "not found"}, 404)
 
     def log_message(self, fmt, *args) -> None:
         return
@@ -149,15 +269,13 @@ def main() -> None:
         raise SystemExit(f"No encuentro el directorio web/: {WEB_DIR}")
 
     ThreadingHTTPServer.allow_reuse_address = True
+    ThreadingHTTPServer.daemon_threads = True
     httpd = ThreadingHTTPServer(("127.0.0.1", args.port), AgentRushHandler)
 
     home_url = f"http://localhost:{args.port}/"
-    game_url = f"http://localhost:{args.port}/game.html"
-    config_url = f"http://localhost:{args.port}/config.html"
-    
     print(f"AGENT RUSH server -> {home_url}")
-    print(f"JUEGO             -> {game_url}")
-    print(f"CONFIG MODEL CONFIG -> {config_url}")
+    print(f"JUEGO             -> {home_url}game.html")
+    print(f"RUNS              -> POST /api/runs · GET /api/runs/<id>/events")
     print("Ctrl+C para detener.")
 
     if not args.no_open:
