@@ -1506,6 +1506,10 @@ python deploy/deploy.py --region sao --plan vc2-1c-2gb
   tiras de luz, puerta reforzada con franjas de peligro, umbral y luces de
   emergencia que pasan a verde; mesa ~8.5% más chica; agentes ~13% más grandes;
   cámara responsive para aspecto retrato.
+- **Paredes tipo bóveda:** placas de acero grandes con marcos gruesos y
+  remaches; se quitaron los carteles extra y quedaron solo los logos
+  **AGENT RUSH** y **VULTR** con su estética de marca. La puerta suma un
+  volante de bóveda y las franjas de peligro quedaron discretas en la base.
 - **Responsive:** landing a 1920/1600/1366/1024/768/390 sin overflow; game 50/50
   en desktop y tabs ROOM / AGENT LOGS en tablet/móvil; briefing legible a 390.
 - **ES/EN:** claves nuevas en `web/i18n-plan-d.js`; toggle EN/ESP; sin claves
