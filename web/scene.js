@@ -175,7 +175,7 @@ function buildRoom() {
 
     // Thick reinforced slab behind the plates.
     const slab = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.42), vaultMat);
-    slab.position.set(0, height / 2, -0.21);
+    slab.position.set(0, height / 2, -0.30);
     slab.receiveShadow = true;
     g.add(slab);
 
@@ -185,7 +185,7 @@ function buildRoom() {
     const plateH = (height - 0.55 - gap * (rows - 1)) / rows;
     const baseY = 0.28;
 
-    const addRivet = (x, y, z = 0.24) => {
+    const addRivet = (x, y, z = 0.18) => {
       const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), rivetMat);
       rivet.position.set(x, y, z);
       g.add(rivet);
@@ -196,15 +196,15 @@ function buildRoom() {
         const x = -width / 2 + margin + plateW / 2 + c * (plateW + gap);
         const y = baseY + plateH / 2 + r * (plateH + gap);
 
-        const plate = new THREE.Mesh(new THREE.BoxGeometry(plateW, plateH, 0.1), vaultPlateMat);
-        plate.position.set(x, y, 0.05);
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(plateW, plateH, 0.08), vaultPlateMat);
+        plate.position.set(x, y, -0.05);
         plate.castShadow = true;
         plate.receiveShadow = true;
         g.add(plate);
 
         const barT = 0.07;
-        const barD = 0.16;
-        const barZ = 0.12;
+        const barD = 0.14;
+        const barZ = 0.02;
         const top = new THREE.Mesh(new THREE.BoxGeometry(plateW + barT * 2, barT, barD), vaultFrameMat);
         top.position.set(x, y + plateH / 2 + barT / 2, barZ);
         g.add(top);
@@ -226,8 +226,8 @@ function buildRoom() {
     }
 
     // Heavy base / top bands.
-    const baseBand = new THREE.Mesh(new THREE.BoxGeometry(width, 0.34, 0.24), vaultFrameMat);
-    baseBand.position.set(0, 0.17, 0.16);
+    const baseBand = new THREE.Mesh(new THREE.BoxGeometry(width, 0.34, 0.20), vaultFrameMat);
+    baseBand.position.set(0, 0.17, 0.08);
     g.add(baseBand);
     const topBand = baseBand.clone();
     topBand.position.y = height - 0.17;
@@ -235,11 +235,11 @@ function buildRoom() {
 
     // Reinforced corner braces.
     for (const side of [-1, 1]) {
-      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.32, height - 0.1, 0.3), vaultFrameMat);
-      brace.position.set(side * (width / 2 - 0.16), height / 2, 0.16);
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.32, height - 0.1, 0.28), vaultFrameMat);
+      brace.position.set(side * (width / 2 - 0.16), height / 2, 0.12);
       g.add(brace);
       for (const y of [0.6, height / 2, height - 0.6]) {
-        addRivet(side * (width / 2 - 0.16), y, 0.34);
+        addRivet(side * (width / 2 - 0.16), y, 0.22);
       }
     }
 
@@ -309,17 +309,17 @@ function buildRoom() {
 
   // Reinforced door panel - thicker
   const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.9, 0.18), vaultPlateMat);
-  doorPanel.position.set(0, 1.95, BACK + 0.1);
+  doorPanel.position.set(0, 1.95, BACK + 0.26);
   door.add(doorPanel);
 
   // Thicker reinforced jambs/frame
   for (const x of [-1.12, 1.12]) {
     const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.3, 0.3), vaultFrameMat);
-    jamb.position.set(x, 2.06, BACK + 0.15);
+    jamb.position.set(x, 2.06, BACK + 0.28);
     door.add(jamb);
   }
   const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.54, 0.22, 0.3), vaultFrameMat);
-  lintel.position.set(0, 4.22, BACK + 0.15);
+  lintel.position.set(0, 4.22, BACK + 0.28);
   door.add(lintel);
 
   // Subtle hazard band at the bottom of the jambs.
@@ -331,22 +331,22 @@ function buildRoom() {
         new THREE.BoxGeometry(0.2, 0.26, 0.03),
         i % 2 === 0 ? hazardMat : hazardDarkMat
       );
-      stripe.position.set(x, 0.35 + i * 0.28, BACK + 0.32);
+      stripe.position.set(x, 0.35 + i * 0.28, BACK + 0.40);
       door.add(stripe);
     }
   }
 
   // Door split line (center seal)
   const split = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.9, 0.04), trimMat);
-  split.position.set(0, 1.95, BACK + 0.18);
+  split.position.set(0, 1.95, BACK + 0.28);
   door.add(split);
   const handle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.05), vaultFrameMat);
-  handle.position.set(0.72, 2.0, BACK + 0.22);
+  handle.position.set(0.72, 2.0, BACK + 0.30);
   door.add(handle);
 
   // Heavy vault locking wheel.
   const wheel = new THREE.Group();
-  wheel.position.set(-0.42, 1.9, BACK + 0.26);
+  wheel.position.set(-0.42, 1.9, BACK + 0.32);
   const wheelRing = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 10, 24), vaultFrameMat);
   wheel.add(wheelRing);
   const wheelHub = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.08, 12), vaultFrameMat);
@@ -364,17 +364,17 @@ function buildRoom() {
     new THREE.BoxGeometry(2.54, 0.02, 0.5),
     new THREE.MeshStandardMaterial({ color: 0x2a3a4a, metalness: 0.9, roughness: 0.2 })
   );
-  threshold.position.set(0, 0.01, BACK + 0.05);
+  threshold.position.set(0, 0.01, BACK + 0.34);
   door.add(threshold);
 
   // Door glow line + frame accents so the exit reads in the dark
   const doorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.02), glowMat);
-  doorGlow.position.set(0, 4.08, BACK + 0.2);
+  doorGlow.position.set(0, 4.08, BACK + 0.28);
   door.add(doorGlow);
 
   for (const x of [-1.12, 1.12]) {
     const edge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 3.9, 0.02), glowMat);
-    edge.position.set(x, 2.0, BACK + 0.21);
+    edge.position.set(x, 2.0, BACK + 0.28);
     door.add(edge);
   }
   const topEdge = new THREE.Mesh(new THREE.BoxGeometry(2.26, 0.02, 0.02), glowMat);
@@ -635,39 +635,39 @@ function buildSigns() {
 
   // AGENT RUSH logo plaque (right).
   const agentFrame = new THREE.Mesh(new THREE.BoxGeometry(3.04, 1.0, 0.08), plaqueFrameMat);
-  agentFrame.position.set(2.78, 3.25, -5.31);
+  agentFrame.position.set(2.78, 3.25, -5.18);
   scene.add(agentFrame);
   const agentPlaque = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.86, 0.07), plaqueMat);
-  agentPlaque.position.set(2.78, 3.25, -5.25);
+  agentPlaque.position.set(2.78, 3.25, -5.14);
   scene.add(agentPlaque);
   const agentLogo = new THREE.Mesh(
     new THREE.PlaneGeometry(2.65, 0.66),
     new THREE.MeshBasicMaterial({ map: brandLogoTexture(), transparent: true, toneMapped: false })
   );
-  agentLogo.position.set(2.78, 3.25, -5.2);
+  agentLogo.position.set(2.78, 3.25, -5.10);
   scene.add(agentLogo);
 
   neonLight = new THREE.PointLight(0xffad25, 3.6, 9, 2);
-  neonLight.position.set(2.78, 2.95, -4.65);
+  neonLight.position.set(2.78, 2.95, -4.70);
   scene.add(neonLight);
 
   // VULTR logo plaque (left).
   const vultrFrame = new THREE.Mesh(new THREE.BoxGeometry(2.54, 0.84, 0.08), plaqueFrameMat);
-  vultrFrame.position.set(-2.78, 3.25, -5.31);
+  vultrFrame.position.set(-2.78, 3.25, -5.18);
   scene.add(vultrFrame);
   const vultrPlaque = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.7, 0.07), plaqueMat);
-  vultrPlaque.position.set(-2.78, 3.25, -5.25);
+  vultrPlaque.position.set(-2.78, 3.25, -5.14);
   scene.add(vultrPlaque);
 
   const vultrLogo = new THREE.Mesh(
     new THREE.PlaneGeometry(2.2, 0.41),
     new THREE.MeshBasicMaterial({ map: vultrLogoTexture(), transparent: true, toneMapped: false })
   );
-  vultrLogo.position.set(-2.78, 3.25, -5.2);
+  vultrLogo.position.set(-2.78, 3.25, -5.10);
   scene.add(vultrLogo);
 
   const vultrLight = new THREE.PointLight(0x5fe4ff, 3.0, 8, 2);
-  vultrLight.position.set(-2.78, 2.95, -4.65);
+  vultrLight.position.set(-2.78, 2.95, -4.70);
   scene.add(vultrLight);
 }
 

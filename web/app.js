@@ -11,7 +11,7 @@ import {
   setMode as setSceneMode,
   setBotState,
   setEnvironmentState,
-} from "./scene.js?v=48";
+} from "./scene.js?v=49";
 
 (() => {
   "use strict";
