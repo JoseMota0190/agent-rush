@@ -122,13 +122,6 @@ function buildRoom() {
   const BACK = -D / 2;
   const HALF_W = W / 2;
 
-  const wallMat = new THREE.MeshStandardMaterial({
-    color: 0x18283a,
-    metalness: 0.55,
-    roughness: 0.62,
-    emissive: 0x0a1a28,
-    emissiveIntensity: 0.55,
-  });
   const panelMat = new THREE.MeshStandardMaterial({
     color: 0x21344a,
     metalness: 0.7,
@@ -147,6 +140,111 @@ function buildRoom() {
     roughness: 0.35,
   });
   const glowMat = new THREE.MeshBasicMaterial({ color: 0x4fd4ff, toneMapped: false });
+
+  // Vault-grade steel: thick plates, heavy frames and rivets.
+  const vaultMat = new THREE.MeshStandardMaterial({
+    color: 0x263644,
+    metalness: 0.5,
+    roughness: 0.5,
+    emissive: 0x0e1e2c,
+    emissiveIntensity: 0.7,
+  });
+  const vaultPlateMat = new THREE.MeshStandardMaterial({
+    color: 0x344554,
+    metalness: 0.4,
+    roughness: 0.52,
+    emissive: 0x10202e,
+    emissiveIntensity: 0.7,
+  });
+  const vaultFrameMat = new THREE.MeshStandardMaterial({
+    color: 0x6b8094,
+    metalness: 0.55,
+    roughness: 0.38,
+    emissive: 0x10202c,
+    emissiveIntensity: 0.4,
+  });
+  const rivetMat = new THREE.MeshStandardMaterial({
+    color: 0xb8c6d2,
+    metalness: 0.75,
+    roughness: 0.3,
+  });
+  const wallLightMat = new THREE.MeshBasicMaterial({ color: 0x2f8fb8, toneMapped: false });
+
+  function buildVaultWall(width, height, cols, rows) {
+    const g = new THREE.Group();
+
+    // Thick reinforced slab behind the plates.
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.42), vaultMat);
+    slab.position.set(0, height / 2, -0.21);
+    slab.receiveShadow = true;
+    g.add(slab);
+
+    const margin = 0.32;
+    const gap = 0.16;
+    const plateW = (width - margin * 2 - gap * (cols - 1)) / cols;
+    const plateH = (height - 0.55 - gap * (rows - 1)) / rows;
+    const baseY = 0.28;
+
+    const addRivet = (x, y, z = 0.24) => {
+      const rivet = new THREE.Mesh(new THREE.SphereGeometry(0.045, 8, 8), rivetMat);
+      rivet.position.set(x, y, z);
+      g.add(rivet);
+    };
+
+    for (let c = 0; c < cols; c++) {
+      for (let r = 0; r < rows; r++) {
+        const x = -width / 2 + margin + plateW / 2 + c * (plateW + gap);
+        const y = baseY + plateH / 2 + r * (plateH + gap);
+
+        const plate = new THREE.Mesh(new THREE.BoxGeometry(plateW, plateH, 0.1), vaultPlateMat);
+        plate.position.set(x, y, 0.05);
+        plate.castShadow = true;
+        plate.receiveShadow = true;
+        g.add(plate);
+
+        const barT = 0.07;
+        const barD = 0.16;
+        const barZ = 0.12;
+        const top = new THREE.Mesh(new THREE.BoxGeometry(plateW + barT * 2, barT, barD), vaultFrameMat);
+        top.position.set(x, y + plateH / 2 + barT / 2, barZ);
+        g.add(top);
+        const bottom = top.clone();
+        bottom.position.y = y - plateH / 2 - barT / 2;
+        g.add(bottom);
+        const left = new THREE.Mesh(new THREE.BoxGeometry(barT, plateH + barT * 2, barD), vaultFrameMat);
+        left.position.set(x - plateW / 2 - barT / 2, y, barZ);
+        g.add(left);
+        const right = left.clone();
+        right.position.x = x + plateW / 2 + barT / 2;
+        g.add(right);
+
+        addRivet(x - plateW / 2 + 0.12, y - plateH / 2 + 0.12);
+        addRivet(x + plateW / 2 - 0.12, y - plateH / 2 + 0.12);
+        addRivet(x - plateW / 2 + 0.12, y + plateH / 2 - 0.12);
+        addRivet(x + plateW / 2 - 0.12, y + plateH / 2 - 0.12);
+      }
+    }
+
+    // Heavy base / top bands.
+    const baseBand = new THREE.Mesh(new THREE.BoxGeometry(width, 0.34, 0.24), vaultFrameMat);
+    baseBand.position.set(0, 0.17, 0.16);
+    g.add(baseBand);
+    const topBand = baseBand.clone();
+    topBand.position.y = height - 0.17;
+    g.add(topBand);
+
+    // Reinforced corner braces.
+    for (const side of [-1, 1]) {
+      const brace = new THREE.Mesh(new THREE.BoxGeometry(0.32, height - 0.1, 0.3), vaultFrameMat);
+      brace.position.set(side * (width / 2 - 0.16), height / 2, 0.16);
+      g.add(brace);
+      for (const y of [0.6, height / 2, height - 0.6]) {
+        addRivet(side * (width / 2 - 0.16), y, 0.34);
+      }
+    }
+
+    return g;
+  }
 
   // ---------------- floor ----------------
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(W, D), floorMat);
@@ -176,63 +274,16 @@ function buildRoom() {
   floorGlow.position.y = 0.02;
   room.add(floorGlow);
 
-  // ---------------- back wall ----------------
-  const backWall = new THREE.Mesh(new THREE.PlaneGeometry(W, H), wallMat);
-  backWall.position.set(0, H / 2, BACK);
-  backWall.receiveShadow = true;
-  room.add(backWall);
-
-  // Structural vertical beams/pilasters (4-6)
-  for (let x = -HALF_W + 1.5; x <= HALF_W - 1.5; x += 2.5) {
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(0.25, H, 0.18), panelMat);
-    beam.position.set(x, H / 2, BACK + 0.09);
-    room.add(beam);
-    // Recessed panel frames between beams
-    const panelFrame = new THREE.Mesh(new THREE.BoxGeometry(2.2, 3.2, 0.06), trimMat);
-    panelFrame.position.set(x, 2.3, BACK + 0.12);
-    room.add(panelFrame);
-  }
-
-  // Vent grilles (4 small) on back wall
-  const ventMat = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, metalness: 0.7, roughness: 0.4 });
-  for (const x of [-5.5, -2.5, 2.5, 5.5]) {
-    const vent = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 0.06), ventMat);
-    vent.position.set(x, 1.2, BACK + 0.08);
-    room.add(vent);
-    for (let i = 0; i < 4; i++) {
-      const slit = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.025, 0.03), trimMat);
-      slit.position.set(x, 1.05 + i * 0.07, BACK + 0.1);
-      room.add(slit);
-    }
-  }
-
-  // Cable conduits (1-2) running vertically
-  for (const x of [-6.8, 6.8]) {
-    const conduit = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, H - 0.6, 8), trimMat);
-    conduit.position.set(x, H / 2, BACK + 0.07);
-    room.add(conduit);
-  }
-
-  // Horizontal wall bands
-  for (const y of [0.35, 3.9]) {
-    const band = new THREE.Mesh(new THREE.BoxGeometry(W - 0.2, 0.05, 0.06), trimMat);
-    band.position.set(0, y, BACK + 0.04);
-    room.add(band);
-  }
-
-  // Integrated wall light strips (emissive thin boxes) - back wall
-  const wallLightMat = new THREE.MeshBasicMaterial({ color: 0x2f8fb8, toneMapped: false });
-  for (const y of [0.8, 2.0, 3.2]) {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(W - 1.0, 0.018, 0.03), wallLightMat);
-    strip.position.set(0, y, BACK + 0.06);
-    room.add(strip);
-  }
+  // ---------------- back vault wall ----------------
+  const backVault = buildVaultWall(W, H, 3, 2);
+  backVault.position.set(0, 0, BACK);
+  room.add(backVault);
 
   // glowing baseboard (floor/wall junction) — the "closed room" cue
   for (const cfg of [
-    { w: W - 0.3, pos: [0, 0.1, BACK + 0.08], rot: 0 },
-    { w: D - 0.3, pos: [-HALF_W + 0.08, 0.1, 0], rot: Math.PI / 2 },
-    { w: D - 0.3, pos: [HALF_W - 0.08, 0.1, 0], rot: Math.PI / 2 },
+    { w: W - 0.6, pos: [0, 0.38, BACK + 0.30], rot: 0 },
+    { w: D - 0.6, pos: [-HALF_W + 0.30, 0.38, 0], rot: Math.PI / 2 },
+    { w: D - 0.6, pos: [HALF_W - 0.30, 0.38, 0], rot: Math.PI / 2 },
   ]) {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, 0.045, 0.05), glowMat);
     strip.position.set(...cfg.pos);
@@ -242,9 +293,9 @@ function buildRoom() {
 
   // upper glowing trim (reads as ceiling edge)
   for (const cfg of [
-    { w: W - 0.3, pos: [0, H - 0.25, BACK + 0.08], rot: 0 },
-    { w: D - 0.3, pos: [-HALF_W + 0.08, H - 0.25, 0], rot: Math.PI / 2 },
-    { w: D - 0.3, pos: [HALF_W - 0.08, H - 0.25, 0], rot: Math.PI / 2 },
+    { w: W - 0.6, pos: [0, H - 0.42, BACK + 0.30], rot: 0 },
+    { w: D - 0.6, pos: [-HALF_W + 0.30, H - 0.42, 0], rot: Math.PI / 2 },
+    { w: D - 0.6, pos: [HALF_W - 0.30, H - 0.42, 0], rot: Math.PI / 2 },
   ]) {
     const strip = new THREE.Mesh(new THREE.BoxGeometry(cfg.w, 0.03, 0.04), glowMat);
     strip.position.set(...cfg.pos);
@@ -257,50 +308,56 @@ function buildRoom() {
   const door = new THREE.Group();
 
   // Reinforced door panel - thicker
-  const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.9, 0.18), panelMat);
+  const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.9, 0.18), vaultPlateMat);
   doorPanel.position.set(0, 1.95, BACK + 0.1);
   door.add(doorPanel);
 
   // Thicker reinforced jambs/frame
   for (const x of [-1.12, 1.12]) {
-    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.3, 0.3), trimMat);
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.3, 0.3), vaultFrameMat);
     jamb.position.set(x, 2.06, BACK + 0.15);
     door.add(jamb);
   }
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.54, 0.22, 0.3), trimMat);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.54, 0.22, 0.3), vaultFrameMat);
   lintel.position.set(0, 4.22, BACK + 0.15);
   door.add(lintel);
 
-  // Hazard stripe accents on jambs (yellow/black)
-  const hazardMat = new THREE.MeshBasicMaterial({ color: 0xffb020, toneMapped: false });
-  const hazardDarkMat = new THREE.MeshBasicMaterial({ color: 0x101010, toneMapped: false });
+  // Subtle hazard band at the bottom of the jambs.
+  const hazardMat = new THREE.MeshBasicMaterial({ color: 0xd18a1a, toneMapped: false });
+  const hazardDarkMat = new THREE.MeshBasicMaterial({ color: 0x14181c, toneMapped: false });
   for (const x of [-1.12, 1.12]) {
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 5; i++) {
       const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(0.24, 0.38, 0.03),
+        new THREE.BoxGeometry(0.2, 0.26, 0.03),
         i % 2 === 0 ? hazardMat : hazardDarkMat
       );
-      stripe.position.set(x, 0.35 + i * 0.38, BACK + 0.32);
+      stripe.position.set(x, 0.35 + i * 0.28, BACK + 0.32);
       door.add(stripe);
     }
-  }
-  // Top hazard stripe
-  for (let i = 0; i < 6; i++) {
-    const stripe = new THREE.Mesh(
-      new THREE.BoxGeometry(0.38, 0.24, 0.03),
-      i % 2 === 0 ? hazardMat : hazardDarkMat
-    );
-    stripe.position.set(-1.0 + i * 0.38, 4.22, BACK + 0.32);
-    door.add(stripe);
   }
 
   // Door split line (center seal)
   const split = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.9, 0.04), trimMat);
   split.position.set(0, 1.95, BACK + 0.18);
   door.add(split);
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.05), trimMat);
+  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.05), vaultFrameMat);
   handle.position.set(0.72, 2.0, BACK + 0.22);
   door.add(handle);
+
+  // Heavy vault locking wheel.
+  const wheel = new THREE.Group();
+  wheel.position.set(-0.42, 1.9, BACK + 0.26);
+  const wheelRing = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 10, 24), vaultFrameMat);
+  wheel.add(wheelRing);
+  const wheelHub = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.08, 12), vaultFrameMat);
+  wheelHub.rotation.x = Math.PI / 2;
+  wheel.add(wheelHub);
+  for (let i = 0; i < 4; i++) {
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.55, 0.035), vaultFrameMat);
+    spoke.rotation.z = (i * Math.PI) / 4;
+    wheel.add(spoke);
+  }
+  door.add(wheel);
 
   // Threshold plate (floor)
   const threshold = new THREE.Mesh(
@@ -400,81 +457,12 @@ function buildRoom() {
     }
   }
 
-  // ---------------- side walls ----------------
+  // ---------------- side vault walls ----------------
   for (const side of [-1, 1]) {
-    const wall = new THREE.Mesh(new THREE.PlaneGeometry(D, H), wallMat);
-    wall.position.set(side * HALF_W, H / 2, 0);
-    wall.rotation.y = side * -Math.PI / 2;
-    wall.receiveShadow = true;
-    room.add(wall);
-
-    // Structural vertical beams/pilasters on side walls
-    for (let z = -D / 2 + 1.8; z <= D / 2 - 1.8; z += 3.0) {
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(0.18, H, 0.25), panelMat);
-      beam.position.set(side * (HALF_W - 0.09), H / 2, z);
-      room.add(beam);
-      // Recessed panel frames
-      const panelFrame = new THREE.Mesh(new THREE.BoxGeometry(0.06, 3.0, 2.6), trimMat);
-      panelFrame.position.set(side * (HALF_W - 0.06), 2.3, z);
-      room.add(panelFrame);
-    }
-
-    // Vent grilles on side walls (2 per wall)
-    for (const z of [-2.8, 3.2]) {
-      const vent = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.3, 0.7), ventMat);
-      vent.position.set(side * (HALF_W - 0.05), 1.2, z);
-      room.add(vent);
-      for (let i = 0; i < 4; i++) {
-        const slit = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.025, 0.6), trimMat);
-        slit.position.set(side * (HALF_W - 0.04), 1.05 + i * 0.07, z);
-        room.add(slit);
-      }
-    }
-
-    // Cable conduits on side walls
-    for (const z of [-4.8, 4.8]) {
-      const conduit = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, H - 0.6, 8), trimMat);
-      conduit.position.set(side * (HALF_W - 0.07), H / 2, z);
-      room.add(conduit);
-    }
-
-    // Vertical seams + horizontal bands on the side walls
-    for (let z = -D / 2 + 1.5; z <= D / 2 - 1.5; z += 2) {
-      const seam = new THREE.Mesh(new THREE.BoxGeometry(0.05, H - 0.4, 0.03), trimMat);
-      seam.position.set(side * (HALF_W - 0.03), H / 2, z);
-      room.add(seam);
-    }
-    for (const y of [0.35, 3.9]) {
-      const band = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, D - 0.2), trimMat);
-      band.position.set(side * (HALF_W - 0.04), y, 0);
-      room.add(band);
-    }
-
-    // Wall panel blocks
-    for (const z of [-3, 0.5, 3.5]) {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.2, 1.4), panelMat);
-      p.position.set(side * (HALF_W - 0.06), 2.3, z);
-      room.add(p);
-    }
-
-    // Integrated wall light strips - side walls
-    for (const y of [0.8, 2.0, 3.2]) {
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.018, D - 1.0), wallLightMat);
-      strip.position.set(side * (HALF_W - 0.02), y, 0);
-      room.add(strip);
-    }
-  }
-
-  // ---------------- corner pillars ----------------
-  for (const x of [-HALF_W + 0.14, HALF_W - 0.14]) {
-    for (const z of [BACK + 0.14, D / 2 - 0.14]) {
-      const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.34, H, 0.34), panelMat);
-      pillar.position.set(x, H / 2, z);
-      room.add(pillar);
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(0.05, H - 1.2, 0.05), glowMat);
-      strip.position.set(x, H / 2, z);
-      room.add(strip);
-    }
+    const sideVault = buildVaultWall(D, H, 2, 2);
+    sideVault.position.set(side * HALF_W, 0, 0);
+    sideVault.rotation.y = side * -Math.PI / 2;
+    room.add(sideVault);
   }
 
   // ---------------- ceiling ----------------
@@ -539,45 +527,91 @@ function buildRoom() {
    neon signs (canvas textures)
    ------------------------------------------------------------ */
 
-function signTexture(lines, { color = "#ffb020", border = true, size = 256 } = {}) {
+function brandLogoTexture() {
   const c = document.createElement("canvas");
-  c.width = size * 2;
-  c.height = size;
+  c.width = 1024;
+  c.height = 256;
   const ctx = c.getContext("2d");
-
   ctx.clearRect(0, 0, c.width, c.height);
 
-  if (border) {
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 10;
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 34;
-    ctx.strokeRect(14, 14, c.width - 28, c.height - 28);
-    ctx.strokeRect(14, 14, c.width - 28, c.height - 28);
+  // Orange diamond outline (AGENT RUSH mark).
+  ctx.save();
+  ctx.translate(124, 128);
+  ctx.rotate(Math.PI / 4);
+  ctx.strokeStyle = "#ffad25";
+  ctx.lineWidth = 16;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  if (ctx.roundRect) {
+    ctx.roundRect(-52, -52, 104, 104, 10);
+  } else {
+    ctx.rect(-52, -52, 104, 104);
   }
+  ctx.stroke();
+  ctx.restore();
 
-  ctx.textAlign = "center";
+  // AGENT white / RUSH orange.
+  const font = '800 96px Bahnschrift, "Segoe UI", Arial, sans-serif';
+  ctx.font = font;
   ctx.textBaseline = "middle";
-  ctx.shadowColor = color;
-  ctx.shadowBlur = 40;
-  ctx.fillStyle = color;
+  ctx.textAlign = "left";
+  const agent = "AGENT";
+  const rush = "RUSH";
+  const agentW = ctx.measureText(agent).width;
+  const startX = 205;
+  ctx.fillStyle = "#f4f8ff";
+  ctx.fillText(agent, startX, 132);
+  ctx.fillStyle = "#ffad25";
+  ctx.fillText(rush, startX + agentW + 30, 132);
 
-  const fontSize = lines.length > 1 ? 108 : 124;
-  ctx.font = `800 ${fontSize}px Bahnschrift, "Segoe UI", system-ui, sans-serif`;
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 4;
+  return t;
+}
 
-  // auto-fit: shrink if the widest line overflows the canvas
-  const maxWidth = c.width - 90;
-  let widest = 0;
-  for (const line of lines) widest = Math.max(widest, ctx.measureText(line).width);
-  if (widest > maxWidth) {
-    const fitted = Math.floor(fontSize * (maxWidth / widest));
-    ctx.font = `800 ${fitted}px Bahnschrift, "Segoe UI", system-ui, sans-serif`;
-  }
+function vultrLogoTexture() {
+  const c = document.createElement("canvas");
+  c.width = 1024;
+  c.height = 192;
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
 
-  lines.forEach((line, i) => {
-    const y = c.height / 2 + (i - (lines.length - 1) / 2) * (fontSize * 1.05);
-    ctx.fillText(line, c.width / 2, y);
-  });
+  // Vultr V mark.
+  ctx.fillStyle = "#2f7bff";
+  ctx.beginPath();
+  ctx.moveTo(20, 20);
+  ctx.lineTo(92, 20);
+  ctx.lineTo(192, 172);
+  ctx.lineTo(120, 172);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#e8f1ff";
+  ctx.beginPath();
+  ctx.moveTo(120, 172);
+  ctx.lineTo(192, 172);
+  ctx.lineTo(292, 20);
+  ctx.lineTo(220, 20);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = "#9cc4ff";
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.moveTo(220, 20);
+  ctx.lineTo(292, 20);
+  ctx.lineTo(250, 96);
+  ctx.lineTo(210, 60);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.font = '700 96px Bahnschrift, "Segoe UI", Arial, sans-serif';
+  ctx.fillStyle = "#f4f8ff";
+  ctx.textBaseline = "middle";
+  ctx.textAlign = "left";
+  ctx.fillText("VULTR", 330, 100);
 
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -586,68 +620,55 @@ function signTexture(lines, { color = "#ffb020", border = true, size = 256 } = {
 }
 
 function buildSigns() {
-  // AGENT RUSH
-  const agentTex = signTexture(["AGENT", "RUSH"], { color: "#ffb020" });
-  const agent = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.0, 1.0),
-    new THREE.MeshBasicMaterial({ map: agentTex, transparent: true, toneMapped: false, opacity: 0.9 })
-  );
-  agent.position.set(3.05, 3.15, -5.26);
-  agent.rotation.z = -0.03;
-  scene.add(agent);
+  const plaqueMat = new THREE.MeshStandardMaterial({
+    color: 0x0b141d,
+    metalness: 0.9,
+    roughness: 0.26,
+    emissive: 0x03070b,
+    emissiveIntensity: 0.4,
+  });
+  const plaqueFrameMat = new THREE.MeshStandardMaterial({
+    color: 0x2f3f4f,
+    metalness: 0.95,
+    roughness: 0.2,
+  });
 
-  neonLight = new THREE.PointLight(0xffb020, 6, 10, 2); // reduced from 10
-  neonLight.position.set(3.05, 3.0, -4.6);
+  // AGENT RUSH logo plaque (right).
+  const agentFrame = new THREE.Mesh(new THREE.BoxGeometry(3.04, 1.0, 0.08), plaqueFrameMat);
+  agentFrame.position.set(2.78, 3.25, -5.31);
+  scene.add(agentFrame);
+  const agentPlaque = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.86, 0.07), plaqueMat);
+  agentPlaque.position.set(2.78, 3.25, -5.25);
+  scene.add(agentPlaque);
+  const agentLogo = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.65, 0.66),
+    new THREE.MeshBasicMaterial({ map: brandLogoTexture(), transparent: true, toneMapped: false })
+  );
+  agentLogo.position.set(2.78, 3.25, -5.2);
+  scene.add(agentLogo);
+
+  neonLight = new THREE.PointLight(0xffad25, 3.6, 9, 2);
+  neonLight.position.set(2.78, 2.95, -4.65);
   scene.add(neonLight);
 
-  // VULTR SANDBOX
-  const vultrTex = signTexture(["VULTR", "SANDBOX"], { color: "#5fe4ff", size: 200 });
-  const vultr = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.5, 0.75),
-    new THREE.MeshBasicMaterial({ map: vultrTex, transparent: true, toneMapped: false, opacity: 0.9 })
-  );
-  vultr.position.set(-3.05, 3.15, -5.26);
-  scene.add(vultr);
+  // VULTR logo plaque (left).
+  const vultrFrame = new THREE.Mesh(new THREE.BoxGeometry(2.54, 0.84, 0.08), plaqueFrameMat);
+  vultrFrame.position.set(-2.78, 3.25, -5.31);
+  scene.add(vultrFrame);
+  const vultrPlaque = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.7, 0.07), plaqueMat);
+  vultrPlaque.position.set(-2.78, 3.25, -5.25);
+  scene.add(vultrPlaque);
 
-  const vultrLight = new THREE.PointLight(0x5fe4ff, 3.5, 8, 2); // reduced from 5
-  vultrLight.position.set(-3.05, 3.0, -4.6);
+  const vultrLogo = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.2, 0.41),
+    new THREE.MeshBasicMaterial({ map: vultrLogoTexture(), transparent: true, toneMapped: false })
+  );
+  vultrLogo.position.set(-2.78, 3.25, -5.2);
+  scene.add(vultrLogo);
+
+  const vultrLight = new THREE.PointLight(0x5fe4ff, 3.0, 8, 2);
+  vultrLight.position.set(-2.78, 2.95, -4.65);
   scene.add(vultrLight);
-
-  // small environmental signage, mounted on the back wall flanks
-  const restrictedTex = signTexture(["RESTRICTED", "AREA"], { color: "#ff7a45", size: 200 });
-  const restricted = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.05, 0.52),
-    new THREE.MeshBasicMaterial({ map: restrictedTex, transparent: true, toneMapped: false, opacity: 0.85 })
-  );
-  restricted.position.set(5.35, 2.35, -5.26);
-  scene.add(restricted);
-
-  const securityTex = signTexture(["SECURITY", "ZONE"], { color: "#5fe4ff", size: 200 });
-  const security = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.05, 0.52),
-    new THREE.MeshBasicMaterial({ map: securityTex, transparent: true, toneMapped: false, opacity: 0.85 })
-  );
-  security.position.set(-5.35, 2.35, -5.26);
-  scene.add(security);
-
-  // side-wall signs: escape protocol (amber) and authorized access (green)
-  const escapeTex = signTexture(["ESCAPE", "PROTOCOL"], { color: "#ffb020", size: 200 });
-  const escapeSign = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.3, 0.62),
-    new THREE.MeshBasicMaterial({ map: escapeTex, transparent: true, toneMapped: false, opacity: 0.85 })
-  );
-  escapeSign.position.set(-7.42, 2.55, 2.1);
-  escapeSign.rotation.y = Math.PI / 2;
-  scene.add(escapeSign);
-
-  const accessTex = signTexture(["AUTHORIZED", "ACCESS ONLY"], { color: "#13DB8C", size: 200 });
-  const accessSign = new THREE.Mesh(
-    new THREE.PlaneGeometry(1.3, 0.62),
-    new THREE.MeshBasicMaterial({ map: accessTex, transparent: true, toneMapped: false, opacity: 0.85 })
-  );
-  accessSign.position.set(7.42, 2.55, 2.1);
-  accessSign.rotation.y = -Math.PI / 2;
-  scene.add(accessSign);
 }
 
 /* ------------------------------------------------------------
@@ -1251,8 +1272,8 @@ export function initScene(canvas, labels) {
   scene.add(human);
 
   // lights
-  scene.add(new THREE.AmbientLight(0x1a3040, 2.6));
-  scene.add(new THREE.HemisphereLight(0x3a6486, 0x060c14, 1.15));
+  scene.add(new THREE.AmbientLight(0x1a3040, 3.0));
+  scene.add(new THREE.HemisphereLight(0x3a6486, 0x060c14, 1.3));
 
   const key = new THREE.DirectionalLight(0x9fd8ff, 1.15);
   key.position.set(-4, 7, 5);
@@ -1284,11 +1305,11 @@ export function initScene(canvas, labels) {
   scene.add(frontFill);
 
   // wall wash: makes the enclosure readable instead of a black void
-  const wallWashL = new THREE.PointLight(0x2f7fa8, 6, 9, 2);
+  const wallWashL = new THREE.PointLight(0x2f7fa8, 8.0, 10, 2);
   wallWashL.position.set(-5.0, 3.6, -4.2);
   scene.add(wallWashL);
 
-  const wallWashR = new THREE.PointLight(0x2f7fa8, 6, 9, 2);
+  const wallWashR = new THREE.PointLight(0x2f7fa8, 8.0, 10, 2);
   wallWashR.position.set(5.0, 3.6, -4.2);
   scene.add(wallWashR);
 
