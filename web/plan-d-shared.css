@@ -1,0 +1,102 @@
+/* ============================================================
+   AGENT RUSH — Plan D shared brand/nav primitives
+   Loaded on landing, game and sandbox after premium.css.
+   ============================================================ */
+
+.brand,
+.brand:hover,
+.brand:focus {
+  text-decoration: none;
+  border-bottom: 0;
+}
+
+.brand-mark {
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--orange);
+  flex: 0 0 auto;
+  filter: drop-shadow(0 0 7px rgba(255, 173, 37, 0.28));
+}
+
+.brand-mark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.brand-text,
+.brand-text em {
+  text-decoration: none;
+  border-bottom: 0;
+}
+
+.brand-text {
+  color: #f4f9ff;
+  letter-spacing: 0.15em;
+}
+
+.brand-text em {
+  color: var(--orange);
+  margin-left: 0.3em;
+}
+
+.nav-cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 14px 0 16px;
+  border: 1px solid rgba(255, 173, 37, 0.55);
+  border-radius: 9px;
+  background: linear-gradient(180deg, #ffb734, #f29b13);
+  color: #130c02;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  box-shadow: 0 0 22px rgba(255, 173, 37, 0.18);
+  transition: transform 0.16s ease, box-shadow 0.16s ease, filter 0.16s ease;
+}
+
+.nav-cta:hover,
+.nav-cta:focus-visible {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+  box-shadow: 0 0 28px rgba(255, 173, 37, 0.34);
+  outline: none;
+}
+
+.nav-cta-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  background: var(--cyan);
+  color: #031018;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+@media (max-width: 620px) {
+  .nav-cta {
+    min-height: 34px;
+    padding: 0 9px 0 11px;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+  }
+  .nav-cta-arrow {
+    width: 16px;
+    height: 16px;
+    font-size: 11px;
+  }
+}

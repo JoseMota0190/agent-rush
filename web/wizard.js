@@ -323,6 +323,13 @@
     });
   });
 
+  document.querySelectorAll("[data-open-wizard]").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      e.preventDefault();
+      open(null);
+    });
+  });
+
   const enterGame = document.getElementById("enter-game");
   if (enterGame) {
     enterGame.addEventListener("click", (e) => {

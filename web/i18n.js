@@ -12,7 +12,7 @@
   "use strict";
 
   const DEFAULT_LANG = "en";
-  const SUPPORTED = ["es", "en"];
+  const SUPPORTED = ["en", "es"];
   const STORAGE_KEY = "agentrush.lang";
 
   const DICT = {

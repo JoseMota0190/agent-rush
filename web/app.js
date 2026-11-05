@@ -11,7 +11,7 @@ import {
   setMode as setSceneMode,
   setBotState,
   setEnvironmentState,
-} from "./scene.js?v=43";
+} from "./scene.js?v=44";
 
 (() => {
   "use strict";
@@ -197,6 +197,10 @@ def verify(proof, expected):
   const missionEl = $("#missionState");
   const runIdChip = $("#runIdChip");
   const filterBtns = $$(".log-filter");
+  const successPanel = $("#missionSuccess");
+  const successRoomsEl = $("#successRooms");
+  const successTokensEl = $("#successTokens");
+  const successTimeEl = $("#successTime");
 
   const energyChip = $("#energy");
   const energyUsedEl = $("#energyUsed");
@@ -594,6 +598,7 @@ def verify(proof, expected):
 
     $$("[data-start-gate]").forEach((el) => { el.hidden = true; });
     $$("[data-challenge]").forEach((el) => { el.hidden = false; });
+    if (successPanel) successPanel.hidden = true;
 
     if (logStream) logStream.hidden = false;
     if (logFoot) logFoot.hidden = false;
@@ -635,6 +640,7 @@ def verify(proof, expected):
         if (runIdChip) {
           runIdChip.textContent = "RUN · " + String(evt.run_id || "").toUpperCase();
         }
+        if (successPanel) successPanel.hidden = true;
         setMissionState("active");
         setEnvironmentState("active");
         appendLog({
@@ -738,6 +744,17 @@ def verify(proof, expected):
           cls: "is-ok",
           ts: evt.ts,
         });
+        if (successPanel && successRoomsEl && successTokensEl && successTimeEl) {
+          const roomsSolved = Number(evt.rooms_solved) || 0;
+          const tokens = Number(evt.tokens) || metrics.tokens || 0;
+          const duration = Number(evt.duration) || 0;
+          const mm = String(Math.floor(duration / 60)).padStart(2, "0");
+          const ss = String(Math.floor(duration % 60)).padStart(2, "0");
+          successRoomsEl.textContent = `${roomsSolved}/3`;
+          successTokensEl.textContent = tokens.toLocaleString("en-US");
+          successTimeEl.textContent = `${mm}:${ss}`;
+          successPanel.hidden = false;
+        }
         break;
 
       case "disqualified":
@@ -747,6 +764,7 @@ def verify(proof, expected):
         setMissionState("disqualified");
         setEnvironmentState("ready");
         if (energyChip) energyChip.classList.add("is-dead");
+        if (successPanel) successPanel.hidden = true;
         appendLog({
           src: "system",
           msg: evt.message || t("game.log.disqualified"),
@@ -762,6 +780,7 @@ def verify(proof, expected):
         setRunState("failed");
         setMissionState("failed");
         setBotState("coder", "error");
+        if (successPanel) successPanel.hidden = true;
         appendLog({
           src: "system",
           msg: evt.message || "Run failed",
@@ -777,6 +796,7 @@ def verify(proof, expected):
         setRunState("failed");
         setMissionState("aborted");
         setBotState("coder", "error");
+        if (successPanel) successPanel.hidden = true;
         appendLog({
           src: "system",
           msg: evt.message || "Run aborted",

@@ -4,7 +4,7 @@
    No stock art, no duplicated scene.
    ============================================================ */
 
-import { initScene, setMode, setEnvironmentState } from "./scene.js?v=43";
+import { initScene, setMode, setEnvironmentState } from "./scene.js?v=44";
 
 const canvas = document.getElementById("hero-canvas");
 if (canvas) {

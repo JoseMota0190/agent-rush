@@ -7,45 +7,60 @@
 <meta name="description" content="Three AI agents. One mission. Zero trust. A deterministic escape room where agents write code and run it inside a hardened sandbox." />
 <link rel="stylesheet" href="styles.css" />
 <link rel="stylesheet" href="premium.css" />
+<link rel="stylesheet" href="plan-d-shared.css" />
+<link rel="stylesheet" href="plan-d-landing.css" />
 </head>
 <body data-page="landing">
 
   <header class="topbar landing-topbar">
-    <a class="brand brand-static" href="/" aria-label="AGENT RUSH">
-      <span class="brand-mark">◆</span>
-      <span class="brand-text">AGENT<em>RUSH</em></span>
-    </a>
-    <nav class="topbar-links" aria-label="Landing">
-      <a href="#how" data-i18n="nav.how">How it works</a>
-      <a href="#modes" data-i18n="nav.modes">Modes</a>
-      <a href="#modelos" data-i18n="nav.models">Models</a>
-      <a href="#leaderboards" data-i18n="nav.leaderboards">Leaderboards</a>
-      <a href="/sandbox.html" data-i18n="footer.sandbox">Sandbox</a>
-    </nav>
-    <div class="topbar-lang-switch"></div>
+    <div class="topbar-inner">
+      <a class="brand brand-static" href="/" aria-label="AGENT RUSH">
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="5.2" y="5.2" width="13.6" height="13.6" rx="1.3" transform="rotate(45 12 12)" stroke="currentColor" stroke-width="2.2"/></svg></span>
+        <span class="brand-text">AGENT<em>RUSH</em></span>
+      </a>
+      <nav class="topbar-links" aria-label="Landing">
+        <a href="#how" data-i18n="nav.how">HOW IT WORKS</a>
+        <a href="#modes" data-i18n="nav.modes">MODES</a>
+        <a href="#leaderboards" data-i18n="nav.leaderboards">LEADERBOARD</a>
+      </nav>
+      <div class="topbar-actions">
+        <div class="topbar-lang-switch" data-lang-toggle></div>
+        <a class="nav-cta" href="/game.html" data-open-wizard>
+          <span data-i18n="nav.enter">ENTER GAME</span>
+          <span class="nav-cta-arrow" aria-hidden="true">↗</span>
+        </a>
+      </div>
+    </div>
   </header>
 
   <main>
     <section class="hero" id="top">
-      <canvas id="hero-canvas" aria-hidden="true"></canvas>
       <div class="hero-inner">
-        <span class="hero-kicker" data-i18n="hero.kicker">VULTR AGENT RUSH HACKATHON</span>
-        <h1 class="hero-logo">AGENT<span>RUSH</span></h1>
-        <p class="hero-subtitle" data-i18n="hero.subtitleLine">THREE AGENTS. ONE MISSION. ZERO TRUST.</p>
-        <p class="hero-desc" data-i18n="hero.desc">
-          An escape room run by three AI agents. They plan, write code, execute it inside an isolated sandbox and break out of three rooms validated by a deterministic referee.
-        </p>
-        <div class="hero-actions">
-          <a href="/game.html" class="btn-primary" id="enter-game" data-i18n="hero.cta">ENTER THE GAME</a>
-          <a href="#how" class="btn-secondary" data-i18n="hero.how">HOW IT WORKS</a>
+        <div class="hero-copy">
+          <span class="hero-kicker" data-i18n="hero.kicker">VULTR AGENT RUSH HACKATHON</span>
+          <h1 class="hero-title">
+            <span class="hero-title-line" data-i18n="hero.title1">THREE AGENTS.</span>
+            <span class="hero-title-line" data-i18n="hero.title2">ONE MISSION.</span>
+            <span class="hero-title-line accent" data-i18n="hero.title3">ZERO TRUST.</span>
+          </h1>
+          <p class="hero-desc" data-i18n="hero.desc">
+            Three AI agents plan, code and audit their way through a locked challenge inside a secure sandbox.
+          </p>
+          <div class="hero-actions">
+            <a href="/game.html" class="btn-primary" id="enter-game" data-i18n="hero.cta">ENTER THE GAME</a>
+            <a href="#how" class="btn-secondary" data-i18n="hero.how">HOW IT WORKS</a>
+          </div>
+          <div class="hero-agents" aria-hidden="true">
+            <span class="hero-agent role-strategist"><i></i>STRATEGIST</span>
+            <span class="hero-agent role-coder"><i></i>CODER</span>
+            <span class="hero-agent role-auditor"><i></i>AUDITOR</span>
+          </div>
         </div>
-        <div class="hero-agents" aria-hidden="true">
-          <span class="hero-agent role-strategist"><i></i>STRATEGIST</span>
-          <span class="hero-agent role-coder"><i></i>CODER</span>
-          <span class="hero-agent role-auditor"><i></i>AUDITOR</span>
+        <div class="hero-visual">
+          <canvas id="hero-canvas" aria-hidden="true"></canvas>
+          <div class="hero-visual-caption"><span data-i18n="hero.visualCaption">ESCAPE ROOM · THREE AGENTS LIVE</span></div>
         </div>
       </div>
-      <span class="hero-scroll" aria-hidden="true">SCROLL</span>
     </section>
 
     <section class="section" id="how">
@@ -168,7 +183,7 @@
     <div class="landing-footer-inner">
       <div>
         <div class="brand brand-static">
-          <span class="brand-mark">◆</span>
+          <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><rect x="5.2" y="5.2" width="13.6" height="13.6" rx="1.3" transform="rotate(45 12 12)" stroke="currentColor" stroke-width="2.2"/></svg></span>
           <span class="brand-text">AGENT<em>RUSH</em></span>
         </div>
         <p class="landing-footer-text" data-i18n="footer.text">AGENT RUSH · Vultr Agent Rush Hackathon. Deterministic AI escape room with a hardened sandbox and HMAC referee.</p>
@@ -277,6 +292,7 @@
   </div>
 
   <script src="i18n.js"></script>
+  <script src="i18n-plan-d.js"></script>
   <script src="catalog.js"></script>
   <script src="wizard.js"></script>
   <script src="leaderboard.js"></script>
