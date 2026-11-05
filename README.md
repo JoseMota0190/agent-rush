@@ -207,6 +207,11 @@ Docker + Python, levanta la app con systemd y Caddy en un contenedor con HTTPS
 (`agent-rush.<ip>.sslip.io`). La app escucha en `127.0.0.1:8000` y Caddy hace el
 proxy público.
 
+> **Para actualizar la VM existente sin cambiar la IP/URL, no corras
+> `deploy.py`**: copiá `run_engine.py`, `run_server.py` y `web/`, respaldá
+> `/opt/agent-rush`, extraé el tar y reiniciá `systemctl restart agent-rush`.
+> El detalle del deploy incremental de Plan C está en `AGENTS.md` §15.6.
+
 > En Windows, Docker Desktop puede ocupar el puerto 8000. Para probar local usá
 > `python run_server.py --port 8010 --no-open` y abrí
 > `http://127.0.0.1:8010/`. En la VM se usa 8000.
