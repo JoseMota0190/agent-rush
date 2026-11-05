@@ -4,7 +4,7 @@
 
 - **App:** https://agent-rush.216-128-168-246.sslip.io/
 - **Sandbox containment:** https://agent-rush.216-128-168-246.sslip.io/sandbox.html
-- **Video (65 s):** [docs/agent-rush-demo.mp4](docs/agent-rush-demo.mp4) — demo Plan C: landing, run real 3/3, logs y sandbox.
+- **Video (65 s):** [docs/agent-rush-demo.mp4](docs/agent-rush-demo.mp4) — demo Plan D: navbar/hero nuevos, run real 3/3, logs y sandbox.
 - **Repo:** https://github.com/JoseMota0190/agent-rush
 
 ![Landing](docs/screenshots/landing.png)
@@ -18,7 +18,7 @@ usa **Vultr Serverless Inference** real para los modelos y ejecuta el código en
 un **sandbox Docker efímero** con `--network none`, root read-only, capabilities
 drop y límites de memoria/CPU/pids/tiempo.
 
-- Inglés por defecto, español con el toggle `ES`.
+- Inglés por defecto, español con el toggle `ESP`.
 - Los usuarios eligen el modelo de cada agente antes de entrar.
 - La energía se mide con los tokens reales de Vultr.
 - El leaderboard solo registra runs reales verificadas.
@@ -27,6 +27,9 @@ drop y límites de memoria/CPU/pids/tiempo.
   sala + logs, filtros (ALL/CHAT/CODE/EXECUTION/AUDIT), estados de misión reales,
   desafíos v2 y calibración con modelos Vultr reales.
   Detalle: [docs/CALIBRATION_PLAN_C.md](docs/CALIBRATION_PLAN_C.md).
+- **Plan D (2026-11-05):** navbar flotante, hero 40/60 con el título en tres
+  líneas, mission briefing, panel de éxito, sala 3D reforzada y cámara
+  responsive para tablet/móvil.
 
 ## 📁 Estructura del Proyecto
 ```

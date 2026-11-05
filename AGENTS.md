@@ -1489,3 +1489,50 @@ python deploy/deploy.py --region sao --plan vc2-1c-2gb
 
 ---
 
+## 16. Sesión 2026-11-05 — Plan D: rediseño visual (navbar, hero, sala, briefing)
+
+### 16.1 Hecho
+- **Navbar flotante** (landing): barra redondeada negra, logo con diamante naranja
+  (outline), `AGENT` blanco + `RUSH` naranja, links centrales HOW IT WORKS /
+  MODES / LEADERBOARD, selector **EN / ESP** y CTA naranja **ENTER GAME ↗**.
+  `MODELS` y `SANDBOX` siguen accesibles desde el footer y sus secciones.
+- **Hero 40/60:** copy a la izquierda con kicker, título en 3 líneas
+  (`THREE AGENTS. / ONE MISSION. / ZERO TRUST.`), descripción, CTAs y chips de
+  roles; escena 3D real a la derecha con marco y caption. Sin logo gigante.
+- **Game Room:** briefing inicial con nivel, desafío, objetivo, estado de los 3
+  agentes, sandbox y **START MISSION**; panel de éxito verde con 3/3, tokens,
+  tiempo, `AUDITOR APPROVED` y evidencia en el log.
+- **Sala 3D:** vigas/pilastras, rejillas, conductos, techo con vigas y ductos,
+  tiras de luz, puerta reforzada con franjas de peligro, umbral y luces de
+  emergencia que pasan a verde; mesa ~8.5% más chica; agentes ~13% más grandes;
+  cámara responsive para aspecto retrato.
+- **Responsive:** landing a 1920/1600/1366/1024/768/390 sin overflow; game 50/50
+  en desktop y tabs ROOM / AGENT LOGS en tablet/móvil; briefing legible a 390.
+- **ES/EN:** claves nuevas en `web/i18n-plan-d.js`; toggle EN/ESP; sin claves
+  crudas.
+- **Deploy:** `web/` actualizado en la VM (backup
+  `/opt/agent-rush-backup-pre-plan-d-web.tgz`), servicio `agent-rush` activo.
+- **Assets:** screenshots nuevos y video `docs/agent-rush-demo.mp4` de 65 s con
+  la UI Plan D + run real 3/3.
+
+### 16.2 Archivos clave
+- `web/plan-d-landing.css`, `web/plan-d-game.css`, `web/plan-d-shared.css`.
+- `web/i18n-plan-d.js`.
+- `web/index.html`, `web/game.html`, `web/app.js`, `web/scene.js`,
+  `web/hero.js`, `web/wizard.js`, `web/i18n.js`, `web/sandbox.html`.
+
+### 16.3 QA
+- Playwright: landing/game en 1920, 1600, 1366, 1024, 768 y 390; sin overflow
+  horizontal ni errores de consola.
+- Run real local 3/3: `ESCAPE UNLOCKED`, success panel, 7.169 tokens, 21 eventos,
+  sin errores.
+- Mock SSE: success panel 3/3, 9.000 tokens, 00:42.
+- Nav CTA abre el wizard; ES/EN correcto; mobile logs ES correcto.
+
+### 16.4 Pendiente
+1. Subir el video a YouTube/Loom si el formulario de LabLab pide URL.
+2. Enviar el submission en LabLab.
+3. Opcional: rate limit público.
+
+---
+

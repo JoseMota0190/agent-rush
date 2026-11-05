@@ -5,9 +5,9 @@
 - **Demo:** https://agent-rush.216-128-168-246.sslip.io/
 - **Sandbox containment:** https://agent-rush.216-128-168-246.sslip.io/sandbox.html
 - **Repo público (MIT):** https://github.com/JoseMota0190/agent-rush
-- **Video:** `docs/agent-rush-demo.mp4` (65 s, Plan C: landing, run real 3/3,
-  logs y sandbox). Si LabLab pide una URL, subir el video a YouTube (unlisted) o
-  Loom.
+- **Video:** `docs/agent-rush-demo.mp4` (65 s, Plan D: navbar/hero nuevos,
+  run real 3/3, logs y sandbox). Si LabLab pide una URL, subir el video a
+  YouTube (unlisted) o Loom.
 
 ## Title
 
@@ -86,7 +86,7 @@ Jose Antonio Mota Rivas — https://github.com/JoseMota0190
 - [x] Vultr Serverless Inference real
 - [x] Sandbox Docker real y prueba de contención
 - [x] Leaderboard con runs reales
-- [x] Video < 3 min con Plan C (65 s)
+- [x] Video < 3 min con Plan D (65 s)
 - [ ] Upload del video a YouTube/Loom (opcional si el form pide URL)
 - [ ] Enviar el formulario en LabLab
 
