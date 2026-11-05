@@ -23,6 +23,10 @@
 *Versión inferida del tag: mod7, mod8, mod9, alt1b = **v2** (plan-c-v2); el resto = **v1** (plan-c-v1).*
 
 > **Integración UI:** una corrida real lanzada desde `game.html` con Playwright (run `76C3CAECBA43`) terminó en **ESCAPE UNLOCKED** con 3/3 salas, 10.246 tokens, 31 eventos y sin errores de consola ni requests fallidos.
+>
+> **Corrida pública (video):** la grabación del demo se hizo contra la URL
+> desplegada (run `c5d748155404`): 3/3 en 18 s y 7.119 tokens, validando Vultr +
+> Docker en la VM.
 
 ---
 

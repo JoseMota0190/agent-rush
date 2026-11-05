@@ -1467,6 +1467,8 @@ python deploy/deploy.py --region sao --plan vc2-1c-2gb
 - alt1 v1 falló la sala 1 por el bug de fairness; corregido en v2.
 - Corrida real desde la UI (Playwright, run `76C3CAECBA43`): **ESCAPE UNLOCKED**
   3/3, 10.246 tokens, 31 eventos, sin errores.
+- Corrida pública de la grabación del video (run `c5d748155404`): 3/3 en 18 s y
+  7.119 tokens; valida Vultr + Docker en la VM desplegada.
 
 ### 15.5 QA
 - Playwright `qa-plan-c2.js`: landing 1366 con scroll, mobile 390 sin overflow,
