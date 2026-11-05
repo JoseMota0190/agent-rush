@@ -1,7 +1,28 @@
-# AI Escape Room - Agent Rush Hackathon
+# AGENT RUSH — Deterministic AI Escape Room
+
+## 🎬 Demo
+
+- **App:** https://agent-rush.216-128-168-246.sslip.io/
+- **Sandbox containment:** https://agent-rush.216-128-168-246.sslip.io/sandbox.html
+- **Video (48 s):** [docs/agent-rush-demo.mp4](docs/agent-rush-demo.mp4)
+- **Repo:** https://github.com/JoseMota0190/agent-rush
+
+![Landing](docs/screenshots/landing.png)
+![Run real](docs/screenshots/game-run.png)
+![Sandbox](docs/screenshots/sandbox.png)
 
 ## 🚀 Descripción General
-Sistema multi-agente para escape rooms de código donde equipos de IA (Estratega, Coder, Auditor) colaboran o compiten para resolver puzzles de programación en entornos aislados (Sandbox Vultr).
+Escape room determinista donde tres agentes de IA (Strategist, Coder, Auditor)
+escriben y ejecutan código para escapar de 3 salas. Corre en una VM de Vultr,
+usa **Vultr Serverless Inference** real para los modelos y ejecuta el código en
+un **sandbox Docker efímero** con `--network none`, root read-only, capabilities
+drop y límites de memoria/CPU/pids/tiempo.
+
+- Inglés por defecto, español con el toggle `ES`.
+- Los usuarios eligen el modelo de cada agente antes de entrar.
+- La energía se mide con los tokens reales de Vultr.
+- El leaderboard solo registra runs reales verificadas.
+- La página `/sandbox.html` demuestra la contención en vivo.
 
 ## 📁 Estructura del Proyecto
 ```

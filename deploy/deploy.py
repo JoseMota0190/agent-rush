@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import tarfile
@@ -31,6 +32,19 @@ import time
 import urllib.error
 import urllib.request
 from pathlib import Path
+
+# La API key de esta cuenta tiene el ACL IPv4 habilitado pero IPv6 restringido.
+# Forzamos resolución IPv4 para que urllib no intente IPv6.
+_original_getaddrinfo = socket.getaddrinfo
+
+
+def _ipv4_first(*args, **kwargs):
+    infos = _original_getaddrinfo(*args, **kwargs)
+    ipv4 = [item for item in infos if item[0] == socket.AF_INET]
+    return ipv4 or infos
+
+
+socket.getaddrinfo = _ipv4_first
 
 BASE = Path(__file__).resolve().parent.parent
 API = "https://api.vultr.com/v2"

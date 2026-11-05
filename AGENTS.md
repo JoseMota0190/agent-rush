@@ -497,8 +497,21 @@ corrigió y completó los pasos que el subagente dejó a medias.
   salida con confirmación, 400/760 px sin scroll horizontal.
 - Cobertura i18n ES/EN de todas las claves nuevas (start, challenge, wizard).
 
+### Sandbox page
+- `web/sandbox.html` + `POST /api/sandbox/probe`: corre escritura en root,
+  lectura de secretos y conexión saliente en el mismo contenedor; muestra
+  BLOCKED/ALLOWED. Link en el footer de la landing.
+
+### Deploy y video (hecho)
+- VM Vultr: `sao`, `vc2-1c-2gb`, Ubuntu 24.04, `216.128.168.246`.
+- URL: https://agent-rush.216-128-168-246.sslip.io/
+- HTTPS con Caddy en contenedor + systemd para la app.
+- Video de 48 s con narración TTS: `docs/agent-rush-demo.mp4`.
+- `SUBMISSION.md` con el texto para LabLab.
+
 ### Pendiente
-- Deploy en Vultr y video/submission.
+- Subir el video a YouTube/Loom si el formulario pide URL.
+- Enviar el formulario en LabLab (cuenta del usuario).
 
 ---
 

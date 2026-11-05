@@ -52,7 +52,7 @@ _load_env()
 
 from config.models import discover_models, PRESETS
 from config.model_profiles import ModelProfile, load_selection, save_selection
-from run_engine import MANAGER, EngineError
+from run_engine import MANAGER, EngineError, SandboxError, sandbox_probe
 
 WEB_DIR = BASE_DIR / "web"
 
@@ -245,6 +245,12 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
             return self._send_json(
                 {"run_id": run["id"], "mode": mode, "models": run["models"]}, 201
             )
+
+        if path == "/api/sandbox/probe":
+            try:
+                return self._send_json({"results": sandbox_probe()})
+            except SandboxError as exc:
+                return self._send_json({"error": str(exc)}, 503)
 
         parts = path.strip("/").split("/")
         if len(parts) == 4 and parts[:2] == ["api", "runs"] and parts[3] == "abort":

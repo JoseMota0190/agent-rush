@@ -58,6 +58,20 @@ ROOMS = {
 
 DB_PATH = Path(os.getenv("AGENT_RUSH_DB", "data/agent_rush.db"))
 SANDBOX_IMAGE = os.getenv("AGENT_RUSH_SANDBOX_IMAGE", "python:3.12-slim")
+SANDBOX_FLAGS = [
+    "--rm",
+    "-i",
+    "--network", "none",
+    "--read-only",
+    "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
+    "--memory", "256m",
+    "--cpus", "0.5",
+    "--pids-limit", "64",
+    "--cap-drop", "ALL",
+    "--security-opt", "no-new-privileges",
+    "--user", "65534:65534",
+]
+_PROBE_LOCK = threading.Lock()
 
 
 class EngineError(RuntimeError):
@@ -324,23 +338,7 @@ def run_sandbox(code: str, stdin_data: str, bus: EventBus, timeout: int = 15) ->
     ensure_image(bus)
 
     docker = shutil.which("docker")
-    cmd = [
-        docker,
-        "run",
-        "--rm",
-        "-i",
-        "--network", "none",
-        "--read-only",
-        "--tmpfs", "/tmp:rw,noexec,nosuid,size=64m",
-        "--memory", "256m",
-        "--cpus", "0.5",
-        "--pids-limit", "64",
-        "--cap-drop", "ALL",
-        "--security-opt", "no-new-privileges",
-        "--user", "65534:65534",
-        SANDBOX_IMAGE,
-        "python", "-c", code,
-    ]
+    cmd = [docker, "run"] + SANDBOX_FLAGS + [SANDBOX_IMAGE, "python", "-c", code]
 
     bus.emit({"type": "sandbox", "msg": "spin_up · fresh container · net=none · read-only · 256m"})
     started = time.time()
@@ -365,6 +363,64 @@ def run_sandbox(code: str, stdin_data: str, bus: EventBus, timeout: int = 15) ->
         "exit_code": proc.returncode,
         "duration": round(time.time() - started, 2),
     }
+
+
+def sandbox_probe() -> List[Dict[str, Any]]:
+    """Corre intentos maliciosos en el sandbox y reporta si fueron contenidos."""
+    if not docker_available():
+        raise SandboxError("Docker no está corriendo.")
+
+    probes = [
+        {
+            "name": "Root filesystem write",
+            "command": ["python", "-c", "open('/pwned','w').write('x'); print('WRITE_ALLOWED')"],
+            "marker": "WRITE_ALLOWED",
+        },
+        {
+            "name": "Host secrets exposure",
+            "command": ["python", "-c", "import os; print('HAS_KEY', 'VULTR_INFERENCE_API_KEY' in os.environ)"],
+            "marker": "HAS_KEY True",
+        },
+        {
+            "name": "Outbound network",
+            "command": [
+                "python", "-c",
+                "import socket; socket.create_connection(('1.1.1.1', 80), 2); print('NETWORK_OPEN')",
+            ],
+            "marker": "NETWORK_OPEN",
+        },
+    ]
+
+    docker = shutil.which("docker")
+    results = []
+    with _PROBE_LOCK:
+        for probe in probes:
+            try:
+                proc = subprocess.run(
+                    [docker, "run"] + SANDBOX_FLAGS + [SANDBOX_IMAGE] + probe["command"],
+                    capture_output=True,
+                    timeout=25,
+                )
+                out = proc.stdout.decode("utf-8", errors="replace")
+                err = proc.stderr.decode("utf-8", errors="replace")
+                results.append(
+                    {
+                        "name": probe["name"],
+                        "blocked": probe["marker"] not in out,
+                        "exit_code": proc.returncode,
+                        "output": (out + err)[:800],
+                    }
+                )
+            except subprocess.TimeoutExpired:
+                results.append(
+                    {
+                        "name": probe["name"],
+                        "blocked": True,
+                        "exit_code": 124,
+                        "output": "timeout (contained)",
+                    }
+                )
+    return results
 
 
 class RunManager:
