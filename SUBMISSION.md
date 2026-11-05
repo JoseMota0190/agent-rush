@@ -5,8 +5,9 @@
 - **Demo:** https://agent-rush.216-128-168-246.sslip.io/
 - **Sandbox containment:** https://agent-rush.216-128-168-246.sslip.io/sandbox.html
 - **Repo público (MIT):** https://github.com/JoseMota0190/agent-rush
-- **Video:** `docs/agent-rush-demo.mp4` (48 s). Si LabLab pide una URL, subilo a
-  YouTube (unlisted) o Loom y pegá el link.
+- **Video:** `docs/agent-rush-demo.mp4` (65 s, Plan C: landing, run real 3/3,
+  logs y sandbox). Si LabLab pide una URL, subir el video a YouTube (unlisted) o
+  Loom.
 
 ## Title
 
@@ -42,9 +43,19 @@ starts a **real run**:
 5. Token usage from Vultr updates the shared energy meter (100k budget).
 6. Successful runs are stored in SQLite and shown in the leaderboard.
 
-The three rooms are deterministic and generated per run: a corrupted auth log
-with a hidden SHA-256 token, a checksum recovery challenge, and an HMAC-SHA256
-firewall signature.
+The three rooms are deterministic and generated per run: (1) rotated auth logs
+with decoys and a manifest checksum that must be correlated, (2) a buggy
+memory-leak module that the Coder must repair so the provided tests pass, and
+(3) a loopback `HELLO → NONCE → HMAC` firewall handshake with a decoy token and a
+three-attempt lockout. Each room allows up to 3 attempts; generated code is
+compiled before the sandbox and the Auditor can request a patch.
+
+Plan C adds a premium 50/50 interface (3D room + AGENT LOGS), log filters,
+expandable code/stdout/stderr, live mission states (READY / MISSION ACTIVE /
+AUDIT IN PROGRESS / ESCAPE UNLOCKED) and a 3D room with an escape door and
+status lights. The challenge version is stored per run and the leaderboard ranks
+each mode separately. Calibration results with real Vultr models are in
+`docs/CALIBRATION_PLAN_C.md`.
 
 ### Why it fits Blast Radius Zero
 
@@ -75,7 +86,7 @@ Jose Antonio Mota Rivas — https://github.com/JoseMota0190
 - [x] Vultr Serverless Inference real
 - [x] Sandbox Docker real y prueba de contención
 - [x] Leaderboard con runs reales
-- [x] Video < 3 min
+- [x] Video < 3 min con Plan C (65 s)
 - [ ] Upload del video a YouTube/Loom (opcional si el form pide URL)
 - [ ] Enviar el formulario en LabLab
 

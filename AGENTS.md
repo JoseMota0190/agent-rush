@@ -1424,7 +1424,9 @@ python deploy/deploy.py --region sao --plan vc2-1c-2gb
 ## 15. Sesión 2026-11-05 — Plan C ejecutado (UI/3D + desafíos v2 + calibración)
 
 ### 15.1 Estado
-- Plan C completo en **local**; pendiente deploy a la URL pública, video y submission.
+- Plan C completo, **desplegado** en la VM actual y con video nuevo de 65 s.
+- Pendiente: subir el video a YouTube/Loom (si el form pide URL) y enviar el
+  submission en LabLab.
 - Fallback: tag `pre-plan-c` + backup zip en
   `C:\Users\josem\AppData\Local\Temp\opencode\agent-rush-backup\pre-plan-c.zip`.
 
@@ -1475,12 +1477,11 @@ python deploy/deploy.py --region sao --plan vc2-1c-2gb
 - `python -m py_compile run_engine.py run_server.py`; `node --check web/app.js`.
 
 ### 15.6 Pendiente (siguiente sesión)
-1. Deploy **incremental** a la VM actual (no reconstruir; mantener IP/URL):
-   copiar `run_engine.py`, `run_server.py`, `web/` y
-   `docs/CALIBRATION_PLAN_C.md`; respaldar `/opt/agent-rush`; reiniciar
-   `agent-rush`; verificar HTTPS y leaderboard v2.
-2. Regrabar video <3 min con UI/sala/desafíos nuevos; actualizar README,
-   `SUBMISSION.md` y capturas.
+1. **Deploy incremental:** hecho el 2026-11-05 (backup en
+   `/opt/agent-rush-backup-pre-plan-c.tgz`; servicio `agent-rush` activo; URL
+   pública con `plan-c-v2` y leaderboard real). No reconstruir la VM.
+2. **Video:** nuevo `docs/agent-rush-demo.mp4` de 65 s (landing + run real 3/3 +
+   sandbox). Pendiente subirlo a YouTube/Loom si el formulario pide URL.
 3. Enviar el submission en LabLab (cuenta del usuario).
 4. Opcional: rate limit público.
 

@@ -4,7 +4,7 @@
 
 - **App:** https://agent-rush.216-128-168-246.sslip.io/
 - **Sandbox containment:** https://agent-rush.216-128-168-246.sslip.io/sandbox.html
-- **Video (48 s):** [docs/agent-rush-demo.mp4](docs/agent-rush-demo.mp4)
+- **Video (65 s):** [docs/agent-rush-demo.mp4](docs/agent-rush-demo.mp4) — demo Plan C: landing, run real 3/3, logs y sandbox.
 - **Repo:** https://github.com/JoseMota0190/agent-rush
 
 ![Landing](docs/screenshots/landing.png)
@@ -23,6 +23,10 @@ drop y límites de memoria/CPU/pids/tiempo.
 - La energía se mide con los tokens reales de Vultr.
 - El leaderboard solo registra runs reales verificadas.
 - La página `/sandbox.html` demuestra la contención en vivo.
+- **Plan C (2026-11-05):** landing cinematográfica con hero 3D real, juego 50/50
+  sala + logs, filtros (ALL/CHAT/CODE/EXECUTION/AUDIT), estados de misión reales,
+  desafíos v2 y calibración con modelos Vultr reales.
+  Detalle: [docs/CALIBRATION_PLAN_C.md](docs/CALIBRATION_PLAN_C.md).
 
 ## 📁 Estructura del Proyecto
 ```
@@ -65,37 +69,54 @@ python run_server.py --no-open
 - Atajo: `espacio` pausa/reanuda los logs (cuando el motor esté conectado).
 - El leaderboard solo muestra **runs reales** verificadas por el motor; no hay
   datos simulados. Si la base está vacía, aparece el estado “NO VALID RUNS YET”.
+- **Juego 50/50:** en desktop la escena 3D y **AGENT LOGS** comparten el ancho;
+  en tablet/móvil se alternan con tabs **ROOM / AGENT LOGS**.
+- **AGENT LOGS:** filtros ALL/CHAT/CODE/EXECUTION/AUDIT, timestamps, color por
+  agente, código y stdout/stderr expandibles, contador de eventos y energía real.
+- **Estados de misión:** READY TO ESCAPE → MISSION ACTIVE → AUDIT IN PROGRESS →
+  ESCAPE UNLOCKED, derivados de los eventos reales (nunca simulados).
+- **Intentos:** 3 por sala, visibles en el panel de salas (`attempt 1/3`).
 
 ```
 web/
-├── index.html      # landing: intro, modos, modelos, leaderboards
-├── game.html       # juego: canvas 3D + rail de paneles
-├── config.html     # redirect a /#modelos (compatibilidad)
+├── index.html      # landing cinematográfica + hero 3D + wizard
+├── game.html       # juego 50/50: sala 3D + AGENT LOGS
+├── premium.css     # design system Plan C (tokens, landing, juego, responsive)
+├── hero.js         # inicializa la escena 3D del hero
+├── styles.css      # base compartida
+├── scene.js        # sala 3D, puerta/keypad/LED, carteles, estados
+├── app.js          # SSE real, logs/filtros, IDE, energía, estados
 ├── i18n.js         # diccionarios ES/EN + selector de idioma
 ├── catalog.js      # catálogo Vultr de solo lectura
 ├── wizard.js       # flujo modo → modelos → sala
 ├── leaderboard.js  # fetch + render de los dos leaderboards
-├── styles.css      # estética cyberpunk, paneles, landing, energía, wizard
-├── scene.js        # sala, mesa holográfica, sillas, 3 robots, cámaras, luces
-├── app.js          # modos, compuerta de inicio, log stream, IDE, energía
+├── fonts/          # Orbitron, Inter y JetBrains Mono (woff2)
 ├── avatars/        # avatares SVG de Strategist, Coder y Auditor
 ├── assets/         # vultr-logo.svg
-├── vendor/three.module.js
-├── preview-spectator.png
-└── preview-orchestrator.png
+└── vendor/three.module.js
 ```
+
+Runtime real de la demo:
+
+- `run_server.py`: servidor stdlib + SSE (`/api/runs`, `/api/leaderboard`,
+  `/api/sandbox/probe`).
+- `run_engine.py`: Vultr Serverless Inference real, Docker sandbox, desafíos v2,
+  referee y SQLite.
+- `data/agent_rush.db`: leaderboard real (runs v2).
+- `docs/CALIBRATION_PLAN_C.md`: matriz de calibración con modelos reales.
 
 **Escena 3D:** sala con piso en rejilla, techo con tiras de luz, mesa holográfica
 con anillos giratorios, tres robots humanoides **sentados en sillas** con brazos
 sobre la mesa, visores emisivos por rol y animación idle/typing/error.
 
 **Modo espectador:** cámara detrás del cristal polarizado (overlay CSS de
-reflejos y viñeta) y panel de logs en vivo. El leaderboard vive en la landing,
+reflejos y viñeta) + **AGENT LOGS** en vivo. El leaderboard vive en la landing,
 con una tabla por modo de juego.
 
-**Modo orquestador:** cámara baja con silueta humana en primer plano (POV),
-panel de estado de las 3 salas y panel IDE con el código del reto y los botones
-`EDIT CODE`, `SEND TO SANDBOX`, `REQUEST HINT`, `SKIP TASK` apilados a la derecha.
+**Modo orquestador:** cámara POV con silueta humana, panel de estado de las 3
+salas, IDE con el código real del Coder y **AGENT LOGS**. La edición y
+re-ejecución manual desde el IDE queda como trabajo futuro: la run real actual es
+autónoma en ambos modos.
 
 ## ⚙️ Motor de runs real
 
@@ -109,6 +130,32 @@ La sala ya ejecuta partidas reales contra **Vultr Serverless Inference**:
 - La energía sale del `usage` real de Vultr, con tope de 100k tokens por run.
 - El leaderboard se guarda en SQLite (`data/agent_rush.db`) y solo lista runs
   exitosas.
+
+### Salas v2 (2026-11-05)
+
+- **Sala 1 — THE LOGS:** dos `auth.log` rotados + manifest con `active_session` y
+  `header_checksum = sha256(session + ":" + ticket)`. El ticket válido está atado
+  a la sesión activa, pero hay señuelos duplicados, truncados, en mayúsculas y de
+  64 hex. Hay que correlacionar; buscar la sesión no alcanza.
+- **Sala 2 — MEMORY LEAK:** módulo `memory_leak.py` con bugs reales (chunks
+  incompletos, `abs`, `size <= 0`). El harness escribe los tests y el módulo; el
+  agente devuelve solo `chunk_sum`. Éxito = tests pasan + proof.
+- **Sala 3 — FIREWALL:** handshake TCP loopback `HELLO → NONCE → HMAC-SHA256 →
+  TOKEN/DECOY`, nonce fresco por conexión y lockout tras 3 intentos inválidos.
+- 3 intentos por sala, `compile()` antes del sandbox y parches informados del
+  Auditor.
+
+### Calibración
+
+Corridas reales contra Vultr + Docker; detalle completo en
+[docs/CALIBRATION_PLAN_C.md](docs/CALIBRATION_PLAN_C.md).
+
+- Escuadrón recomendado (`deepseek-v4.1-flash-1017` + `glm-5.3-flash` +
+  `deepseek-v4.1-flash-1017`): **3/3** en todas las corridas v2, 16.7–41.3 s,
+  7.1k–15.6k tokens, máximo 3 intentos.
+- Escuadrón alternativo (glm-5.3 / deepseek / minimax): 3/3.
+- Una corrida real desde la UI terminó **ESCAPE UNLOCKED** con 31 eventos y sin
+  errores de consola.
 
 ### Sandbox
 
@@ -184,59 +231,52 @@ El sistema sigue el patrón **Orchestrator + Workers** para garantizar:
 5. Si error: **Genera parche** y devuelve al Coder para reintento
 6. Si éxito: **Aprobar resultado** y avanzar a siguiente sala
 
-## 🎮 Modos de operación
+## 🎮 Modos de operación (web)
 
-### Modo Espectador (`python main.py spectator`)
-- **Autonomía 100%**: Los agentes deciden solos sin intervención humana
-- **Ideal para**: Demostraciones de hackatón, benchmark de modelos
-- **Leaderboard**: Registra tiempo, intentos, modelos usados
-- **Reproducibilidad**: Mismo flujo cada partida (usando seeds)
+### Modo Espectador (`/game.html?mode=spectator`)
+- **Autonomía 100%**: Los agentes deciden solos sin intervención humana.
+- **Ideal para**: Demostraciones y benchmark de modelos.
+- **Leaderboard**: Registra tiempo, tokens, modo y modelos usados.
 
-### Modo Orquestador (`python main.py orchestrator`)
-- **Human-in-the-loop**: Puedes aprobar/modificar código antes de ejecutar
-- **Ideal para**: Prototipado rápido, depuración, control fino
-- **Interacción**: Panel tipo VS Code para revisar/editar scripts
+### Modo Orquestador (`/game.html?mode=orchestrator`)
+- **Misma run real autónoma**, con cámara POV, panel de estado de salas y IDE con
+  el código real del Coder.
+- **Ideal para**: Observar el trabajo de los agentes con más contexto visual.
+- La edición/re-ejecución manual desde el IDE queda como trabajo futuro.
 
 ## 🔒 Seguridad y Contención
 
 ### Garantías del Sandbox
-- **Efimeridad**: Cada ejecución levanta y destruye contenedor efímero
-- **Red aislada**: Sin tráfico saliente (network isolation)
-- **Sin variables sensibles**: API keys nunca dentro del contenedor
-- **Límites estrictos**: Max 10s ejecución, 256MB memoria máximo
-- **Usuario sin privilegios**: Ejecución bajo usuario nodev
+- **Efimeridad**: Cada ejecución levanta y destruye un contenedor efímero.
+- **Red aislada**: Sin tráfico saliente (`--network none`).
+- **Sin variables sensibles**: API keys nunca dentro del contenedor.
+- **Límites estrictos**: timeout 15 s, 256 MB de memoria, 0.5 CPU, 64 PIDs.
+- **Usuario sin privilegios**: UID/GID `65534`, `--cap-drop ALL`,
+  `no-new-privileges`.
 
 ### Buenas Prácticas
-```python
-from tools.vultr_sandbox import sandbox
-
-# Ejecutar código de manera segura
-result = sandbox.execute_code(user_code, timeout=10)
-
-# Siempre destruye después
-sandbox.tear_down()
-```
+El motor real usa `run_engine.run_sandbox()` con las flags de arriba. Para
+verificar la contención desde la web usá `/sandbox.html` o
+`python tools/containment_probe.py`.
 
 ## 👥 Agentes y Roles
 
-| Agente | Rol | Modelo Recomendado |
-|--------|-----|-------------------|
-| Strategist | Planificador y estrategia | meta-llama/llama-3.3-70b-instruct:free |
-| Coder | Generador de scripts Python | qwen/qwen-2.5-coder-32b:free |
-| Auditor | Evaluador y self-healing | deepseek/deepseek-r1:free |
+| Agente | Rol | Modelo recomendado (calibración) |
+|--------|-----|----------------------------------|
+| Strategist | Planificador y estrategia | `deepseek-v4.1-flash-1017` |
+| Coder | Generador de scripts Python | `glm-5.3-flash` |
+| Auditor | Evaluador y self-healing | `deepseek-v4.1-flash-1017` |
+
+El wizard permite elegir **cualquier** modelo de chat de `/api/models` para cada
+agente; la tabla es solo el escuadrón que mejor rindió en la calibración.
 
 ## 📊 Leaderboard y Métricas
 
-El sistema rastrea automáticamente:
-- **Escape Time**: Tiempo total en resolver todas las salas
-- **Token Efficiency**: Tokens consumidos por modelo
-- **Self-Healing Index**: Número de reintentos exitosos antes de solución
-- **Cost per Escape**: Costo aproximado (gratis con modelos open-source)
-
-### Tabs del Leaderboard
-- **Free Tier Arena**: Ranking con modelos gratuitos only
-- **Open Arena (BYOK)**: Ranking general con claves propias
-- **Orchestrated vs Autonomous**: Comparativa human vs auto
+El leaderboard real guarda, por run verificada:
+- **Tiempo total** y **tokens** consumidos.
+- **Modo** (spectator / orchestrator).
+- **Modelos por rol** (strategist + coder + auditor).
+- Filtra por `challenge_version` y rankea **por modo** (1..n).
 
 ## 🛠️ Personalización
 
