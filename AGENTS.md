@@ -556,3 +556,861 @@ corrigió y completó los pasos que el subagente dejó a medias.
   suscripción → Overview**; NO en Account → API Access.
 - `.env` está gitignoreado; el tar de deploy lo incluye y se borra después.
 - Repo público: https://github.com/JoseMota0190/agent-rush (MIT).
+---
+
+## 14. PLAN C — Rediseño completo UI/UX + sala 3D + desafíos (GUARDADO, NO EJECUTADO)
+
+> **Estado:** guardado el **2026-11-04** a pedido del usuario para ejecutar al
+> volver. Al momento de guardar este plan **no se implementó nada de esta
+> sección**. La versión desplegada actual sigue siendo la de la sección 13 y es
+> el fallback al que se puede volver.
+>
+> **Para ejecutar:** el usuario debe decir **“ejecutar plan c”** (y estar en un
+> agente de implementación). No arrancar antes de esa orden.
+
+### 14.0 Contexto de la versión que está viva hoy (fallback)
+
+- App pública: https://agent-rush.216-128-168-246.sslip.io/
+- Contención: https://agent-rush.216-128-168-246.sslip.io/sandbox.html
+- Repo: https://github.com/JoseMota0190/agent-rush (MIT)
+- Video actual: `docs/agent-rush-demo.mp4` (48 s, TTS, UI vieja).
+- VM Vultr: São Paulo, `vc2-1c-2gb`, Ubuntu 24.04, IP `216.128.168.246`.
+- Deploy: `deploy/deploy.py` + `deploy/setup.sh` (systemd + Caddy contenedor,
+  HTTPS con `sslip.io`).
+- Backend actual: `run_server.py` (stdlib, SSE), `run_engine.py` (Vultr real +
+  Docker), SQLite `data/agent_rush.db`.
+- UI actual: landing con hero + cómo funciona + modos + catálogo + leaderboards;
+  juego 3D + rail; wizard de 2 pasos; `sandbox.html`.
+- Salas actuales (simples, a rediseñar):
+  1. `THE LOGS` — hash entre señuelos.
+  2. `MEMORY LEAK` — suma + SHA-256.
+  3. `FIREWALL` — HMAC-SHA256.
+- Leaderboard actual: 3 runs spectator + 1 orchestrator (datos reales).
+- Notas operativas:
+  - Local en Windows: `python run_server.py --port 8010 --no-open` porque Docker
+    Desktop ocupa `0.0.0.0:8000`.
+  - En la VM: 8000 detrás de Caddy.
+  - `.env` local con `VULTR_API_KEY` (general, IPv4) y
+    `VULTR_INFERENCE_API_KEY` (suscripción). `.env` está gitignoreado.
+  - La API key general tiene ACL IPv6 restringido; el deploy fuerza IPv4.
+  - Rotar la key de Inference después del hackathon (quedó visible en capturas).
+
+### 14.1 Decisiones cerradas del usuario (2026-11-04)
+
+1. **Opción C completa:** UI/UX premium + desafíos nuevos + calibración + sala 3D
+   mejorada. No se congela nada.
+2. **Se autoriza** el cambio mínimo de backend para mandar el código en el evento
+   CODE (payload del coder/patch) y para las definiciones de desafíos.
+3. **La landing usa escena 3D real** en el hero (no avatares SVG genéricos). Los
+   recursos son los de la escena existente; nada de fotos/stock.
+4. **Nada congelado:** se rediseñan las 3 salas y se calibra.
+5. **La sala 3D se mejora completa** con la spec de environment (secciones
+   14.2.B), sin reconstruirla desde cero.
+6. **Deadline:** domingo. Objetivo: **submission el sábado a la noche**; domingo
+   solo buffer.
+7. **Ritmo:** el usuario espera ejecución rápida (el agente ya hizo en ~25 min lo
+   que se estimó en días). Estimación acordada: **2,5–3 días de calendario**,
+   ~20–28 h efectivas con paralelización. No prometer “todo en una hora”; el
+   cuello es QA visual, runs reales, deploy y video.
+
+### 14.2 Specs originales del usuario (TAL CUAL, sin resumir)
+
+#### 14.2.A Frontend UI/UX Redesign (spec completa)
+
+```text
+# AGENT RUSH — Frontend UI/UX Redesign
+
+## Instrucciones generales
+
+Antes de modificar código:
+
+- Inspecciona la estructura del proyecto, las rutas, componentes y estilos existentes.
+- Identifica qué componentes pueden reutilizarse.
+- Revisa las funcionalidades actuales y evita romperlas.
+- Conserva la integración existente con Vultr, los modelos, los agentes y el motor de juego.
+- No modifiques backend, APIs, lógica de ejecución, sandbox ni sistema de validación.
+- No reemplaces funcionalidades existentes por simulaciones o datos ficticios.
+- No elimines componentes sin justificarlo.
+- Mantén compatibilidad con los idiomas español e inglés.
+
+La dirección visual debe ser **Premium Sci-Fi Gaming Interface**: una mezcla de centro de operaciones futurista, videojuego de estrategia y laboratorio tecnológico.
+
+### Identidad visual global
+
+Paleta:
+
+- Background: #050B14
+- Secondary background: #091421
+- Panels: #0C1928
+- Borders: #17344B
+- Orange: #FFAD25 (acciones principales y Strategist)
+- Cyan: #26C9FF (Coder y tecnología)
+- Purple: #B66AFF (Auditor)
+- Green: #13DB8C (éxito y validación)
+
+Tipografía:
+- Títulos: Orbitron o alternativa futurista equivalente.
+- Interfaz: Inter.
+- Código y logs: JetBrains Mono.
+
+No utilizar neones intensos en todos los elementos. Reservar los efectos luminosos para interacciones importantes, estados activos y resultados.
+
+Mantener consistencia en botones, bordes, radios, espaciados, iconografía y animaciones.
+
+---
+
+# PROMPT 1 — LANDING PAGE
+
+Rediseña la página principal de AGENT RUSH para transmitir una experiencia tecnológica premium.
+
+### Objetivo
+
+Que un visitante entienda rápidamente qué es AGENT RUSH, cómo funciona y quiera entrar a jugar.
+
+### Hero section
+
+Crear una sección principal cinematográfica que incluya:
+
+- Logo AGENT RUSH.
+- Subtítulo: "THREE AGENTS. ONE MISSION. ZERO TRUST."
+- Descripción breve del desafío.
+- Representación visual de los tres agentes.
+- Botón principal: ENTER THE GAME.
+- Acceso secundario a HOW IT WORKS.
+
+La representación de los agentes debe respetar los colores y roles existentes:
+- Strategist: naranja.
+- Coder: cyan.
+- Auditor: violeta.
+
+Utilizar los recursos 3D existentes siempre que sea posible. No incorporar fotografías genéricas de robots ni imágenes de stock.
+
+### How it works
+
+Crear una sección con tres tarjetas horizontales:
+
+1. STRATEGIST — Plans the solution and coordinates the mission.
+2. CODER — Writes and executes code inside the sandbox.
+3. AUDITOR — Reviews the code and validates the results.
+
+Cada tarjeta debe tener iconografía propia, color identificativo y una pequeña interacción hover.
+
+### Game modes
+
+Presentar los dos modos disponibles:
+
+- SPECTATOR MODE: Observe autonomous agents solving challenges.
+- ORCHESTRATOR MODE: Take control and coordinate the agents.
+
+Mostrar ambos como tarjetas diferenciadas, con una descripción y acceso a la selección correspondiente.
+
+### Footer
+
+Incluir referencias a Vultr, LabLab y tecnologías utilizadas, respetando la información y enlaces existentes.
+
+### Diseño y comportamiento
+
+- Landing oscura y cinematográfica.
+- Jerarquía visual clara.
+- Animaciones suaves.
+- CTA naranja como protagonista.
+- Evitar bloques excesivamente largos de texto.
+- Mantener ES/EN.
+- Adaptar correctamente a escritorio y móvil.
+
+No modificar la lógica de navegación ni el funcionamiento de los botones existentes.
+
+---
+
+# PROMPT 2 — GAME ROOM / ESCAPE ROOM
+
+Esta es la pantalla más importante del proyecto. Debe convertirse en el elemento visual protagonista de AGENT RUSH.
+
+### Objetivo principal
+
+Crear una experiencia donde el usuario pueda observar a los tres agentes trabajando dentro de una habitación de escape y, simultáneamente, seguir sus conversaciones y actividades en tiempo real.
+
+### Distribución de pantalla
+
+En escritorio, utilizar una distribución de dos columnas:
+
+- 50% del ancho: Escape Room 3D.
+- 50% del ancho: Agent Logs.
+
+Ambas secciones deben permanecer visibles simultáneamente.
+
+No utilizar un panel de logs que cubra la habitación. Debe existir una separación clara entre ambas áreas.
+
+### Lado izquierdo — Escape Room
+
+Mantener la habitación 3D existente.
+
+Mejorar:
+
+- Iluminación ambiental.
+- Profundidad y contraste.
+- Visibilidad de los tres puestos.
+- Pantallas y elementos holográficos.
+- Integración visual de la mesa central.
+- Identificación de cada agente.
+
+Los colores de los puestos deben mantenerse:
+
+- Strategist: naranja.
+- Coder: cyan.
+- Auditor: violeta.
+
+Agregar pequeñas animaciones visuales vinculadas al estado actual de cada agente, utilizando los estados reales disponibles.
+
+La mesa central puede funcionar como representación visual del trabajo compartido.
+
+La puerta de escape debe estar integrada en la habitación y representar visualmente el objetivo de la misión.
+
+### Lado derecho — Agent Logs
+
+Diseñar un panel de actividad compacto, profesional y legible.
+
+Encabezado:
+- AGENT LOGS.
+- Indicador LIVE.
+- Estado de la misión.
+
+Agregar filtros:
+
+- ALL
+- CHAT
+- CODE
+- EXECUTION
+- AUDIT
+
+Cada evento debe mostrar:
+
+- Identificador del agente o sistema.
+- Color correspondiente.
+- Timestamp.
+- Mensaje o descripción.
+- Indicador de estado.
+
+### Tipos de eventos
+
+CHAT:
+Mensajes operativos entre Strategist, Coder y Auditor.
+
+CODE:
+Archivos generados y modificaciones de código. Mostrar un pequeño resumen y permitir expandir el código completo.
+
+EXECUTION:
+Comandos ejecutados, resultados, errores y salida del sandbox.
+
+AUDIT:
+Pruebas realizadas, observaciones, validaciones y aprobaciones o rechazos.
+
+ALL:
+Mostrar todos los eventos cronológicamente.
+
+No mostrar bloques completos de código permanentemente. Utilizar componentes expandibles para mantener el panel limpio.
+
+### Comportamiento del panel
+
+- Scroll independiente.
+- Nuevos eventos visibles sin desplazar toda la página.
+- Diferenciación visual de los agentes.
+- Animaciones discretas al recibir nuevos eventos.
+- Mensajes compactos.
+- Posibilidad de consultar los detalles del código y de las ejecuciones.
+
+### Barra superior
+
+Mantener:
+
+- Logo AGENT RUSH.
+- Modo actual.
+- Indicador de energía.
+- Estado de conexión de Vultr Sandbox.
+- Selector ES/EN.
+- Acceso al menú correspondiente.
+
+### Estados de misión
+
+Preparación:
+READY TO ESCAPE.
+
+Ejecución:
+MISSION ACTIVE.
+
+Validación:
+AUDIT IN PROGRESS.
+
+Completado:
+ESCAPE UNLOCKED.
+
+Los estados deben reflejar la información real disponible. No inventar resultados ni mostrar una misión completada antes de su validación.
+
+### Responsive
+
+En escritorio, mantener la distribución 50/50.
+
+En tablet y móvil, utilizar vistas adaptativas o controles para alternar entre habitación y logs. No comprimir la sala hasta hacer invisibles los agentes.
+
+No modificar la lógica de ejecución, los agentes ni la conexión con Vultr Sandbox.
+
+---
+
+# PROMPT 3 — MODE SELECTION / MODEL CONFIGURATION
+
+Rediseñar la pantalla o modal de selección de modos y modelos.
+
+### Objetivo
+
+Que el usuario entienda qué experiencia va a iniciar y pueda configurar los agentes sin sentirse frente a un formulario técnico genérico.
+
+### Selección de modo
+
+Mostrar dos tarjetas principales:
+
+SPECTATOR MODE
+- Autonomous experience.
+- Los agentes toman sus propias decisiones.
+- El usuario observa la misión.
+
+ORCHESTRATOR MODE
+- Human-in-the-loop experience.
+- El usuario puede intervenir y coordinar a los agentes.
+- Presentar claramente las opciones de control existentes.
+
+Cada tarjeta debe incluir:
+- Icono.
+- Título.
+- Descripción.
+- Indicador de selección.
+- Estado hover y active.
+
+### Selección de modelos
+
+Presentar tres tarjetas diferenciadas:
+
+STRATEGIST — Orange.
+
+CODER — Cyan.
+
+AUDITOR — Purple.
+
+Cada tarjeta debe mostrar:
+- Rol del agente.
+- Modelo seleccionado.
+- Proveedor.
+- Descripción breve del rol.
+- Selector de modelos disponible.
+
+Mantener los modelos, proveedores y opciones que ya existen en el proyecto. No inventar modelos ni modificar las conexiones.
+
+### Diseño
+
+- Fondo oscuro.
+- Tarjetas ligeramente elevadas.
+- Selección activa claramente visible.
+- Acentos de color individuales.
+- Botones consistentes con la identidad de AGENT RUSH.
+
+Botón principal: START MISSION.
+
+Botón secundario: BACK.
+
+El usuario debe poder identificar fácilmente qué modelo está asignado a cada agente antes de iniciar.
+
+Mantener la integración existente y la selección bilingüe.
+
+---
+
+# PROMPT 4 — RESPONSIVE DESIGN & FINAL POLISH
+
+Realizar una revisión visual integral de todas las páginas después de implementar los cambios anteriores.
+
+### Escritorio
+
+Probar especialmente resoluciones:
+- 1920 × 1080.
+- 1600 × 900.
+- 1366 × 768.
+
+Asegurar que:
+
+- No aparezcan scrollbars horizontales innecesarias.
+- No se recorten componentes.
+- La sala 3D conserve proporciones.
+- Los logs sean legibles.
+- Los botones estén correctamente alineados.
+- La navegación sea consistente.
+
+### Tablet y móvil
+
+Adaptar:
+- Landing.
+- Tarjetas de agentes.
+- Selección de modos.
+- Selección de modelos.
+- Sala de juego.
+- Logs.
+
+No intentar mantener dos columnas cuando el ancho no permite una lectura cómoda.
+
+### Microinteracciones
+
+Incorporar:
+
+- Hover en tarjetas.
+- Transiciones entre estados.
+- Indicadores de carga.
+- Feedback visual al pulsar botones.
+- Efectos luminosos discretos.
+- Animaciones de actividad de los agentes.
+
+Evitar animaciones excesivas que afecten al rendimiento del entorno 3D.
+
+### Revisión de coherencia
+
+Verificar:
+
+- Paleta de colores consistente.
+- Tipografías consistentes.
+- Mismo sistema de botones.
+- Mismos estilos de tarjetas.
+- Correcta jerarquía visual.
+- Consistencia ES/EN.
+- Ausencia de textos desbordados.
+- Ausencia de errores visuales.
+
+### Restricciones finales
+
+No modificar funcionalidades existentes.
+
+No eliminar componentes funcionales.
+
+No reemplazar datos reales por información ficticia.
+
+No alterar la lógica de los agentes, API, sandbox, ejecución, validación ni HMAC Referee.
+
+Antes de finalizar, presentar un resumen de los archivos modificados, las mejoras implementadas y cualquier problema que no se haya podido resolver.
+```
+
+#### 14.2.B Escape Room Environment Redesign (spec completa)
+
+> **Nota sobre el final del texto original:** la spec del usuario se corta en
+> `- Inspeccionar primero cómo`. Se interpreta como
+> **“Inspeccionar primero cómo está construida la escena actual”**. La escena ya
+> está inspeccionada: `web/scene.js`, `W=15, D=11, H=4.8`, pared de fondo
+> `z=-5.5`, 3 robots, mesa central, puerta al fondo, luces.
+
+```text
+# AGENT RUSH — ESCAPE ROOM ENVIRONMENT REDESIGN
+
+Quiero mejorar visualmente la habitación 3D de AGENT RUSH para que transmita claramente la sensación de estar dentro de una auténtica sala de escape futurista.
+
+**IMPORTANTE:** No quiero reconstruir la escena desde cero. Quiero mejorar la habitación que ya existe, conservando su composición, sus tres agentes, sus puestos de trabajo y la mesa central.
+
+## 1. Concepto visual
+
+Transformar el entorno actual en una habitación cerrada de escape tecnológico.
+
+La ambientación debe combinar:
+- Escape room futurista.
+- Laboratorio tecnológico experimental.
+- Sala de seguridad de alta tecnología.
+- Estética cyberpunk industrial.
+
+Debe sentirse como un espacio físico cerrado, diseñado para mantener a los participantes dentro hasta completar una misión.
+
+No debe parecer una oficina, un centro de servidores convencional ni una sala de reuniones.
+
+## 2. Elementos arquitectónicos
+
+Mejorar el entorno existente incorporando elementos sencillos pero reconocibles:
+
+**Paredes**
+- Paneles metálicos industriales.
+- Estructuras reforzadas.
+- Juntas y divisiones visibles.
+- Conductos y pequeñas rejillas de ventilación.
+- Iluminación ambiental integrada en las paredes.
+
+**Puerta de escape**
+- Incorporar una puerta blindada claramente visible al fondo o en uno de los laterales.
+- Utilizar un sistema de bloqueo electrónico.
+- Añadir un pequeño panel de acceso o teclado.
+- Mostrar un indicador luminoso de LOCKED.
+- La puerta debe parecer el objetivo físico de la misión.
+
+No hace falta construir una puerta excesivamente compleja. Debe integrarse naturalmente con la habitación.
+
+**Suelo**
+- Conservar el suelo tecnológico actual.
+- Mejorar las líneas de perspectiva y la sensación de profundidad.
+- Incorporar detalles industriales discretos.
+
+## 3. Señalización de la hackatón
+
+Incorporar carteles físicos luminosos con la identidad visual de AGENT RUSH y Vultr.
+
+Mantener los colores:
+
+- Naranja: AGENT RUSH.
+- Cyan: VULTR SANDBOX.
+- Violeta: identificación del Auditor.
+- Verde: estados de éxito y seguridad.
+
+Agregar algunos letreros ambientales como:
+
+- VULTR SANDBOX.
+- AGENT RUSH.
+- RESTRICTED AREA.
+- SECURITY ZONE.
+- ESCAPE PROTOCOL.
+- AUTHORIZED ACCESS ONLY.
+
+Los carteles deben parecer señalización real de la habitación, integrados en las paredes y estructuras, no elementos flotantes colocados aleatoriamente.
+
+## 4. Los tres agentes
+
+Conservar exactamente los tres puestos actuales:
+
+**STRATEGIST**
+- Iluminación naranja.
+- Identificación visual clara.
+- Monitor y estación de trabajo.
+
+**CODER**
+- Iluminación cyan.
+- Identificación visual clara.
+- Monitor y estación de trabajo.
+
+**AUDITOR**
+- Iluminación violeta.
+- Identificación visual clara.
+- Monitor y estación de trabajo.
+
+No cambiar sus posiciones ni dimensiones sin una razón importante.
+
+Los tres deben continuar siendo los protagonistas de la escena.
+
+## 5. Mesa central
+
+Conservar la mesa circular actual.
+
+Mejorar ligeramente:
+- Iluminación perimetral.
+- Superficie tecnológica.
+- Reflejos.
+- Detalles holográficos.
+- Integración con los tres puestos de trabajo.
+
+La mesa debe funcionar como centro de coordinación de los agentes.
+
+Evitar agregar demasiados objetos que dificulten la visualización de los personajes.
+
+## 6. Iluminación y atmósfera
+
+Quiero una iluminación más cinematográfica:
+
+- Ambiente predominantemente oscuro.
+- Luz azul y cyan como iluminación general.
+- Reflejos naranjas y violetas procedentes de los puestos.
+- Luces de emergencia rojas muy discretas cerca de la puerta.
+- Sombras que refuercen la sensación de profundidad.
+- Materiales metálicos con reflejos controlados.
+
+No utilizar neón excesivo ni iluminar todos los objetos con la misma intensidad.
+
+## 7. Estados visuales de la habitación
+
+Preparar el entorno para que pueda representar diferentes estados de la misión cuando existan los eventos correspondientes:
+
+**READY**
+- Puerta bloqueada.
+- Iluminación estable.
+- Los agentes esperan instrucciones.
+
+**MISSION ACTIVE**
+- Puestos de trabajo iluminados.
+- Actividad visual en los monitores.
+- Mesa central activa.
+- Indicadores de misión en funcionamiento.
+
+**ESCAPE UNLOCKED**
+- Indicador de puerta desbloqueada en verde.
+- Luces de emergencia que pasan a estado seguro.
+- Animación de apertura de la puerta, cuando sea posible.
+
+Utilizar los estados reales de la aplicación. No simular una finalización antes de que el sistema la confirme.
+
+## 8. Restricciones técnicas y de diseño
+
+- Inspeccionar primero cómo [TEXTO ORIGINAL CORTADO]
+```
+
+### 14.3 Principios de ejecución (obligatorios)
+
+1. **No romper lo que funciona.** Antes de empezar: commit/tag del estado actual
+   y backup de `web/`, `run_server.py`, `run_engine.py`, `deploy/`.
+2. **No reemplazar datos reales por mocks.** Todo estado de misión, log, energía,
+   líder y validación sale de eventos reales.
+3. **No cambiar la arquitectura:** APIs/SSE/sandbox/referee/agentes siguen igual.
+   Cambios de backend autorizados y acotados:
+   - `code` (y opcionalmente `patch`) en el evento del Coder.
+   - Definiciones/artefactos de desafíos.
+   - Versión de desafío en `runs`/leaderboard.
+4. **ES/EN:** toda cadena nueva con par de claves; probar ambos idiomas.
+5. **No tocar `vendor/three.module.js` ni `referee.py`** salvo que sea
+   imprescindible y esté justificado.
+6. **Escena 3D:** mejorar la existente, no reconstruir; conservar posiciones,
+   dimensiones, robots, mesa y cámaras.
+7. **Performance:** medir draw calls, sombras y FPS; SwiftShader/headless es
+   lento; priorizar legibilidad sobre cantidad de objetos.
+8. **Deploy controlado:** probar local, luego copiar a la VM y reiniciar; si
+   algo falla, revertir al commit anterior. No dejar la URL pública rota.
+9. **Checkpoints:** no avanzar al siguiente bloque sin un run real y sin captura
+   a 1366/1600/1920.
+10. **Cut lines antes que incumplir el submission.**
+
+### 14.4 Arquitectura de la implementación
+
+#### 14.4.1 Design system
+
+- Variables CSS en `web/styles.css`:
+  - `--bg:#050B14`, `--panel:#0C1928`, `--panel-2:#091421`,
+    `--line:#17344B`, `--orange:#FFAD25`, `--cyan:#26C9FF`,
+    `--violet:#B66AFF`, `--green:#13DB8C`.
+  - Mantener aliases viejos (`--amber`, `--line-hot`, etc.) para no romper
+    componentes existentes; mapearlos a los nuevos.
+- Fuentes locales (woff2 en `web/fonts/`):
+  - Orbitron (700/800) para títulos/brand.
+  - Inter (400/500/600/700) para UI.
+  - JetBrains Mono (400/500/700) para logs/código.
+  - `@font-face` con `font-display: swap`; fallback a Bahnschrift/Consolas.
+- Componentes: botón primario naranja, secundario con borde cyan/neutro, cards
+  con borde `--line`, radio 10–14 px, hover con glow suave (no neón global).
+- Iconografía: SVG inline/monocromo por rol; sin librerías nuevas.
+
+#### 14.4.2 Landing (`web/index.html` + `styles.css` + posible `hero-scene.js`)
+
+- Hero cinematográfico:
+  - Fondo/escena 3D real reutilizando `web/scene.js` en un modo `hero` (cámara
+    close-up de los 3 puestos + mesa; sin labels/consolas).
+  - Alternativa de performance: render estático de la misma escena (nunca stock).
+  - Logo AGENT RUSH, subtítulo exacto **“THREE AGENTS. ONE MISSION. ZERO TRUST.”**.
+  - Descripción breve.
+  - CTA naranja **ENTER THE GAME** + secundario **HOW IT WORKS** (ancla).
+  - Representación de los 3 agentes con colores/roles; puede ser la escena 3D o
+    los avatares existentes como refuerzo.
+- Cómo funciona: 3 cards horizontales con títulos/copy exactos de la spec,
+  icono propio, color del rol, hover.
+- Modos: 2 cards con copy de la spec; CTAs abren el wizard existente (no cambiar
+  la navegación).
+- Footer: Vultr, LabLab, tecnologías; conservar links; agregar Sandbox.
+- Responsive: 1 columna en móvil; hero sin overflow; texto legible.
+
+#### 14.4.3 Wizard (`web/wizard.js` + `index.html` + `styles.css` + `i18n.js`)
+
+- Mantener el flujo real: `#enter-game` → paso 1 (modo) → paso 2 (modelos);
+  tarjetas de modo → paso 2 directo; submit explícito.
+- Rediseñar:
+  - Dos cards de modo con icono, título, descripción, estado selected/hover.
+  - Tres cards de agente (STRATEGIST naranja, CODER cyan, AUDITOR violeta):
+    rol, modelo seleccionado, proveedor **Vultr Serverless Inference**,
+    descripción breve, selector de modelos existente.
+  - Botón principal **START MISSION**; secundario **BACK**.
+- Conservar `sessionStorage`, POST `/api/agents`, validación de 3 modelos,
+  presets y autoselección actual.
+- ES/EN completo; no inventar modelos/proveedores.
+
+#### 14.4.4 Juego 50/50 (`web/game.html` + `styles.css` + `app.js`)
+
+- Grid: 50% escena / 50% logs en desktop (`1366`+). El rail actual
+  (`--rail-w: clamp(380px,30vw,470px)`) pasa a `50%` o `1fr 1fr`.
+- La escena conserva proporción; ajustar cámara/aspecto en `scene.js` si hace
+  falta. No tapar la sala con logs.
+- Topbar intacta: logo, modo, energía, sandbox, ES/EN, salida. Agregar acceso a
+  menú si hace falta sin romper.
+- Logs:
+  - Header: **AGENT LOGS**, badge **LIVE**, estado de misión.
+  - Filtros: ALL / CHAT / CODE / EXECUTION / AUDIT.
+  - Evento: agente/sistema con color, timestamp, mensaje, badge de estado.
+  - CODE: resumen + `<details>` expandible con código real (payload autorizado);
+    no mostrar código permanentemente.
+  - EXECUTION: stdout/stderr y exit code en expandible.
+  - AUDIT: referee/auditor, validaciones y aprobaciones.
+  - Scroll independiente; auto-scroll solo si el usuario está al final.
+  - Animación discreta de entrada; contador de eventos; tokens.
+- Estados de misión (derivados de eventos reales):
+  - `READY TO ESCAPE` (idle).
+  - `MISSION ACTIVE` (run_started / challenge / agente trabajando).
+  - `AUDIT IN PROGRESS` (auditor/referee/sandbox de validación).
+  - `ESCAPE UNLOCKED` (run_completed 3/3).
+  - `RUN FAILED`/`DISQUALIFIED`/`ABORTED` si aplica.
+- Responsive: en tablet/móvil tabs **ROOM / AGENT LOGS**; no comprimir la sala.
+
+#### 14.4.5 Sala 3D (`web/scene.js` + `app.js`)
+
+Conservar composición actual. Agregar/ajustar:
+
+- **Paredes:** paneles metálicos con juntas, refuerzos, conductos y rejillas;
+  tiras de luz integradas. Reutilizar texturas canvas/procedurales.
+- **Puerta:** blindada en la pared de fondo (donde ya está), keypad/panel,
+  LED **LOCKED** rojo → **UNLOCKED** verde, marco reforzado, luces de emergencia
+  rojas cerca; animación de apertura si el rendimiento lo permite.
+- **Piso:** conservar grid; mejorar líneas de perspectiva/placas industriales
+  discretas.
+- **Señalización:** carteles canvas integrados en paredes/estructuras, 0.2 m por
+  delante para evitar z-fighting: AGENT RUSH (naranja), VULTR SANDBOX (cyan),
+  RESTRICTED AREA (rojo/ámbar), SECURITY ZONE (cyan), ESCAPE PROTOCOL (ámbar),
+  AUTHORIZED ACCESS ONLY (verde). Nada flotante/aleatorio.
+- **Agentes:** mismas posiciones/dimensiones; monitores con actividad según
+  `setBotState`; colores intactos.
+- **Mesa:** anillo perimetral, superficie, reflejos y detalles holográficos;
+  intensificarse en `ACTIVE`.
+- **Iluminación:** ambiente oscuro azul/cyan; acentos naranja/violeta; rojo
+  discreto en puerta; sombras; metales controlados; sin neón global.
+- **API nueva:** `setEnvironmentState("ready"|"active"|"unlocked")` exportada
+  desde `scene.js`.
+  - `startRun` → `active`.
+  - `room_solved`/auditor → actividad de auditoría.
+  - `run_completed` → `unlocked` (LED verde, emergencia segura, apertura).
+  - salida/reset → `ready`.
+  - No simular estados.
+- **Hero landing:** modo `hero` de la misma escena o `hero-scene.js` que reuse
+  geometrías/materiales; cámara cinematográfica; sin interacción pesada.
+- **Performance:** limitar pixel ratio, sombras 1024, reutilizar materiales,
+  instancing para paneles/rejillas; probar headless/SwiftShader.
+
+#### 14.4.6 Backend mínimo autorizado
+
+- `run_engine.py`:
+  - Emitir en el evento `agent` del Coder (y Auditor patch) el campo `code`
+    (string) y opcional `lines`, `filename` (`roomN.py`). No cambiar la lógica.
+  - Definiciones de desafíos nuevas (artefactos, prompts, validación).
+  - No tocar la arquitectura de `EventBus`, SSE, `RunManager`, sandbox ni tokens.
+- `run_server.py`:
+  - No cambiar rutas/contratos existentes.
+  - Agregar `challenge_version` a la tabla `runs` y filtrar leaderboard por
+    versión actual; o resetear `data/agent_rush.db` tras el cambio de desafíos.
+  - Mantener `/api/sandbox/probe`, `/api/runs`, SSE, abort.
+- `referee.py`: no tocar.
+- Sandbox: mismas flags; no relajar contención.
+
+#### 14.4.7 Desafíos nuevos + calibración
+
+- **Sala 1 — THE LOGS (fácil-medio):** `auth.log` + `auth.log.1` con decenas de
+  líneas, hashes señuelo, entradas corruptas y una correlación con checksum/
+  header. El token válido no se ve a simple vista.
+- **Sala 2 — MEMORY LEAK (medio):** módulo Python con bug real + tests; el
+  agente corrige código sin tocar tests; casos borde (vacío, negativos, chunks
+  grandes, timeout). Éxito = tests pasan + proof.
+- **Sala 3 — FIREWALL (difícil):** handshake local `HELLO` → nonce → firma HMAC →
+  token, servidor dentro del contenedor (loopback, `--network none`), trampas
+  (nonce cambiante, respuesta señuelo), intentos limitados.
+- Intentos por sala: 3 (alinear UI); pistas; tiempo y tokens visibles.
+- Dificultad “Normal” para la demo; “Hard” opcional.
+- Calibración:
+  - Recomendados (deepseek + glm-5.3-flash + minimax) × 10 runs: 90–100% éxito,
+    ≤3 intentos, ≤20k tokens, ≤90 s.
+  - Alternativos × 5 runs: 60–80%.
+  - Débiles × 3 runs: fallo claro, servidor estable.
+  - Medir éxito/intentos/tokens/tiempo; ajustar señuelos, casos borde, pasos,
+    intentos y pistas.
+- Validar código con `compile()` antes del sandbox; retry informado.
+- Presupuesto: 100k por run es suficiente (runs actuales 4–6k). Mantener tope
+  por llamada ~1.200–1.500; agregar rate limit público.
+- Leaderboard: versionar/resetear; poblar con 3–5 runs reales nuevas.
+
+#### 14.4.8 Video / deploy / submission
+
+- Regrabar video después de UI/sala/desafíos: landing, wizard, run real 3/3,
+  logs/estados, contención, leaderboard. <3 min (actual 48 s). TTS o voz humana.
+- Actualizar capturas y README; `SUBMISSION.md` con URL/repo/video.
+- Deploy: probar local, copiar a la VM, reiniciar systemd; HTTPS con Caddy;
+  verificar desde otra red. Rollback al commit anterior si falla.
+- Mantener la URL pública actual hasta el QA final.
+
+### 14.5 Orden de ejecución y checkpoints
+
+1. **Backup + tag + design tokens + fuentes** (1–2 h).
+2. **Landing** (hero 3D, cards, modos, footer) + wizard (4–6 h). Checkpoint:
+   landing/wizard en local, ES/EN, sin overflow.
+3. **Juego 50/50 + logs/filtros/estados + payload code** (6–8 h). Checkpoint:
+   run real local, filtros y código expandible.
+4. **Sala 3D** (paredes/puerta/carteles/luces/estados) (6–8 h). Checkpoint:
+   captura 1366/1600/1920 + estados reales.
+5. **Desafíos + calibración + leaderboard** (6–8 h). Checkpoint: 3/3 real,
+   matriz de modelos, DB/version.
+6. **QA responsive + microinteracciones + fixes** (4–6 h).
+7. **Deploy + video + docs/submission** (3–5 h). Checkpoint: URL pública con
+   la versión nueva y submission enviado.
+
+Calendario objetivo: **jueves + viernes + sábado**, submission sábado noche;
+domingo buffer. Estimación: 2,5–3 días, ~20–28 h efectivas con paralelización
+(landing/wizard, desafíos/calibración y tests en subagentes).
+
+### 14.6 Cut lines (en orden)
+
+1. Hero 3D inestable/pesado → render estático de la misma escena.
+2. Apertura animada de puerta complica → LED verde + estado UNLOCKED.
+3. Paneles/rejillas suben draw calls → instancing o menos detalle; prioridad a
+   los agentes.
+4. Desafíos nuevos no pasan calibración el viernes noche → se mantienen las 3
+   salas actuales; se prioriza UI/QA/video.
+5. 50/50 rompe la escena a 1366 → rail 45/55 o ajustar cámara antes que comprimir.
+6. Cualquier bloqueo el sábado → revertir al commit anterior y submitir.
+
+### 14.7 Criterios de aceptación
+
+- [ ] Landing: hero 3D, subtítulo exacto, 3 cards, 2 modos, footer Vultr/LabLab,
+      ES/EN, desktop/móvil sin overflow.
+- [ ] Wizard: modo + 3 cards de agente con modelo/proveedor/rol; START MISSION/
+      BACK; selección real; ES/EN.
+- [ ] Juego 50/50; escena y logs visibles simultáneamente; tabs en móvil.
+- [ ] Logs: ALL/CHAT/CODE/EXECUTION/AUDIT; colores; timestamps; código
+      expandible real; stdout/stderr; audit; scroll independiente.
+- [ ] Estados reales READY/MISSION ACTIVE/AUDIT IN PROGRESS/ESCAPE UNLOCKED;
+      nunca completar antes de `run_completed`.
+- [ ] Sala 3D: paredes, puerta/keypad/LED, carteles, piso, mesa, luces,
+      estados; agentes/posiciones intactos.
+- [ ] Run real 3/3 en local y en la VM; tokens/energía reales.
+- [ ] Leaderboard real versionado/reseteado; sin datos ficticios.
+- [ ] QA 1920/1600/1366/tablet/móvil; sin scroll horizontal; sin pageerrors.
+- [ ] Video regrabado <3 min; README/SUBMISSION actualizados; deploy HTTPS OK.
+- [ ] ES/EN completos (claves nuevas en ambos diccionarios).
+
+### 14.8 Comandos y gotchas para la ejecución
+
+```bash
+# local (Windows: Docker Desktop ocupa 8000)
+python run_server.py --port 8010 --no-open
+# tests de sintaxis
+python -m py_compile run_server.py run_engine.py deploy/deploy.py
+node --check web/app.js web/wizard.js web/i18n.js web/catalog.js web/leaderboard.js
+# deploy a la VM actual
+python deploy/deploy.py --region sao --plan vc2-1c-2gb
+# o copia incremental + restart
+# scp -i %USERPROFILE%/.ssh/agent_rush run_server.py run_engine.py root@IP:/opt/agent-rush/
+# ssh -i ... root@IP "systemctl restart agent-rush"
+```
+
+- No reconstruir la VM antes del domingo (cambia la IP y la URL sslip.io).
+- La key general de Vultr tiene ACL IPv6 restringido; forzar IPv4 en scripts.
+- Docker/SSE: probar que Caddy no bufferee `/api/runs/*/events`.
+- `data/agent_rush.db` no se commitea; si se cambia la versión de desafíos,
+  resetear/versionar.
+- `web/scene.js`: si se toca, subir `?v=` del import en `app.js` y probar
+  headless con `--use-gl=swiftshader` ventana chica.
+- Z-fighting: carteles 0.2 m delante de paredes.
+- Texto canvas: auto-fit con `measureText`.
+- Mantener el fallback de la sección 13 (commit/tag) y no romper la URL pública.
+
+### 14.9 Estado al guardar este plan
+
+- **No ejecutado.** Ninguna línea de esta sección fue implementada.
+- El plan queda guardado en `AGENTS.md` para que al volver el usuario diga
+  **“ejecutar plan c”** y se arranque por el backup/tag y el design system.
+- La app pública actual sigue funcionando con la UI/salas de la sección 13.
+
+---
+
