@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AGENT RUSH — AI Escape Room</title>
 <link rel="stylesheet" href="styles.css" />
+<link rel="stylesheet" href="premium.css" />
 </head>
-<body data-mode="spectator" data-page="game">
+<body data-mode="spectator" data-page="game" data-mobile-view="room">
 
   <!-- ================= TOP BAR ================= -->
   <header class="topbar">
@@ -44,6 +45,16 @@
     </button>
   </header>
 
+  <!-- mobile / tablet view switcher -->
+  <nav class="view-tabs" id="viewTabs" aria-label="Game views">
+    <button class="view-tab is-active" type="button" data-view="room">
+      <span data-i18n="game.tabs.room">ROOM</span>
+    </button>
+    <button class="view-tab" type="button" data-view="logs">
+      <span data-i18n="game.tabs.logs">AGENT LOGS</span>
+    </button>
+  </nav>
+
   <!-- ================= MAIN STAGE ================= -->
   <main class="stage">
 
@@ -56,8 +67,7 @@
       </div>
 
       <div class="hud">
-        <span class="hud-chip">RUN #0042</span>
-        <span class="hud-chip">SEED 7f3a…c19e</span>
+        <span class="hud-chip" id="runIdChip">RUN · WAITING</span>
         <span class="hud-chip ok" data-i18n="game.hud.sandbox">SANDBOX ACTIVE</span>
       </div>
 
@@ -78,57 +88,34 @@
       </div>
     </section>
 
-    <!-- ---------- RIGHT RAIL ---------- -->
+    <!-- ---------- RIGHT RAIL: AGENT LOGS + ORCHESTRATOR PANELS ---------- -->
     <aside class="rail">
 
-      <!-- ===== spectator rail ===== -->
-      <div class="rail-view rail-spectator">
-        <section class="panel panel-logs">
-          <header class="panel-head">
-            <h2><span data-i18n="game.logs.title">RUN LOGS</span> <span class="muted" data-i18n="game.logs.tag.spectator">[SPECTATOR]</span></h2>
-            <button id="pauseLogs" class="ghost-btn" type="button" data-i18n="game.pause" hidden>PAUSA</button>
-          </header>
-
-          <div class="log-body">
-            <div class="start-gate" data-start-gate>
-              <div class="start-gate-mark" aria-hidden="true">◆</div>
-              <h3 data-i18n="game.start.title">READY TO ESCAPE?</h3>
-              <p data-i18n="game.start.hint">Press start to receive the challenge. The agents will then begin to reason and communicate.</p>
-              <button class="start-btn" data-start type="button">
-                <span class="start-btn-icon" aria-hidden="true">▶</span>
-                <span data-i18n="game.start.cta">CLICK TO START</span>
-              </button>
+      <!-- shared agent logs (both modes) -->
+      <section class="panel panel-logs">
+        <header class="panel-head logs-head">
+          <div class="logs-title-group">
+            <div class="logs-title-line">
+              <h2><span data-i18n="game.logs.title">AGENT LOGS</span></h2>
+              <span class="live-badge" id="liveBadge"><i></i><span data-i18n="game.logs.live">LIVE</span></span>
+              <span class="muted logs-mode-tag" id="logsModeTag">[SPECTATOR]</span>
             </div>
-
-            <article class="challenge-card" data-challenge hidden>
-              <div class="challenge-kicker" data-i18n="game.challenge.kicker">CHALLENGE · ROOM 1</div>
-              <h3 data-i18n="game.challenge.title">THE LOGS</h3>
-              <p data-i18n="game.challenge.desc">The access terminal is locked. Parse the corrupted auth.log, recover the token and open the door.</p>
-              <div class="challenge-goal">
-                <span class="challenge-goal-label" data-i18n="game.challenge.goalLabel">OBJECTIVE</span>
-                <span data-i18n="game.challenge.goal">Extract the valid hash from the logs.</span>
-              </div>
-              <p class="challenge-engine" data-i18n="game.start.engine">Run engine not connected yet. The challenge is ready; the agents are waiting for the backend.</p>
-            </article>
-
-            <div class="log-stream" id="logStream" aria-live="polite" hidden></div>
+            <span class="mission-state" id="missionState" data-state="ready" data-i18n="game.mission.ready">READY TO ESCAPE</span>
           </div>
+          <button id="pauseLogs" class="ghost-btn" type="button" data-i18n="game.pause" hidden>PAUSE</button>
+        </header>
 
-          <footer class="panel-foot" id="logFoot" hidden>
-            <span id="logCount">0 events</span>
-            <span class="tok"><span data-i18n="game.tokens">TOKENS</span> <b id="tokenCount">0</b></span>
-          </footer>
-        </section>
-      </div>
+        <div class="log-filters" id="logFilters" role="group" aria-label="Filter log events" data-i18n-aria="game.logs.filterAria">
+          <button class="log-filter is-active" type="button" data-filter="all" data-i18n="game.filters.all">ALL</button>
+          <button class="log-filter" type="button" data-filter="chat" data-i18n="game.filters.chat">CHAT</button>
+          <button class="log-filter" type="button" data-filter="code" data-i18n="game.filters.code">CODE</button>
+          <button class="log-filter" type="button" data-filter="execution" data-i18n="game.filters.execution">EXECUTION</button>
+          <button class="log-filter" type="button" data-filter="audit" data-i18n="game.filters.audit">AUDIT</button>
+        </div>
 
-      <!-- ===== orchestrator rail ===== -->
-      <div class="rail-view rail-orchestrator">
-        <section class="panel panel-status">
-          <header class="panel-head">
-            <h2 data-i18n="game.status.title">RUN STATUS</h2>
-            <span class="badge amber"><span data-i18n="game.level">LEVEL</span> <b id="currentLevel">1</b></span>
-          </header>
-          <div class="start-gate compact" data-start-gate>
+        <div class="log-body">
+          <div class="start-gate" data-start-gate>
+            <div class="start-gate-mark" aria-hidden="true">◆</div>
             <h3 data-i18n="game.start.title">READY TO ESCAPE?</h3>
             <p data-i18n="game.start.hint">Press start to receive the challenge. The agents will then begin to reason and communicate.</p>
             <button class="start-btn" data-start type="button">
@@ -137,8 +124,7 @@
             </button>
           </div>
 
-          <div class="status-content" id="statusContent" hidden>
-          <article class="challenge-card compact" data-challenge hidden>
+          <article class="challenge-card" data-challenge hidden>
             <div class="challenge-kicker" data-i18n="game.challenge.kicker">CHALLENGE · ROOM 1</div>
             <h3 data-i18n="game.challenge.title">THE LOGS</h3>
             <p data-i18n="game.challenge.desc">The access terminal is locked. Parse the corrupted auth.log, recover the token and open the door.</p>
@@ -149,34 +135,53 @@
             <p class="challenge-engine" data-i18n="game.start.engine">Run engine not connected yet. The challenge is ready; the agents are waiting for the backend.</p>
           </article>
 
-          <ol class="room-list" id="roomList">
-            <li class="room is-active">
-              <span class="room-node"></span>
-              <div class="room-body">
-                <span class="room-name" data-i18n="game.room.1">ROOM 1: THE LOGS</span>
-                <span class="room-meta">en curso · intento 1/5</span>
-              </div>
-            </li>
-            <li class="room">
-              <span class="room-node"></span>
-              <div class="room-body">
-                <span class="room-name" data-i18n="game.room.2">ROOM 2: MEMORY LEAK</span>
-                <span class="room-meta">bloqueada</span>
-              </div>
-            </li>
-            <li class="room">
-              <span class="room-node"></span>
-              <div class="room-body">
-                <span class="room-name" data-i18n="game.room.3">ROOM 3: FIREWALL</span>
-                <span class="room-meta">bloqueada</span>
-              </div>
-            </li>
-          </ol>
-          <footer class="panel-foot level-foot">
-            <span data-i18n="game.currentLevel">CURRENT LEVEL</span>
-            <b class="level-num" id="currentLevelFoot">1</b>
-          </footer>
+          <div class="log-empty" id="logEmpty" data-i18n="game.logs.empty" hidden>Waiting for the first event…</div>
+          <div class="log-stream" id="logStream" aria-live="polite" hidden></div>
         </div>
+
+        <footer class="panel-foot" id="logFoot" hidden>
+          <span id="logCount">0 events</span>
+          <span class="tok"><span data-i18n="game.tokens">TOKENS</span> <b id="tokenCount">0</b></span>
+        </footer>
+      </section>
+
+      <!-- ===== orchestrator-only panels ===== -->
+      <div class="rail-view rail-orchestrator">
+        <section class="panel panel-status" id="statusPanel" hidden>
+          <header class="panel-head">
+            <h2 data-i18n="game.status.title">RUN STATUS</h2>
+            <span class="badge amber"><span data-i18n="game.level">LEVEL</span> <b id="currentLevel">1</b></span>
+          </header>
+
+          <div class="status-content" id="statusContent" hidden>
+            <ol class="room-list" id="roomList">
+              <li class="room is-active">
+                <span class="room-node"></span>
+                <div class="room-body">
+                  <span class="room-name" data-i18n="game.room.1">ROOM 1: THE LOGS</span>
+                  <span class="room-meta">in progress · attempt 1/3</span>
+                </div>
+              </li>
+              <li class="room">
+                <span class="room-node"></span>
+                <div class="room-body">
+                  <span class="room-name" data-i18n="game.room.2">ROOM 2: MEMORY LEAK</span>
+                  <span class="room-meta">locked</span>
+                </div>
+              </li>
+              <li class="room">
+                <span class="room-node"></span>
+                <div class="room-body">
+                  <span class="room-name" data-i18n="game.room.3">ROOM 3: FIREWALL</span>
+                  <span class="room-meta">locked</span>
+                </div>
+              </li>
+            </ol>
+            <footer class="panel-foot level-foot">
+              <span data-i18n="game.currentLevel">CURRENT LEVEL</span>
+              <b class="level-num" id="currentLevelFoot">1</b>
+            </footer>
+          </div>
         </section>
 
         <section class="panel panel-ide" id="idePanel" hidden>

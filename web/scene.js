@@ -50,7 +50,15 @@ let raf = 0;
 const CAMS = {
   spectator:    { pos: new THREE.Vector3(0, 2.10, 5.25), target: new THREE.Vector3(0, 1.05, -1.55), fov: 42 },
   orchestrator: { pos: new THREE.Vector3(0, 1.56, 2.85), target: new THREE.Vector3(0, 1.10, -1.00), fov: 52 },
+  hero:         { pos: new THREE.Vector3(0, 1.92, 4.72), target: new THREE.Vector3(0, 1.02, -1.55), fov: 44 },
 };
+
+let environmentState = "ready";
+let doorLedCtx = null;
+let doorLedTexture = null;
+let doorAlarm = null;
+let tableDiscMat = null;
+let tableLight = null;
 
 /* ------------------------------------------------------------
    helpers
@@ -247,6 +255,50 @@ function buildRoom() {
   topEdge.position.set(0, 3.95, BACK + 0.17);
   door.add(topEdge);
 
+  // ---------------- electronic lock panel + LED ----------------
+  const ledCanvas = document.createElement("canvas");
+  ledCanvas.width = 256;
+  ledCanvas.height = 96;
+  doorLedCtx = ledCanvas.getContext("2d");
+  paintDoorLed("LOCKED", "#ff4d5e");
+  doorLedTexture = new THREE.CanvasTexture(ledCanvas);
+  doorLedTexture.colorSpace = THREE.SRGBColorSpace;
+  doorLedTexture.anisotropy = 4;
+
+  const led = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.66, 0.25),
+    new THREE.MeshBasicMaterial({ map: doorLedTexture, transparent: true, toneMapped: false })
+  );
+  led.position.set(0.72, 2.62, BACK + 0.135);
+  door.add(led);
+
+  const keypad = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.38, 0.035), trimMat);
+  keypad.position.set(0.72, 2.05, BACK + 0.14);
+  door.add(keypad);
+  for (let row = 0; row < 4; row++) {
+    for (let col = 0; col < 3; col++) {
+      const key = new THREE.Mesh(
+        new THREE.BoxGeometry(0.055, 0.045, 0.012),
+        new THREE.MeshBasicMaterial({ color: 0x9fe6ff, toneMapped: false })
+      );
+      key.position.set(0.62 + col * 0.095, 1.92 + row * 0.085, BACK + 0.165);
+      door.add(key);
+    }
+  }
+
+  // red emergency beacon near the door (turns green when unlocked)
+  doorAlarm = new THREE.PointLight(0xff3344, 1.8, 5.2, 2);
+  doorAlarm.position.set(0, 3.45, BACK + 0.75);
+  room.add(doorAlarm);
+
+  const beacon = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.055, 0.055, 0.16, 12),
+    new THREE.MeshBasicMaterial({ color: 0xff3344, toneMapped: false })
+  );
+  beacon.position.set(0, 3.45, BACK + 0.14);
+  beacon.rotation.z = Math.PI / 2;
+  door.add(beacon);
+
   room.add(door);
 
   // side panels next to the door
@@ -397,6 +449,109 @@ function buildSigns() {
   const vultrLight = new THREE.PointLight(0x5fe4ff, 5, 8, 2);
   vultrLight.position.set(-3.05, 3.0, -4.6);
   scene.add(vultrLight);
+
+  // small environmental signage, mounted on the back wall flanks
+  const restrictedTex = signTexture(["RESTRICTED", "AREA"], { color: "#ff7a45", size: 200 });
+  const restricted = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.05, 0.52),
+    new THREE.MeshBasicMaterial({ map: restrictedTex, transparent: true, toneMapped: false })
+  );
+  restricted.position.set(5.35, 2.35, -5.26);
+  scene.add(restricted);
+
+  const securityTex = signTexture(["SECURITY", "ZONE"], { color: "#5fe4ff", size: 200 });
+  const security = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.05, 0.52),
+    new THREE.MeshBasicMaterial({ map: securityTex, transparent: true, toneMapped: false })
+  );
+  security.position.set(-5.35, 2.35, -5.26);
+  scene.add(security);
+
+  // side-wall signs: escape protocol (amber) and authorized access (green)
+  const escapeTex = signTexture(["ESCAPE", "PROTOCOL"], { color: "#ffb020", size: 200 });
+  const escapeSign = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.3, 0.62),
+    new THREE.MeshBasicMaterial({ map: escapeTex, transparent: true, toneMapped: false })
+  );
+  escapeSign.position.set(-7.42, 2.55, 2.1);
+  escapeSign.rotation.y = Math.PI / 2;
+  scene.add(escapeSign);
+
+  const accessTex = signTexture(["AUTHORIZED", "ACCESS ONLY"], { color: "#13DB8C", size: 200 });
+  const accessSign = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.3, 0.62),
+    new THREE.MeshBasicMaterial({ map: accessTex, transparent: true, toneMapped: false })
+  );
+  accessSign.position.set(7.42, 2.55, 2.1);
+  accessSign.rotation.y = -Math.PI / 2;
+  scene.add(accessSign);
+}
+
+/* ------------------------------------------------------------
+   door LED + environment states
+   ------------------------------------------------------------ */
+
+function paintDoorLed(text, color) {
+  if (!doorLedCtx) return;
+  const ctx = doorLedCtx;
+  ctx.clearRect(0, 0, 256, 96);
+  ctx.fillStyle = "rgba(3,8,14,0.92)";
+  ctx.fillRect(0, 0, 256, 96);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 6;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18;
+  ctx.strokeRect(5, 5, 246, 86);
+  ctx.fillStyle = color;
+  ctx.font = "800 32px 'JetBrains Mono', Consolas, monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, 128, 51);
+  if (doorLedTexture) doorLedTexture.needsUpdate = true;
+}
+
+export function setEnvironmentState(state) {
+  environmentState = state;
+
+  if (state === "unlocked") {
+    paintDoorLed("UNLOCKED", "#13DB8C");
+    if (doorAlarm) {
+      doorAlarm.color.setHex(0x13db8c);
+      doorAlarm.intensity = 2.6;
+    }
+    if (tableDiscMat) tableDiscMat.opacity = 0.18;
+    if (tableLight) {
+      tableLight.color.setHex(0x13db8c);
+      tableLight.intensity = 5.2;
+    }
+    if (neonLight) neonLight.color.setHex(0xffad25);
+    return;
+  }
+
+  if (state === "active") {
+    paintDoorLed("LOCKED", "#ffad25");
+    if (doorAlarm) {
+      doorAlarm.color.setHex(0xff3344);
+      doorAlarm.intensity = 2.8;
+    }
+    if (tableDiscMat) tableDiscMat.opacity = 0.16;
+    if (tableLight) {
+      tableLight.color.setHex(0x35d6ff);
+      tableLight.intensity = 6.5;
+    }
+    return;
+  }
+
+  paintDoorLed("LOCKED", "#ff4d5e");
+  if (doorAlarm) {
+    doorAlarm.color.setHex(0xff3344);
+    doorAlarm.intensity = 1.8;
+  }
+  if (tableDiscMat) tableDiscMat.opacity = 0.1;
+  if (tableLight) {
+    tableLight.color.setHex(0x35d6ff);
+    tableLight.intensity = 4.5;
+  }
 }
 
 /* ------------------------------------------------------------
@@ -425,17 +580,15 @@ function buildTable() {
   group.add(rim);
 
   // holographic disc
-  const disc = new THREE.Mesh(
-    new THREE.CircleGeometry(0.8, 64),
-    new THREE.MeshBasicMaterial({
-      color: 0x35d6ff,
-      transparent: true,
-      opacity: 0.1,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      toneMapped: false,
-    })
-  );
+  tableDiscMat = new THREE.MeshBasicMaterial({
+    color: 0x35d6ff,
+    transparent: true,
+    opacity: 0.1,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    toneMapped: false,
+  });
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(0.8, 64), tableDiscMat);
   disc.rotation.x = -Math.PI / 2;
   disc.position.y = 0.85;
   group.add(disc);
@@ -466,9 +619,9 @@ function buildTable() {
   core.position.set(0, 0.92, 0);
   group.add(core);
 
-  const light = new THREE.PointLight(0x35d6ff, 4.5, 6.5, 2);
-  light.position.set(0, 1.35, 0);
-  group.add(light);
+  tableLight = new THREE.PointLight(0x35d6ff, 4.5, 6.5, 2);
+  tableLight.position.set(0, 1.35, 0);
+  group.add(tableLight);
 
   scene.add(group);
 }
@@ -1046,6 +1199,13 @@ function animate() {
   const t = clock.getElapsedTime();
   const dt = clock.getDelta();
 
+  // cinematic drift for the landing hero; game cameras stay fixed
+  if (currentMode === "hero") {
+    camPos.set(Math.sin(t * 0.10) * 0.55, 1.92 + Math.sin(t * 0.07) * 0.05, 4.72);
+    camTarget.set(0, 1.02, -1.55);
+    camFov = 44;
+  }
+
   // camera easing
   camera.position.lerp(camPos, 0.08);
   camera.fov += (camFov - camera.fov) * 0.08;
@@ -1100,6 +1260,16 @@ function animate() {
   // neon flicker
   if (neonLight) {
     neonLight.intensity = 8.4 + Math.sin(t * 11) * 0.35 + Math.sin(t * 3.3) * 0.5;
+  }
+
+  // door emergency beacon + shared-table activity
+  if (doorAlarm) {
+    const base = environmentState === "unlocked" ? 2.4 : environmentState === "active" ? 2.8 : 1.8;
+    const speed = environmentState === "unlocked" ? 1.1 : 3.4;
+    doorAlarm.intensity = base + Math.sin(t * speed) * 0.22;
+  }
+  if (tableDiscMat && environmentState === "active") {
+    tableDiscMat.opacity = 0.16 + Math.sin(t * 3.2) * 0.03;
   }
 
   // human breathing

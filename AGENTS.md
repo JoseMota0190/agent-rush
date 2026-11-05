@@ -3,9 +3,8 @@
 Guía de trabajo para agentes de código en este repo.
 Última actualización: **4 nov 2026** (motor real, deploy en Vultr y **Plan C completo guardado en la sección 14**; pendiente de ejecución).
 
-> **PLAN C (pendiente):** UI/UX premium + sala 3D + desafíos/calibración. La spec
-> completa y el plan están en la **sección 14**. No ejecutar hasta que el usuario
-> diga **“ejecutar plan c”**.
+> **PLAN C (ejecutado 2026-11-05):** UI/UX premium + sala 3D + desafíos/calibración.
+> La spec original está en la **sección 14** y el estado final en la **sección 15**.
 
 ---
 
@@ -562,7 +561,11 @@ corrigió y completó los pasos que el subagente dejó a medias.
 - Repo público: https://github.com/JoseMota0190/agent-rush (MIT).
 ---
 
-## 14. PLAN C — Rediseño completo UI/UX + sala 3D + desafíos (GUARDADO, NO EJECUTADO)
+## 14. PLAN C — Rediseño completo UI/UX + sala 3D + desafíos (EJECUTADO 2026-11-05 — ver §15)
+
+> **Actualización 2026-11-05:** el plan ya se ejecutó. El detalle de lo hecho,
+> la calibración y lo pendiente están en la **sección 15**. El texto de esta
+> sección se conserva como la spec original.
 
 > **Estado:** guardado el **2026-11-04** a pedido del usuario para ejecutar al
 > volver. Al momento de guardar este plan **no se implementó nada de esta
@@ -1415,6 +1418,71 @@ python deploy/deploy.py --region sao --plan vc2-1c-2gb
 - El plan queda guardado en `AGENTS.md` para que al volver el usuario diga
   **“ejecutar plan c”** y se arranque por el backup/tag y el design system.
 - La app pública actual sigue funcionando con la UI/salas de la sección 13.
+
+---
+
+## 15. Sesión 2026-11-05 — Plan C ejecutado (UI/3D + desafíos v2 + calibración)
+
+### 15.1 Estado
+- Plan C completo en **local**; pendiente deploy a la URL pública, video y submission.
+- Fallback: tag `pre-plan-c` + backup zip en
+  `C:\Users\josem\AppData\Local\Temp\opencode\agent-rush-backup\pre-plan-c.zip`.
+
+### 15.2 Frontend / 3D (hecho)
+- `web/index.html`, `web/hero.js`, `web/premium.css`: landing cinematográfica con
+  hero 3D real, subtítulo exacto, cards de agentes, modos, catálogo, leaderboards
+  y wizard rediseñado.
+- `web/game.html`, `web/app.js`: layout 50/50, **AGENT LOGS** con filtros
+  ALL/CHAT/CODE/EXECUTION/AUDIT, código/stdout/stderr expandibles, estados
+  READY / MISSION ACTIVE / AUDIT IN PROGRESS / ESCAPE UNLOCKED, tabs móviles,
+  IDE, energía real e intentos **1/3**.
+- `web/scene.js`: sala mejorada (paredes, puerta/keypad/LED, carteles, luces,
+  estados); `app.js` y `hero.js` importan `scene.js?v=43`.
+- `web/i18n.js`: claves ES/EN nuevas; sin claves crudas en landing/game.
+- `web/fonts/`: Orbitron, Inter y JetBrains Mono locales.
+
+### 15.3 Backend / desafíos v2
+- `CHALLENGE_VERSION = "plan-c-v2"`; columna `challenge_version` en `runs` y
+  leaderboard filtrado por versión (las runs viejas quedan ocultas).
+- **Sala 1:** logs rotados + manifiesto; el ticket válido ahora siempre está atado
+  a `active_session` (fix de fairness) y varios señuelos comparten la sesión.
+- **Sala 2:** modo `module`: el harness escribe tests + módulo; el agente devuelve
+  solo `chunk_sum`. Tres intentos.
+- **Sala 3:** loopback TCP `HELLO → NONCE → HMAC → TOKEN/DECOY`, nonce fresco por
+  conexión y lockout tras 3 intentos inválidos.
+- 3 intentos por sala, `compile()` antes del sandbox, eventos con
+  `attempt/max_attempts` y prompts de patch específicos.
+- Vultr: `reasoning_effort=low`; coder/auditor `max_tokens=4000`; strategist 600.
+  Evita que los modelos thinking gasten todo el budget en razonamiento.
+- Leaderboard: ranking **por modo** (1..n), no global.
+
+### 15.4 Calibración
+- Tabla completa y conclusiones: `docs/CALIBRATION_PLAN_C.md`.
+- Recomendado (deepseek + glm-5.3-flash + deepseek): **3/3** en mod7/mod8/mod9,
+  16.7–41.3 s, 7.1k–15.6k tokens, máximo 3 intentos.
+- alt1b (glm-5.3 / deepseek / minimax): 3/3, 22.9 s, 10.8k tokens.
+- alt2 (minimax / glm-5.3 / glm-5.3-flash) y qwen3.8-27b ×3: 3/3.
+- alt1 v1 falló la sala 1 por el bug de fairness; corregido en v2.
+- Corrida real desde la UI (Playwright, run `76C3CAECBA43`): **ESCAPE UNLOCKED**
+  3/3, 10.246 tokens, 31 eventos, sin errores.
+
+### 15.5 QA
+- Playwright `qa-plan-c2.js`: landing 1366 con scroll, mobile 390 sin overflow,
+  game 1920 en 50/50, tabs móviles, SSE mock con 8 líneas/filtros/expandibles y
+  ES/EN. `errors=[]`, `failed=[]`.
+- `qa-real-run.js`: run real 3/3, `ESCAPE UNLOCKED`, intentos 1/3, IDE con código,
+  sin errores de consola ni overflow horizontal.
+- `python -m py_compile run_engine.py run_server.py`; `node --check web/app.js`.
+
+### 15.6 Pendiente (siguiente sesión)
+1. Deploy **incremental** a la VM actual (no reconstruir; mantener IP/URL):
+   copiar `run_engine.py`, `run_server.py`, `web/` y
+   `docs/CALIBRATION_PLAN_C.md`; respaldar `/opt/agent-rush`; reiniciar
+   `agent-rush`; verificar HTTPS y leaderboard v2.
+2. Regrabar video <3 min con UI/sala/desafíos nuevos; actualizar README,
+   `SUBMISSION.md` y capturas.
+3. Enviar el submission en LabLab (cuenta del usuario).
+4. Opcional: rate limit público.
 
 ---
 

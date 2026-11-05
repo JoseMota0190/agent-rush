@@ -2,16 +2,21 @@
    AGENT RUSH  -  controlador de la interfaz
    - escena 3D (Three.js) + rail de paneles
    - compuerta de inicio + challenge card (sin guion demo)
-   - stream de logs por SSE (cuando exista backend)
-   - estado de salas e IDE
+   - stream de logs por SSE con filtros y detalles expandibles
+   - estado de salas, IDE, energía y estados de misión reales
    ============================================================ */
 
-import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=42";
+import {
+  initScene,
+  setMode as setSceneMode,
+  setBotState,
+  setEnvironmentState,
+} from "./scene.js?v=43";
 
 (() => {
   "use strict";
 
-  const $  = (sel, root = document) => root.querySelector(sel);
+  const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 
   const i18n = window.AgentRushI18n;
@@ -65,6 +70,9 @@ import { initScene, setMode as setSceneMode, setBotState } from "./scene.js?v=42
     const badge = $("#modeBadgeText");
     const mode = document.body.dataset.mode || targetMode;
     if (badge) badge.textContent = t("modes." + mode + ".title");
+
+    const tag = $("#logsModeTag");
+    if (tag) tag.textContent = t("game.logs.tag." + mode);
   }
 
   function setMode(mode) {
@@ -107,7 +115,10 @@ def verify(proof, expected):
   ]);
 
   const escapeHTML = (s) =>
-    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
 
   const TOKEN_RE =
     /("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|(\b\d+\b)|([A-Za-z_][A-Za-z0-9_]*)(?=\s*\()|([A-Za-z_][A-Za-z0-9_]*)/g;
@@ -136,7 +147,7 @@ def verify(proof, expected):
   }
 
   function highlight(code) {
-    return code
+    return String(code)
       .split("\n")
       .map((line) => {
         const hash = line.indexOf("#");
@@ -149,25 +160,43 @@ def verify(proof, expected):
       .join("\n");
   }
 
+  let currentCode = CODE;
+  let currentFilename = "room1.py";
+
   function renderIDE() {
     const codeEl = $("#ideCode");
     const gutterEl = $("#ideGutter");
     if (!codeEl || !gutterEl) return;
-    codeEl.innerHTML = highlight(CODE);
-    const lines = CODE.split("\n").length;
+    codeEl.innerHTML = highlight(currentCode);
+    const lines = currentCode.split("\n").length;
     gutterEl.textContent = Array.from({ length: lines }, (_, i) => i + 1).join("\n");
+  }
+
+  function updateIDE(code, filename) {
+    if (!code) return;
+    currentCode = code;
+    if (filename) currentFilename = filename;
+
+    const badge = $(".panel-ide .badge");
+    if (badge) badge.textContent = currentFilename;
+
+    renderIDE();
   }
 
   renderIDE();
 
   /* ---------------------------------------------------------
-     3. LOG STREAM / ENERGÍA
+     3. LOG STREAM / ENERGÍA / FILTROS / MISIÓN
      --------------------------------------------------------- */
   const logStream = $("#logStream");
   const logCountEl = $("#logCount");
   const tokenCountEl = $("#tokenCount");
   const logFoot = $("#logFoot");
+  const logEmpty = $("#logEmpty");
   const pauseBtn = $("#pauseLogs");
+  const missionEl = $("#missionState");
+  const runIdChip = $("#runIdChip");
+  const filterBtns = $$(".log-filter");
 
   const energyChip = $("#energy");
   const energyUsedEl = $("#energyUsed");
@@ -180,9 +209,28 @@ def verify(proof, expected):
 
   let started = false;
   let disqualified = false;
+  let activeFilter = "all";
+  let currentMissionState = "ready";
 
   if (energyBudgetEl) {
     energyBudgetEl.textContent = TOKEN_BUDGET.toLocaleString("en-US");
+  }
+
+  const MISSION_KEYS = {
+    ready: "game.mission.ready",
+    active: "game.mission.active",
+    audit: "game.mission.audit",
+    unlocked: "game.mission.unlocked",
+    failed: "game.mission.failed",
+    aborted: "game.mission.aborted",
+    disqualified: "game.mission.disqualified",
+  };
+
+  function setMissionState(state) {
+    currentMissionState = state;
+    if (!missionEl) return;
+    missionEl.dataset.state = state;
+    missionEl.textContent = t(MISSION_KEYS[state] || MISSION_KEYS.ready);
   }
 
   function updateLogCount() {
@@ -227,6 +275,7 @@ def verify(proof, expected):
           appendLog({
             src: "system",
             msg: t("game.log.disqualified"),
+            kind: "audit",
             cls: "is-error",
           });
         }, 0);
@@ -238,34 +287,117 @@ def verify(proof, expected):
     }
   }
 
-  const stamp = () => new Date().toTimeString().slice(0, 8);
+  function stamp(ts) {
+    const date = ts ? new Date(Number(ts) * 1000) : new Date();
+    return date.toTimeString().slice(0, 8);
+  }
+
+  function inferKind(evt) {
+    if (evt.kind) return evt.kind;
+    if (evt.src === "sandbox") return "execution";
+    if (evt.src === "auditor" || evt.src === "referee") return "audit";
+    if (evt.src === "coder") return "code";
+    return "chat";
+  }
+
+  function setFilter(filter) {
+    activeFilter = filter;
+    filterBtns.forEach((btn) => {
+      const active = btn.dataset.filter === filter;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
+
+    if (!logStream) return;
+    $$(".log-line", logStream).forEach((line) => {
+      line.classList.toggle(
+        "hidden-by-filter",
+        filter !== "all" && line.dataset.kind !== filter
+      );
+    });
+  }
+
+  filterBtns.forEach((btn) => {
+    btn.addEventListener("click", () => setFilter(btn.dataset.filter || "all"));
+  });
 
   function appendLog(evt) {
     if (!logStream) return;
 
+    const kind = inferKind(evt);
+    const nearBottom =
+      logStream.scrollHeight - logStream.scrollTop - logStream.clientHeight < 90;
+
     const line = document.createElement("div");
-    line.className = `log-line src-${evt.src} ${evt.cls || ""}`.trim();
+    line.className = `log-line src-${evt.src} type-${kind} ${evt.cls || ""}`.trim();
+    line.dataset.kind = kind;
+    if (activeFilter !== "all" && kind !== activeFilter) {
+      line.classList.add("hidden-by-filter");
+    }
 
     const timeEl = document.createElement("span");
     timeEl.className = "t";
-    timeEl.textContent = stamp();
+    timeEl.textContent = stamp(evt.ts);
 
     const src = document.createElement("span");
     src.className = "src";
-    src.textContent = evt.src.toUpperCase().padEnd(8, " ");
+    src.textContent = String(evt.src || "system").toUpperCase();
 
     const msg = document.createElement("span");
     msg.className = "msg";
-    msg.textContent = evt.msg;
+
+    const badge = document.createElement("span");
+    badge.className = "log-badge";
+    badge.textContent = t("game.events.type." + kind);
+    msg.append(badge, document.createTextNode(evt.msg || ""));
 
     line.append(timeEl, src, msg);
+
+    if (evt.code) {
+      const details = document.createElement("details");
+      details.className = "log-details";
+      const summary = document.createElement("summary");
+      summary.textContent =
+        t("game.logs.codeSummary") +
+        (evt.filename ? " · " + evt.filename : "");
+      const pre = document.createElement("pre");
+      pre.textContent = evt.code;
+      details.append(summary, pre);
+      line.appendChild(details);
+    }
+
+    if (evt.stdout || evt.stderr) {
+      const details = document.createElement("details");
+      details.className = "log-details";
+      const summary = document.createElement("summary");
+      summary.textContent = t("game.logs.execSummary");
+      const pre = document.createElement("pre");
+      const chunks = [];
+      if (evt.stdout) chunks.push(evt.stdout.replace(/\s+$/, ""));
+      if (evt.stderr) chunks.push(evt.stderr.replace(/\s+$/, ""));
+      pre.textContent = chunks.filter(Boolean).join("\n");
+      details.append(summary, pre);
+      line.appendChild(details);
+    }
+
+    if (evt.exitCode != null) {
+      const exit = document.createElement("span");
+      const ok = Number(evt.exitCode) === 0;
+      exit.className = "log-exit " + (ok ? "is-ok" : "is-error");
+      exit.textContent = t("game.logs.exit", { code: evt.exitCode });
+      line.appendChild(exit);
+    }
+
     logStream.appendChild(line);
-    logStream.scrollTop = logStream.scrollHeight;
+    if (nearBottom || metrics.events === 0) {
+      logStream.scrollTop = logStream.scrollHeight;
+    }
 
     metrics.events += 1;
-    metrics.tokens += evt.tokens ?? 0;
+    metrics.tokens += Number(evt.tokens) || 0;
     updateLogCount();
     if (tokenCountEl) tokenCountEl.textContent = metrics.tokens.toLocaleString("en-US");
+    if (logEmpty) logEmpty.hidden = true;
 
     updateEnergy();
   }
@@ -274,7 +406,7 @@ def verify(proof, expected):
      4. ESTADO DE SALAS
      --------------------------------------------------------- */
   const roomsState = [
-    { state: "active", attempt: 1, max: 5 },
+    { state: "active", attempt: 1, max: 3 },
     { state: "locked" },
     { state: "locked" },
   ];
@@ -299,7 +431,7 @@ def verify(proof, expected):
         meta.textContent = t("game.room.meta.inProgress", {
           status: t("game.room.inProgress"),
           attempt: info.attempt ?? 1,
-          max: info.max ?? 5,
+          max: info.max ?? 3,
         });
       } else {
         meta.textContent = t("game.room.locked");
@@ -320,14 +452,38 @@ def verify(proof, expected):
 
     roomsState[index] = { state: "done", time };
     if (roomsState[index + 1]) {
-      roomsState[index + 1] = { state: "active", attempt: 1, max: 5 };
+      roomsState[index + 1] = { state: "active", attempt: 1, max: 3 };
     }
     renderRooms();
     setLevel(Math.min(3, index + 2));
   }
 
   /* ---------------------------------------------------------
-     5. INICIO DE PARTIDA (run real + SSE)
+     5. VISTA MÓVIL (ROOM / LOGS)
+     --------------------------------------------------------- */
+  const viewTabs = $("#viewTabs");
+
+  function setMobileView(view) {
+    const safe = view === "logs" ? "logs" : "room";
+    document.body.dataset.mobileView = safe;
+    if (!viewTabs) return;
+    $$(".view-tab", viewTabs).forEach((btn) => {
+      const active = btn.dataset.view === safe;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-pressed", String(active));
+    });
+  }
+
+  viewTabs?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".view-tab");
+    if (!btn) return;
+    setMobileView(btn.dataset.view);
+  });
+
+  setMobileView("room");
+
+  /* ---------------------------------------------------------
+     6. INICIO DE PARTIDA (run real + SSE)
      --------------------------------------------------------- */
   let runState = "idle";
   let currentRunId = null;
@@ -384,6 +540,22 @@ def verify(proof, expected):
       if (label) label.textContent = t(RUN_LABELS[next] || "game.start.cta");
     });
 
+    if (next === "idle") {
+      setMissionState("ready");
+      setEnvironmentState("ready");
+    } else if (next === "starting" || next === "running") {
+      if (!["audit", "unlocked", "failed", "aborted", "disqualified"].includes(currentMissionState)) {
+        setMissionState("active");
+      }
+      setEnvironmentState("active");
+    } else if (next === "completed") {
+      setMissionState("unlocked");
+      setEnvironmentState("unlocked");
+    } else if (next === "failed") {
+      setMissionState("failed");
+      setEnvironmentState("ready");
+    }
+
     renderRunNote();
   }
 
@@ -426,6 +598,10 @@ def verify(proof, expected):
     if (logStream) logStream.hidden = false;
     if (logFoot) logFoot.hidden = false;
     if (pauseBtn) pauseBtn.hidden = false;
+    if (logEmpty) logEmpty.hidden = metrics.events > 0;
+
+    const statusPanel = $("#statusPanel");
+    if (statusPanel) statusPanel.hidden = false;
 
     const statusContent = $("#statusContent");
     if (statusContent) statusContent.hidden = false;
@@ -433,11 +609,13 @@ def verify(proof, expected):
     const idePanel = $("#idePanel");
     if (idePanel) idePanel.hidden = false;
 
-    roomsState[0] = { state: "active", attempt: 1, max: 5 };
+    roomsState[0] = { state: "active", attempt: 1, max: 3 };
     roomsState[1] = { state: "locked" };
     roomsState[2] = { state: "locked" };
     renderRooms();
     setLevel(1);
+    setMissionState("active");
+    setEnvironmentState("active");
     updateLogCount();
     updateEnergy();
   }
@@ -454,35 +632,80 @@ def verify(proof, expected):
 
     switch (evt.type) {
       case "run_started":
-        appendLog({ src: "system", msg: `run_started · mode=${evt.mode}` });
+        if (runIdChip) {
+          runIdChip.textContent = "RUN · " + String(evt.run_id || "").toUpperCase();
+        }
+        setMissionState("active");
+        setEnvironmentState("active");
+        appendLog({
+          src: "system",
+          msg: `run_started · mode=${evt.mode}`,
+          kind: "chat",
+          ts: evt.ts,
+        });
         break;
 
       case "challenge":
         renderChallenge(evt);
+        setMissionState("active");
+        setEnvironmentState("active");
         setBotState("strategist", "thinking");
         break;
 
       case "agent": {
         const src = evt.agent === "system" ? "system" : evt.agent;
-        appendLog({ src, msg: evt.msg });
-        if (evt.agent === "strategist") setBotState("strategist", "thinking");
-        if (evt.agent === "coder") setBotState("coder", "typing");
-        if (evt.agent === "auditor") setBotState("auditor", "thinking");
+        const kind =
+          src === "coder" ? "code" :
+          src === "auditor" || src === "referee" ? "audit" : "chat";
+
+        appendLog({
+          src,
+          msg: evt.msg,
+          kind,
+          code: evt.code,
+          filename: evt.filename,
+          ts: evt.ts,
+          tokens: evt.tokens,
+        });
+
+        if (src === "strategist") setBotState("strategist", "thinking");
+        if (src === "coder") {
+          setBotState("coder", "typing");
+          setBotState("strategist", "idle");
+          setMissionState("active");
+          if (evt.code) updateIDE(evt.code, evt.filename);
+        }
+        if (src === "auditor") {
+          setBotState("auditor", "thinking");
+          setMissionState("audit");
+        }
+        if (src === "referee") {
+          setBotState("auditor", "approved");
+          setMissionState("audit");
+        }
         break;
       }
 
       case "sandbox": {
-        appendLog({ src: "sandbox", msg: evt.msg, cls: evt.cls });
-        if (evt.stdout) {
-          evt.stdout.split("\n").filter(Boolean).slice(0, 20).forEach((line) => {
-            appendLog({ src: "sandbox", msg: "  " + line });
-          });
+        appendLog({
+          src: "sandbox",
+          msg: evt.msg,
+          kind: "execution",
+          stdout: evt.stdout,
+          stderr: evt.stderr,
+          exitCode: evt.exit_code,
+          cls: evt.cls,
+          ts: evt.ts,
+        });
+        if (evt.room) {
+          const info = roomsState[Number(evt.room) - 1];
+          if (info) {
+            info.attempt = Number(evt.attempt) || info.attempt || 1;
+            info.max = Number(evt.max_attempts) || info.max || 3;
+            renderRooms();
+          }
         }
-        if (evt.stderr) {
-          evt.stderr.split("\n").filter(Boolean).slice(0, 20).forEach((line) => {
-            appendLog({ src: "sandbox", msg: "  " + line, cls: "is-error" });
-          });
-        }
+        setMissionState("audit");
         break;
       }
 
@@ -495,6 +718,8 @@ def verify(proof, expected):
       case "room_solved":
         markRoom(evt.index, evt.time);
         setBotState("auditor", "approved");
+        setMissionState("audit");
+        setEnvironmentState("active");
         setTimeout(() => setBotState("auditor", "idle"), 1600);
         break;
 
@@ -503,10 +728,15 @@ def verify(proof, expected):
         runRooms = Number(evt.rooms_solved) || 0;
         closeRunStream();
         setRunState("completed");
+        setBotState("strategist", "idle");
+        setBotState("coder", "idle");
+        setBotState("auditor", "approved");
         appendLog({
           src: "referee",
           msg: `RUN COMPLETE · ${runRooms}/3 rooms · ${evt.duration}s`,
+          kind: "audit",
           cls: "is-ok",
+          ts: evt.ts,
         });
         break;
 
@@ -514,23 +744,45 @@ def verify(proof, expected):
         runFinished = true;
         closeRunStream();
         setRunState("failed");
+        setMissionState("disqualified");
+        setEnvironmentState("ready");
         if (energyChip) energyChip.classList.add("is-dead");
         appendLog({
           src: "system",
           msg: evt.message || t("game.log.disqualified"),
+          kind: "audit",
           cls: "is-error",
+          ts: evt.ts,
         });
         break;
 
       case "run_failed":
+        runFinished = true;
+        closeRunStream();
+        setRunState("failed");
+        setMissionState("failed");
+        setBotState("coder", "error");
+        appendLog({
+          src: "system",
+          msg: evt.message || "Run failed",
+          kind: "audit",
+          cls: "is-error",
+          ts: evt.ts,
+        });
+        break;
+
       case "aborted":
         runFinished = true;
         closeRunStream();
         setRunState("failed");
+        setMissionState("aborted");
+        setBotState("coder", "error");
         appendLog({
           src: "system",
-          msg: evt.message || "Run failed",
+          msg: evt.message || "Run aborted",
+          kind: "audit",
           cls: "is-error",
+          ts: evt.ts,
         });
         break;
 
@@ -553,9 +805,11 @@ def verify(proof, expected):
       if (!runFinished) {
         runFinished = true;
         setRunState("failed");
+        setMissionState("failed");
         appendLog({
           src: "system",
           msg: t("game.start.connectionLost"),
+          kind: "audit",
           cls: "is-error",
         });
       }
@@ -574,6 +828,7 @@ def verify(proof, expected):
 
     setRunState("starting");
     showStartedUI();
+    setMobileView("logs");
 
     try {
       const res = await fetch("/api/runs", {
@@ -590,15 +845,18 @@ def verify(proof, expected):
       appendLog({
         src: "system",
         msg: `connecting to run ${currentRunId} …`,
+        kind: "chat",
         cls: "is-dim",
       });
       openRunStream();
     } catch (err) {
       runFinished = true;
       setRunState("failed");
+      setMissionState("failed");
       appendLog({
         src: "system",
         msg: t("game.start.error") + ": " + err.message,
+        kind: "audit",
         cls: "is-error",
       });
     }
@@ -609,17 +867,17 @@ def verify(proof, expected):
   });
 
   /* ---------------------------------------------------------
-     6. ACCIONES DEL IDE
+     7. ACCIONES DEL IDE
      --------------------------------------------------------- */
   $$(".action").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (!started) return;
 
       const map = {
-        edit: { src: "system",  msg: "manual edit · orchestrator took control of buffer" },
-        run:  { src: "sandbox", msg: "dispatch → sandbox · exec room1.py (10s cap)" },
-        hint: { src: "referee", msg: "hint 1/3 · the token lives in auth.log" },
-        skip: { src: "system",  msg: "skip requested · requires referee approval", cls: "is-error" },
+        edit: { src: "system", msg: "manual edit · orchestrator took control of buffer", kind: "chat" },
+        run:  { src: "sandbox", msg: "dispatch → sandbox · exec room1.py (10s cap)", kind: "execution" },
+        hint: { src: "referee", msg: "hint 1/3 · the token lives in auth.log", kind: "audit" },
+        skip: { src: "system", msg: "skip requested · requires referee approval", kind: "audit", cls: "is-error" },
       };
       const evt = map[btn.dataset.action];
       if (evt) appendLog(evt);
@@ -627,7 +885,7 @@ def verify(proof, expected):
   });
 
   /* ---------------------------------------------------------
-     7. SALIDA
+     8. SALIDA
      --------------------------------------------------------- */
   const exitBtn = $("#exitRoom");
   exitBtn?.addEventListener("click", () => {
@@ -639,7 +897,7 @@ def verify(proof, expected):
   });
 
   /* ---------------------------------------------------------
-     8. ARRANQUE
+     9. ARRANQUE
      --------------------------------------------------------- */
   setMode(targetMode);
   renderRooms();
@@ -648,6 +906,9 @@ def verify(proof, expected):
   updateLogCount();
   updateEnergy();
   setRunState("idle");
+  setMissionState("ready");
+  setEnvironmentState("ready");
+  setFilter("all");
 
   document.addEventListener("keydown", (e) => {
     if (e.key === " " && !pauseBtn?.hidden) {
@@ -668,6 +929,7 @@ def verify(proof, expected):
     updateEnergy();
     updateLogCount();
     setRunState(runState);
+    setMissionState(currentMissionState);
     if (currentChallenge) renderChallenge(currentChallenge);
   });
 })();

@@ -12,6 +12,7 @@ No hay logs ficticios: si una llamada o el sandbox fallan, se emite el error.
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import hmac
 import json
@@ -34,25 +35,45 @@ from config.budget import MAX_TOKENS_PER_RUN, MAX_TOKENS_PER_CALL
 from llm.meter import TokenMeter, TokenBudgetExceeded
 
 SERVER_SECRET = b"agent-rush-hackathon-2026-escape-room"
+CHALLENGE_VERSION = "plan-c-v2"
+MAX_ROOM_ATTEMPTS = 3
 
 ROOMS = {
     1: {
         "title": "THE LOGS",
-        "description": "The access terminal is locked. Parse the corrupted auth.log and recover the access token.",
-        "objective": "Find the valid SHA256 token hidden among the decoys.",
-        "hint": "Use a regular expression for SHA256:<32 hex chars>.",
+        "description": (
+            "Two rotated auth logs and a manifest are on the terminal. The active "
+            "session must be correlated with the header checksum to recover the token."
+        ),
+        "objective": (
+            "Find the SHA256:<32 hex> candidate whose SHA-256(session + ':' + "
+            "candidate) matches the manifest header checksum."
+        ),
+        "hint": "Parse both logs, dedupe candidates, and test the checksum formula.",
     },
     2: {
         "title": "MEMORY LEAK",
-        "description": "The accumulator lost values in memory. Recompute the checksum from the surviving data.",
-        "objective": "Print the SHA-256 hex digest of the decimal sum of the numbers.",
-        "hint": "Read JSON from stdin, sum the list, hash the decimal string.",
+        "description": (
+            "A chunked accumulator has a memory bug and its test suite is mounted. "
+            "Repair the module without touching the tests."
+        ),
+        "objective": (
+            "Write a corrected memory_leak.py, run the provided tests, and print "
+            "the proof only after the tests pass."
+        ),
+        "hint": "Keep the tests unchanged; use /tmp for the module and test files.",
     },
     3: {
         "title": "FIREWALL",
-        "description": "The firewall only accepts requests signed with HMAC-SHA256. Forge the correct signature.",
-        "objective": "Print the lowercase HMAC-SHA256 hex digest of the message using the given key.",
-        "hint": "Use hmac.new(key, message, hashlib.sha256).hexdigest().",
+        "description": (
+            "A loopback firewall speaks HELLO → NONCE → HMAC. Complete the "
+            "handshake and recover the access token."
+        ),
+        "objective": (
+            "Implement the local server and client, sign the fresh nonce with "
+            "HMAC-SHA256, and print the TOKEN returned after a valid handshake."
+        ),
+        "hint": "The nonce changes per connection; a bad signature returns a decoy.",
     },
 }
 
@@ -96,6 +117,217 @@ def hmac_flag(room: int, seed: str) -> str:
     ).hexdigest()[:32]
 
 
+def _build_room1(flag: str) -> Dict[str, Any]:
+    """Rotated auth logs + a manifest checksum. Easy-medium correlation."""
+    rng = random.SystemRandom()
+    active_session = secrets.token_hex(6)
+    header_checksum = hashlib.sha256(
+        f"{active_session}:{flag}".encode()
+    ).hexdigest()
+
+    decoys = [secrets.token_hex(16) for _ in range(9)]
+    candidates = decoys + [flag]
+    rng.shuffle(candidates)
+
+    lines: List[str] = []
+    for i, ticket in enumerate(candidates):
+        # The valid ticket is always tied to the active session so a
+        # session filter cannot accidentally discard it. Several decoys
+        # also share that session, so finding it is not enough.
+        if ticket == flag:
+            session = active_session
+        else:
+            session = active_session if rng.random() < 0.45 else secrets.token_hex(6)
+        user = rng.choice(["root", "deploy", "backup", "ops", "auditor"])
+        ip = f"203.0.113.{rng.randint(10, 250)}"
+        lines.append(
+            "2026-11-04T%02d:%02d:%02d INFO sshd[%d]: "
+            "session=%s user=%s from=%s event=publickey "
+            "SHA256:%s"
+            % (
+                rng.randint(0, 23),
+                rng.randint(0, 59),
+                rng.randint(0, 59),
+                1000 + i,
+                session,
+                user,
+                ip,
+                ticket,
+            )
+        )
+
+    # Corrupt / malformed entries: truncated, uppercase, wrong length, not hex.
+    corrupt = [
+        flag[:19],
+        flag.upper(),
+        secrets.token_hex(24),
+        "deadbeef" * 8,
+        "not-a-sha256-value",
+        "",
+    ]
+    for i, value in enumerate(corrupt):
+        lines.append(
+            "2026-11-04T23:%02d:%02d WARN audit[%d]: "
+            "session=%s malformed=SHA256:%s"
+            % (i * 7 % 60, i * 11 % 60, 2000 + i, secrets.token_hex(6), value)
+        )
+
+    # Ordinary noise, duplicate decoys and a short rotated-log header.
+    for i in range(8):
+        lines.append(
+            "2026-11-04T22:%02d:%02d INFO systemd[1]: "
+            "rotated auth segment %d accepted; sync=ok"
+            % (i * 6, i * 9 % 60, i + 1)
+        )
+    lines.append(
+        "2026-11-04T23:59:59 INFO sshd[9999]: session=%s user=root "
+        "event=publickey SHA256:%s"
+        % (active_session, rng.choice(decoys))
+    )
+
+    rng.shuffle(lines)
+    split = max(1, len(lines) // 2)
+    manifest = {
+        "active_session": active_session,
+        "header_checksum": header_checksum,
+        "algorithm": "sha256(active_session + ':' + ticket)",
+        "note": (
+            "Only a 32-char lowercase hex ticket can match. Other SHA256 values "
+            "are decoys, truncated, uppercase, or malformed."
+        ),
+    }
+    files = {
+        "manifest.json": json.dumps(manifest, indent=2),
+        "auth.log": "\n".join(lines[:split]) + "\n",
+        "auth.log.1": "\n".join(lines[split:]) + "\n",
+    }
+    return {
+        "data": json.dumps({"files": files}, indent=2),
+        "proof": flag,
+        "prompt": (
+            "stdin is JSON with a `files` object containing manifest.json, "
+            "auth.log and auth.log.1. Each log line may contain session=<id> and "
+            "SHA256:<ticket>. The manifest gives active_session and "
+            "header_checksum, where header_checksum = "
+            "SHA-256(active_session + ':' + ticket). Find the 32-char lowercase "
+            "hex ticket whose checksum matches. Ignore malformed, truncated, "
+            "uppercase or 64-hex values. Read stdin and print ONLY the ticket."
+        ),
+    }
+
+
+def _build_room2(flag: str) -> Dict[str, Any]:
+    """A real buggy module + tests. The agent repairs the module, not the tests."""
+    buggy_module = '''"""
+memory_leak.py — chunked accumulator.
+
+Contract:
+- chunk_sum(values, size) returns the sum of every integer in values.
+- Values are processed in chunks of at most `size` items.
+- size <= 0 returns 0.
+- The input list must not be mutated.
+"""
+
+
+def chunk_sum(values, size):
+    if size < 0:
+        raise ValueError("size must be positive")
+    total = 0
+    for i in range(0, len(values) - size + 1, size):
+        chunk = values[i:i + size]
+        total += abs(sum(chunk))
+    return total
+'''
+    tests = '''from memory_leak import chunk_sum
+
+CASES = [
+    ([], 3, 0),
+    ([1, 2, 3, 4, 5], 2, 15),
+    ([-1, -2, -3], 2, -6),
+    ([10], 5, 10),
+    ([0] * 1000, 7, 0),
+    ([1] * 100000, 7, 100000),
+    ([1, 2, 3], 0, 0),
+    ([1, 2, 3], -3, 0),
+]
+
+for values, size, expected in CASES:
+    snapshot = list(values)
+    got = chunk_sum(values, size)
+    assert got == expected, f"chunk_sum({values[:8]}..., {size})={got}, expected {expected}"
+    assert values == snapshot, "input list was mutated"
+
+print("TESTS_OK")
+'''
+    return {
+        "mode": "module",
+        "tests": tests,
+        "data": json.dumps(
+            {
+                "module": buggy_module,
+                "tests": tests,
+                "proof": flag,
+                "instructions": (
+                    "Return ONLY the corrected memory_leak.py module. The harness "
+                    "writes it to /tmp/memory_leak.py and runs the provided tests."
+                ),
+            },
+            indent=2,
+        ),
+        "proof": flag,
+        "prompt": (
+            "stdin is JSON with `module` (a buggy memory_leak.py), `tests` (the "
+            "authoritative test suite), `proof`, and `instructions`. Return ONLY the "
+            "corrected Python module that defines `chunk_sum(values, size)`. Do not "
+            "write files, do not run tests, do not print the proof, and do not return "
+            "a runner: the harness writes your module to /tmp/memory_leak.py and runs "
+            "the tests unchanged. Handle empty input, negative values, size <= 0, "
+            "partial chunks and a 100k element list efficiently; never mutate the "
+            "input. Return code only, starting with the function definition."
+        ),
+    }
+
+
+def _build_room3(flag: str) -> Dict[str, Any]:
+    """Loopback HELLO/NONCE/HMAC handshake with a decoy and limited attempts."""
+    key = secrets.token_hex(16)
+    decoy = secrets.token_hex(16)
+    return {
+        "data": json.dumps(
+            {
+                "protocol": {
+                    "transport": "TCP loopback 127.0.0.1 (bind ephemeral port 0)",
+                    "key_hex": key,
+                    "max_invalid_attempts": 3,
+                    "decoy_token": decoy,
+                    "token": flag,
+                    "steps": [
+                        "client connects and sends: HELLO\\n",
+                        "server sends: NONCE <32 lowercase hex>\\n (fresh per connection)",
+                        "client sends: AUTH <hmac_sha256_hex(key, nonce)>\\n",
+                        "server sends: TOKEN <32 lowercase hex>\\n on a valid signature",
+                        "server sends: DECOY <32 lowercase hex>\\n on a bad signature",
+                        "after 3 invalid AUTH attempts the server sends LOCKOUT and closes",
+                    ],
+                }
+            },
+            indent=2,
+        ),
+        "proof": flag,
+        "prompt": (
+            "stdin is JSON describing a loopback firewall protocol. Write one Python "
+            "script that starts a TCP server on 127.0.0.1 with an ephemeral port and "
+            "a client thread/connection in the same process. The server must send a "
+            "fresh NONCE per connection, verify AUTH = HMAC-SHA256(key, nonce), return "
+            "TOKEN <token> on success or DECOY <decoy> on failure, and lock out after "
+            "3 invalid attempts. The client must send HELLO, read the nonce, compute "
+            "the HMAC, send AUTH, read the response, and print ONLY the TOKEN value. "
+            "Use socket timeouts so the script cannot hang; do not print the key, the "
+            "decoy, or debug lines."
+        ),
+    }
+
+
 def build_challenge(room: int) -> Dict[str, Any]:
     """Genera el artefacto y la prueba esperada de cada sala."""
     seed = secrets.token_hex(16)
@@ -108,48 +340,12 @@ def build_challenge(room: int) -> Dict[str, Any]:
         "hint": meta["hint"],
         "seed": seed,
         "flag": hmac_flag(room, seed),
+        "challenge_version": CHALLENGE_VERSION,
     }
-
-    if room == 1:
-        valid = challenge["flag"]
-        decoys = [secrets.token_hex(16) for _ in range(6)]
-        entries = decoys + [valid]
-        random.SystemRandom().shuffle(entries)
-        lines = []
-        for i, entry in enumerate(entries):
-            lines.append(
-                "2026-11-04T12:%02d:%02d ERROR sshd[%d]: "
-                "Failed publickey for root from 203.0.113.%d port 4412 ssh2: "
-                "SHA256:%s" % (i * 3, i * 7 % 60, 1000 + i, i + 10, entry)
-            )
-        challenge["data"] = "\n".join(lines) + "\n"
-        challenge["proof"] = valid
-        challenge["prompt"] = (
-            "The corrupted auth.log is in stdin. It contains several SHA256 hashes; "
-            "exactly one is the valid access token. Read stdin, extract every "
-            "SHA256:<hex> value and print one per line (only the hash part)."
-        )
-    elif room == 2:
-        numbers = [random.randint(1, 99) for _ in range(14)]
-        total = sum(numbers)
-        challenge["data"] = json.dumps({"numbers": numbers})
-        challenge["proof"] = hashlib.sha256(str(total).encode()).hexdigest()
-        challenge["prompt"] = (
-            'stdin contains JSON like {"numbers": [...]}. Sum every integer and '
-            "print ONLY the lowercase SHA-256 hex digest of the decimal sum."
-        )
-    else:
-        key = secrets.token_hex(16)
-        message = f"room3:{seed}"
-        challenge["data"] = json.dumps({"key": key, "message": message})
-        challenge["proof"] = hmac.new(
-            key.encode(), message.encode(), hashlib.sha256
-        ).hexdigest()
-        challenge["prompt"] = (
-            'stdin contains JSON like {"key": "...", "message": "..."}. Compute '
-            "HMAC-SHA256(key, message) and print ONLY the lowercase hex digest."
-        )
-
+    generated = {1: _build_room1, 2: _build_room2, 3: _build_room3}[room](
+        challenge["flag"]
+    )
+    challenge.update(generated)
     return challenge
 
 
@@ -219,6 +415,10 @@ class VultrChat:
             ],
             "temperature": 0.2,
             "max_tokens": max(64, int(max_tokens)),
+            # Vultr thinking models otherwise spend the whole completion budget
+            # on hidden reasoning before emitting code. Low effort keeps the
+            # demo fast and inside the per-run token budget.
+            "reasoning_effort": os.getenv("VULTR_REASONING_EFFORT", "low"),
         }
         req = urllib.request.Request(
             f"{self.base_url}/chat/completions",
@@ -256,28 +456,141 @@ class VultrChat:
         return text, usage
 
 
+def _has_code_lines(text: str) -> bool:
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped and not stripped.startswith("#"):
+            return True
+    return False
+
+
+def _parse_python_segment(text: str) -> Optional[str]:
+    """Busca el prefijo/sufijo/subsegmento más largo que sea Python válido.
+
+    Los modelos a veces agregan prosa antes o después del código. En vez de
+    confiar en el primer `import`, se prueba con `ast.parse` y se descarta la
+    prosa. Es barato: los scripts tienen menos de 150 líneas.
+    """
+    raw = text.strip().replace("```python", "").replace("```py", "").replace("```", "")
+    lines = raw.splitlines()
+    if not lines:
+        return None
+
+    def valid(candidate: str) -> bool:
+        if not candidate.strip() or not _has_code_lines(candidate):
+            return False
+        try:
+            ast.parse(candidate)
+        except SyntaxError:
+            return False
+        return True
+
+    # 1) Leading prose: try every suffix.
+    for start in range(len(lines)):
+        candidate = "\n".join(lines[start:]).strip()
+        if valid(candidate):
+            return candidate
+
+    # 2) Trailing prose: try every prefix.
+    for end in range(len(lines), 0, -1):
+        candidate = "\n".join(lines[:end]).strip()
+        if valid(candidate):
+            return candidate
+
+    # 3) Both: start at a code marker and trim trailing prose.
+    markers = ("import ", "from ", "def ", "class ", "#!/", "# ", "@")
+    for start, line in enumerate(lines):
+        if not any(line.lstrip().startswith(m) for m in markers):
+            continue
+        for end in range(len(lines), start, -1):
+            candidate = "\n".join(lines[start:end]).strip()
+            if valid(candidate):
+                return candidate
+    return None
+
+
 def extract_code(text: str) -> str:
     """Extrae un script Python de una respuesta del LLM."""
+    code = _parse_python_segment(text)
+    if not code:
+        raise EngineError("El Coder no devolvió código ejecutable")
+    if len(code.splitlines()) > 150:
+        raise EngineError("El código generado es demasiado largo (máx. 150 líneas)")
+    return code
+
+
+def extract_module_code(text: str) -> str:
+    """Extrae el módulo corregido de una respuesta que puede traer prosa extra.
+
+    Los LLM a veces devuelven la función, luego explican y recién después el
+    runner. Para la sala de tipo `module` solo se necesita `chunk_sum`; se toma
+    la FunctionDef de nivel superior y se descarta el resto.
+    """
     raw = text.strip()
     fence = re.search(r"```(?:python|py)?\s*(.*?)```", raw, re.S | re.I)
     if fence:
         raw = fence.group(1).strip()
 
     lines = raw.splitlines()
-    start = 0
-    markers = ("import ", "from ", "def ", "class ", "#!/", "# ", "print(", "data", "numbers", "key")
-    for i, line in enumerate(lines):
-        stripped = line.lstrip()
-        if any(stripped.startswith(m) for m in markers):
-            start = i
-            break
-    code = "\n".join(lines[start:]).replace("```", "").strip()
+    candidates: List[str] = []
+    # Try the whole response first, then trimmed prefixes.
+    for end in range(len(lines), 0, -1):
+        candidate = "\n".join(lines[:end]).strip()
+        if not candidate:
+            continue
+        try:
+            tree = ast.parse(candidate)
+        except SyntaxError:
+            continue
+        candidates.append(candidate)
+        for node in tree.body:
+            if isinstance(node, ast.FunctionDef) and node.name == "chunk_sum":
+                segment = ast.get_source_segment(candidate, node)
+                if segment and segment.strip():
+                    return segment.strip()
+        break
 
-    if not code:
-        raise EngineError("El Coder no devolvió código ejecutable")
-    if len(code.splitlines()) > 150:
-        raise EngineError("El código generado es demasiado largo (máx. 150 líneas)")
-    return code
+    # Fallback: start at the first `def chunk_sum` line and trim trailing prose.
+    start = next(
+        (i for i, line in enumerate(lines) if line.lstrip().startswith("def chunk_sum")),
+        None,
+    )
+    if start is not None:
+        for end in range(len(lines), start, -1):
+            candidate = "\n".join(lines[start:end]).strip()
+            try:
+                tree = ast.parse(candidate)
+            except SyntaxError:
+                continue
+            for node in tree.body:
+                if isinstance(node, ast.FunctionDef) and node.name == "chunk_sum":
+                    segment = ast.get_source_segment(candidate, node)
+                    if segment and segment.strip():
+                        return segment.strip()
+            break
+
+    if candidates:
+        return candidates[0]
+    raise EngineError("El Coder no devolvió un módulo ejecutable")
+
+
+def module_runner(module_code: str, tests_code: str, proof: str) -> str:
+    """Runner determinista que ejecuta los tests contra el módulo del agente."""
+    return (
+        "import subprocess, sys\n"
+        f"module_code = {json.dumps(module_code)}\n"
+        f"tests_code = {json.dumps(tests_code)}\n"
+        "open('/tmp/memory_leak.py', 'w', encoding='utf-8').write(module_code)\n"
+        "open('/tmp/test_memory_leak.py', 'w', encoding='utf-8').write(tests_code)\n"
+        "proc = subprocess.run(\n"
+        "    [sys.executable, '/tmp/test_memory_leak.py'],\n"
+        "    cwd='/tmp', capture_output=True, text=True,\n"
+        ")\n"
+        "sys.stdout.write(proc.stdout)\n"
+        "sys.stderr.write(proc.stderr)\n"
+        "if 'TESTS_OK' in proc.stdout:\n"
+        f"    print('PROOF:{proof}')\n"
+    )
 
 
 _DOCKER_OK: Optional[bool] = None
@@ -452,10 +765,17 @@ class RunManager:
                     tokens INTEGER NOT NULL DEFAULT 0,
                     duration REAL,
                     created TEXT NOT NULL,
-                    finished TEXT
+                    finished TEXT,
+                    challenge_version TEXT
                 )
                 """
             )
+            columns = {
+                row["name"]
+                for row in conn.execute("PRAGMA table_info(runs)").fetchall()
+            }
+            if "challenge_version" not in columns:
+                conn.execute("ALTER TABLE runs ADD COLUMN challenge_version TEXT")
 
     def api_key(self) -> str:
         return os.getenv("VULTR_INFERENCE_API_KEY", "").strip()
@@ -495,8 +815,17 @@ class RunManager:
 
         with self._db_lock, self._connect() as conn:
             conn.execute(
-                "INSERT INTO runs (id, mode, models, status, created) VALUES (?, ?, ?, ?, ?)",
-                (run_id, mode, json.dumps(models), "running", utc_now()),
+                "INSERT INTO runs "
+                "(id, mode, models, status, created, challenge_version) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    run_id,
+                    mode,
+                    json.dumps(models),
+                    "running",
+                    utc_now(),
+                    CHALLENGE_VERSION,
+                ),
             )
 
         thread = threading.Thread(
@@ -546,12 +875,94 @@ class RunManager:
             emit_energy()
             return text
 
+        def request_patch(
+            room: int,
+            challenge: Dict[str, Any],
+            current_code: str,
+            result: Dict[str, Any],
+            patch_index: int,
+        ) -> str:
+            bus.emit(
+                {
+                    "type": "agent",
+                    "agent": "auditor",
+                    "msg": (
+                        "auditor → proof missing; requesting patch "
+                        f"({patch_index}/{MAX_ROOM_ATTEMPTS - 1})"
+                    ),
+                }
+            )
+            if challenge.get("mode") == "module":
+                patch_prompt = (
+                    "You are the Auditor. The tests failed. Return ONLY the corrected "
+                    "Python module that defines `chunk_sum(values, size)`. No runner, "
+                    "no file writes, no prose, no markdown fences.\n\n"
+                    f"Challenge: {challenge['prompt']}\n"
+                    f"Current module:\n{current_code}\n\n"
+                    f"Test stdout:\n{(result.get('stdout') or '')[-1600:]}\n"
+                    f"Test stderr:\n{(result.get('stderr') or '')[-1600:]}\n"
+                    f"Input data:\n{challenge['data']}\n"
+                )
+                auditor_system = (
+                    "You are the Auditor. Output only the corrected Python module "
+                    "with chunk_sum. No prose, no markdown, no runner."
+                )
+                extractor = extract_module_code
+            else:
+                patch_prompt = (
+                    "You are the Auditor. The sandbox output did not contain the "
+                    "expected proof. Return ONLY the full corrected Python 3 runner, "
+                    "no markdown fences, no analysis, no prose. The runner must be "
+                    "complete and self-contained; never return just a helper function.\n\n"
+                    f"Challenge: {challenge['prompt']}\n"
+                    f"Current code:\n{current_code}\n\n"
+                    f"Exit code: {result.get('exit_code')}\n"
+                    f"stdout:\n{(result.get('stdout') or '')[-1200:]}\n"
+                    f"stderr:\n{(result.get('stderr') or '')[-1200:]}\n"
+                    f"Input data:\n{challenge['data']}\n"
+                )
+                auditor_system = (
+                    "You are the Auditor. Output only the complete executable Python "
+                    "runner. No prose, no markdown, no analysis."
+                )
+                extractor = extract_code
+            raw_patch = ask(
+                "auditor",
+                models["auditor"],
+                auditor_system,
+                patch_prompt,
+                4000,
+            )
+            try:
+                new_code = extractor(raw_patch)
+            except EngineError:
+                bus.emit(
+                    {
+                        "type": "agent",
+                        "agent": "auditor",
+                        "msg": "auditor → patch did not contain executable code",
+                    }
+                )
+                new_code = ""
+            bus.emit(
+                {
+                    "type": "agent",
+                    "agent": "auditor",
+                    "msg": f"auditor → patch applied ({len(new_code.splitlines())} lines)",
+                    "code": new_code,
+                    "filename": f"room{room}.py",
+                    "lines": len(new_code.splitlines()),
+                }
+            )
+            return new_code
+
         bus.emit(
             {
                 "type": "run_started",
                 "run_id": run_id,
                 "mode": mode,
                 "models": models,
+                "challenge_version": CHALLENGE_VERSION,
                 "message": "run started",
             }
         )
@@ -606,81 +1017,138 @@ class RunManager:
                     }
                 )
 
-                code_prompt = (
-                    "You are the Coder of an AI escape room. Return ONLY a complete "
-                    "Python 3 script. No explanations, no markdown fences. The script "
-                    "runs inside an isolated container, reads stdin and prints the "
-                    "requested proof to stdout.\n\n"
-                    f"Challenge: {challenge['prompt']}\n"
-                    f"Strategist plan: {strategy}\n"
-                    f"Input data (also provided on stdin):\n{challenge['data']}\n"
-                )
-                code = extract_code(
-                    ask(
-                        "coder",
-                        models["coder"],
-                        "You are a precise Python coder. Output only executable Python code.",
-                        code_prompt,
-                        900,
+                if challenge.get("mode") == "module":
+                    code_prompt = (
+                        "You are the Coder of an AI escape room. Return ONLY the "
+                        "corrected Python module that defines `chunk_sum(values, size)`. "
+                        "No explanations, no markdown fences, no test runner, no file "
+                        "writes. The harness writes your module to /tmp/memory_leak.py "
+                        "and runs the authoritative tests unchanged. Return code only, "
+                        "starting with the function definition.\n\n"
+                        f"Challenge: {challenge['prompt']}\n"
+                        f"Strategist plan: {strategy}\n"
+                        f"Input data (also provided on stdin):\n{challenge['data']}\n"
                     )
+                    coder_system = (
+                        "You are a precise Python coder. Output only the corrected "
+                        "module code."
+                    )
+                else:
+                    code_prompt = (
+                        "You are the Coder of an AI escape room. Return ONLY one "
+                        "complete, self-contained Python 3 runner. No explanations, no "
+                        "markdown fences, no partial helper functions. The runner is "
+                        "what the sandbox executes: it reads stdin and prints the "
+                        "requested proof to stdout.\n\n"
+                        f"Challenge: {challenge['prompt']}\n"
+                        f"Strategist plan: {strategy}\n"
+                        f"Input data (also provided on stdin):\n{challenge['data']}\n"
+                    )
+                    coder_system = (
+                        "You are a precise Python coder. Output only complete "
+                        "executable Python runner code."
+                    )
+                raw_code = ask(
+                    "coder",
+                    models["coder"],
+                    coder_system,
+                    code_prompt,
+                    4000,
                 )
+                try:
+                    if challenge.get("mode") == "module":
+                        code = extract_module_code(raw_code)
+                    else:
+                        code = extract_code(raw_code)
+                except EngineError:
+                    code = ""
+                    bus.emit(
+                        {
+                            "type": "agent",
+                            "agent": "coder",
+                            "msg": "coder → response did not contain executable code",
+                            "raw": raw_code[-2000:],
+                        }
+                    )
                 bus.emit(
                     {
                         "type": "agent",
                         "agent": "coder",
                         "msg": f"coder → generated script ({len(code.splitlines())} lines)",
+                        "code": code,
+                        "filename": f"room{room}.py",
+                        "lines": len(code.splitlines()),
                     }
                 )
 
                 solved = False
                 last_output: Dict[str, Any] = {}
-                for attempt in range(1, 3):
+                for attempt in range(1, MAX_ROOM_ATTEMPTS + 1):
                     if bus.cancelled.is_set():
                         raise EngineError("Partida abortada por el usuario")
-                    result = run_sandbox(code, challenge["data"], bus)
+
+                    # Plan C: reject unparseable generations before spending a
+                    # sandbox attempt. The Auditor gets a chance to repair it.
+                    compile_error: Optional[str] = None
+                    try:
+                        compile(code, f"room{room}.py", "exec")
+                    except (SyntaxError, ValueError) as exc:
+                        compile_error = f"{type(exc).__name__}: {exc}"
+                        result = {
+                            "stdout": "",
+                            "stderr": compile_error,
+                            "exit_code": 1,
+                            "duration": 0.0,
+                        }
+                    else:
+                        sandbox_code = (
+                            module_runner(
+                                code, challenge["tests"], challenge["proof"]
+                            )
+                            if challenge.get("mode") == "module"
+                            else code
+                        )
+                        result = run_sandbox(sandbox_code, challenge["data"], bus)
                     last_output = result
-                    output_blob = (result.get("stdout") or "") + "\n" + (result.get("stderr") or "")
+                    output_blob = (
+                        (result.get("stdout") or "")
+                        + "\n"
+                        + (result.get("stderr") or "")
+                    )
                     bus.emit(
                         {
                             "type": "sandbox",
-                            "msg": f"exit={result['exit_code']} · {result.get('duration')}s",
+                            "msg": (
+                                f"compile error · attempt {attempt}/{MAX_ROOM_ATTEMPTS}"
+                                if compile_error
+                                else (
+                                    f"exit={result['exit_code']} · "
+                                    f"{result.get('duration')}s · "
+                                    f"attempt {attempt}/{MAX_ROOM_ATTEMPTS}"
+                                )
+                            ),
                             "stdout": (result.get("stdout") or "")[-2000:],
                             "stderr": (result.get("stderr") or "")[-2000:],
-                            "cls": "is-ok" if result.get("exit_code") == 0 else "is-error",
+                            "exit_code": result.get("exit_code"),
+                            "duration": result.get("duration"),
+                            "attempt": attempt,
+                            "max_attempts": MAX_ROOM_ATTEMPTS,
+                            "room": room,
+                            "cls": (
+                                "is-ok"
+                                if not compile_error and result.get("exit_code") == 0
+                                else "is-error"
+                            ),
                         }
                     )
                     if challenge["proof"] in output_blob:
                         solved = True
                         break
 
-                    if attempt == 2:
+                    if attempt == MAX_ROOM_ATTEMPTS:
                         break
-                    bus.emit(
-                        {
-                            "type": "agent",
-                            "agent": "auditor",
-                            "msg": "auditor → proof missing; requesting patch (1/1)",
-                        }
-                    )
-                    patch_prompt = (
-                        "You are the Auditor. The sandbox output did not contain the "
-                        "expected proof. Return ONLY the full corrected Python 3 script, "
-                        "no markdown fences.\n\n"
-                        f"Challenge: {challenge['prompt']}\n"
-                        f"Current code:\n{code}\n\n"
-                        f"Exit code: {result['exit_code']}\n"
-                        f"stdout:\n{(result.get('stdout') or '')[-1200:]}\n"
-                        f"stderr:\n{(result.get('stderr') or '')[-1200:]}\n"
-                        f"Input data:\n{challenge['data']}\n"
-                    )
-                    code = extract_code(
-                        ask(
-                            "auditor",
-                            models["auditor"],
-                            "You are the Auditor. Output only the corrected executable Python code.",
-                            patch_prompt,
-                            900,
-                        )
+                    code = request_patch(
+                        room, challenge, code, result, patch_index=attempt
                     )
 
                 if not solved:
@@ -777,17 +1245,19 @@ class RunManager:
     def leaderboard(self) -> Dict[str, Any]:
         with self._db_lock, self._connect() as conn:
             rows = conn.execute(
-                "SELECT * FROM runs WHERE status='success' ORDER BY duration ASC, tokens ASC LIMIT 20"
+                "SELECT * FROM runs WHERE status='success' AND challenge_version=? "
+                "ORDER BY duration ASC, tokens ASC LIMIT 20",
+                (CHALLENGE_VERSION,),
             ).fetchall()
 
-        def to_row(index: int, row: sqlite3.Row) -> Dict[str, Any]:
+        def to_row(row: sqlite3.Row) -> Dict[str, Any]:
             models = json.loads(row["models"] or "{}")
             squad = " + ".join(
                 str(models.get(k, "?")) for k in ("strategist", "coder", "auditor")
             )
             duration = row["duration"] or 0
             return {
-                "rank": index,
+                "rank": 0,
                 "squad": squad.upper(),
                 "time": time.strftime("%M:%S", time.gmtime(duration)),
                 "tokens": int(row["tokens"] or 0),
@@ -795,10 +1265,15 @@ class RunManager:
                 "mode": row["mode"],
             }
 
-        rows = [to_row(i + 1, r) for i, r in enumerate(rows)]
+        rows = [to_row(r) for r in rows]
         spectator = [r for r in rows if r["mode"] == "spectator"]
         orchestrator = [r for r in rows if r["mode"] == "orchestrator"]
+        for index, row in enumerate(spectator, 1):
+            row["rank"] = index
+        for index, row in enumerate(orchestrator, 1):
+            row["rank"] = index
         return {
+            "challenge_version": CHALLENGE_VERSION,
             "spectator": {
                 "mode": "spectator",
                 "rows": spectator,
