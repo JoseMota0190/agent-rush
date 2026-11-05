@@ -1,7 +1,11 @@
 # AGENTS.md
 
 Guía de trabajo para agentes de código en este repo.
-Última actualización: **4 nov 2026** (wizard de entrada, catálogo Vultr, topbar de sala y compuerta de inicio; EN por defecto).
+Última actualización: **4 nov 2026** (motor real, deploy en Vultr y **Plan C completo guardado en la sección 14**; pendiente de ejecución).
+
+> **PLAN C (pendiente):** UI/UX premium + sala 3D + desafíos/calibración. La spec
+> completa y el plan están en la **sección 14**. No ejecutar hasta que el usuario
+> diga **“ejecutar plan c”**.
 
 ---
 
