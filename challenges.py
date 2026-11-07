@@ -45,11 +45,28 @@ POOL, LEVELS = {}, {1: [], 2: [], 3: []}
 SIZES = [1, 3, 8, 25, 100, 500, 5000, 100000]
 
 
+def _default_gen_workspace(cls):
+    def gen_workspace(rng, k):
+        inp = cls.gen(rng, k)
+        return {"input.txt": inp}
+    return gen_workspace
+
+
+def _default_ref_workspace(cls):
+    def ref_workspace(files):
+        return cls.ref(files.get("input.txt", ""))
+    return ref_workspace
+
+
 def reg(cid, level, title):
     def deco(cls):
         cls.id, cls.level, cls.title = cid, level, title
         POOL[cid] = cls
         LEVELS[level].append(cid)
+        if not hasattr(cls, 'gen_workspace'):
+            cls.gen_workspace = _default_gen_workspace(cls)
+        if not hasattr(cls, 'ref_workspace'):
+            cls.ref_workspace = _default_ref_workspace(cls)
         return cls
     return deco
 
@@ -1977,8 +1994,12 @@ derecha, luego ORDER BY), `ERROR type` (literal de tipo distinto a la columna, o
 
 
 # ======================================================================
-# Infraestructura: seleccion, vista publica, casos, harness, veredicto
+# Infraestructura: seleccion, vista publica, workspace, harness, veredicto
 # ======================================================================
+
+WORKSPACE_DIR = "/tmp/workspace"
+
+
 def pick(seed):
     rng = random.Random(f"pick:{seed}")
     return [rng.choice(LEVELS[lvl]) for lvl in (1, 2, 3)]
@@ -1988,25 +2009,37 @@ def _rng(cid, seed, k):
     return random.Random(f"{cid}|{seed}|{k}")
 
 
-def build_cases(cid, seed):
+# (Los metodos por defecto se asignan en reg(), definido mas arriba.)
+
+def build_workspace(cid, seed):
+    """Genera los archivos del workspace para cada caso (8 casos).
+
+    Retorna [(k, files_dict, expected_output), ...] donde files_dict
+    mapea nombres de archivo a su contenido. El agente lee estos archivos
+    en lugar de stdin.
+    """
     C = POOL[cid]
     out = []
     for k in range(8):
-        inp = C.gen(_rng(cid, seed, k), k)
-        out.append((k, inp, C.ref(inp)))
+        files = C.gen_workspace(_rng(cid, seed, k), k)
+        expected = C.ref_workspace(files)
+        out.append((k, files, expected))
     return out
 
 
 def public_view(cid):
     C = POOL[cid]
-    inp = C.gen(random.Random(f"{cid}|public-example"), 2)
-    exp = C.ref(inp)
+    files = C.gen_workspace(random.Random(f"{cid}|public-example"), 2)
+    exp = C.ref_workspace(files)
     cut = lambda t: t if len(t) <= 700 else t[:700] + "\n...(recortado)"
     return (f"DESAFIO {cid} (nivel {C.level}) - {C.title}\n"
-            "Entrega UN script Python 3.12 (solo libreria estandar) que lee TODO stdin y escribe stdout. "
-            "Se prueba con 8 entradas ocultas (casos limite, medianos y grandes); cada una tiene 10 s de CPU. "
-            "Exito = salida identica (se ignoran espacios al final de linea).\n\n"
-            f"{C.statement}\n\n--- EJEMPLO (entrada) ---\n{cut(inp)}\n--- EJEMPLO (salida) ---\n{cut(exp)}\n")
+            "Entrega UN script Python 3.12 (solo libreria estandar). "
+            "Los datos del caso estan en /tmp/workspace/ (lee input.txt y "
+            "los demas archivos segun el enunciado). Escribi la salida por stdout. "
+            "Se prueba con 8 workspaces ocultos (casos limite, medianos y grandes); "
+            "cada uno tiene 10 s de CPU. Exito = salida identica "
+            "(se ignoran espacios al final de linea).\n\n"
+            f"{C.statement}\n\n--- EJEMPLO (salida esperada) ---\n{cut(exp)}\n")
 
 
 _SECURITY_RUNNER = r'''
@@ -2128,39 +2161,112 @@ finally:
 '''
 
 
-def harness_source(code, inputs, case_timeout=CASE_TIMEOUT_S):
-    """Fuente que corre dentro del contenedor (`python -`).
+def workspace_source(code, cases, case_timeout=CASE_TIMEOUT_S,
+                     loopback_port=None, loopback_case_k=None):
+    """Fuente que corre dentro del contenedor con workspace de archivos.
 
-    El código del agente se ejecuta en un proceso hijo con un audit hook que
-    registra telemetría real de seguridad (red, rutas protegidas, spawn). Los
-    casos y las salidas esperadas nunca entran al contenedor: solo las entradas.
+    `cases` es [(k, files_dict, expected_output), ...]. Escribe los archivos
+    de cada caso en /tmp/workspace/, opcionalmente inicia un servidor loopback
+    (desafios L3), ejecuta el codigo del agente para cada caso y captura
+    stdout + telemetria de seguridad. Los casos y salidas esperadas nunca
+    entran al contenedor: solo los archivos de workspace.
     """
-    return (
-        "import json, subprocess, sys\n"
-        f"code = {json.dumps(code)}\n"
-        f"inputs = {json.dumps(inputs)}\n"
-        f"runner = {json.dumps(_SECURITY_RUNNER)}\n"
-        "open('/tmp/sol.py', 'w', encoding='utf-8').write(code)\n"
-        "open('/tmp/runner.py', 'w', encoding='utf-8').write(runner)\n"
-        "res = []\n"
-        "for inp in inputs:\n"
-        "    try:\n"
-        "        p = subprocess.run([sys.executable, '-I', '-B', '/tmp/runner.py'], input=inp.encode(),\n"
-        f"                           capture_output=True, timeout={case_timeout})\n"
-        "        err = p.stderr.decode('utf-8', 'replace')\n"
-        "        sec = []\n"
-        "        if '@@SEC@@' in err:\n"
-        "            err, _, raw = err.rpartition('@@SEC@@')\n"
-        "            try:\n"
-        "                sec = json.loads(raw.strip().splitlines()[0]) if raw.strip() else []\n"
-        "            except Exception:\n"
-        "                sec = []\n"
-        "        res.append({'rc': p.returncode, 'out': p.stdout.decode('utf-8', 'replace')[:2000000],\n"
-        "                    'err': err[-400:], 'timeout': False, 'sec': sec})\n"
-        "    except subprocess.TimeoutExpired:\n"
-        "        res.append({'rc': -1, 'out': '', 'err': '', 'timeout': True, 'sec': []})\n"
-        "sys.stdout.write('\\n@@RESULT@@' + json.dumps(res))\n"
-    )
+    # Construir codigo del servidor loopback (sin f-strings anidadas).
+    loopback_proc_code = ""
+    if loopback_port is not None:
+        lp = []
+        lp.append("import socket, hmac, hashlib, secrets, sys, time")
+        lp.append("PORT = " + str(loopback_port))
+        lp.append("TOKEN = secrets.token_hex(16)")
+        lp.append('SERVER_SECRET = b"agent-rush-hackathon-2026-escape-room"')
+        lp.append("server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)")
+        lp.append("server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)")
+        lp.append('server.bind(("127.0.0.1", PORT))')
+        lp.append("server.listen(1)")
+        lp.append("server.settimeout(" + str(case_timeout) + ")")
+        lp.append("try:")
+        lp.append("    conn, _ = server.accept()")
+        lp.append('    conn.sendall(b"HELLO\\n")')
+        lp.append("    data = conn.recv(4096).decode().strip()")
+        lp.append('    if data.startswith("NONCE "):')
+        lp.append("        client_nonce = data.split()[1]")
+        lp.append("        server_nonce = secrets.token_hex(16)")
+        lp.append('        conn.sendall(f"NONCE {server_nonce}\\n".encode())')
+        lp.append("        data = conn.recv(4096).decode().strip()")
+        lp.append('        if data.startswith("HMAC "):')
+        lp.append("            sig = data.split()[1]")
+        lp.append("            expected = hmac.new(")
+        lp.append("                SERVER_SECRET,")
+        lp.append('                f"{server_nonce}:{client_nonce}".encode(),')
+        lp.append("                hashlib.sha256")
+        lp.append("            ).hexdigest()")
+        lp.append("            if sig == expected:")
+        lp.append('                conn.sendall(f"TOKEN {TOKEN}\\n".encode())')
+        lp.append("except socket.timeout:")
+        lp.append("    pass")
+        lp.append("finally:")
+        lp.append("    server.close()")
+        loopback_proc_code = "\n".join(lp) + "\n"
+
+    # Parte condicional: servidor loopback
+    loopback_part = (
+        f"loopback_code = {json.dumps(loopback_proc_code)}\n"
+        "open('/tmp/loopback_server.py', 'w', encoding='utf-8').write(loopback_code)\n"
+        "lb_proc = subprocess.Popen([sys.executable, '/tmp/loopback_server.py'])\n"
+        "time.sleep(0.5)\n"
+    ) if loopback_port else ""
+
+    # Bucle sobre casos: escribir workspace, ejecutar agente, recoger resultado.
+    case_loop = []
+    for k, files_dict, _expected in cases:
+        case_loop.append(
+            f"files_k = {json.dumps(files_dict)}\n"
+            "os.makedirs(workspace, exist_ok=True)\n"
+            "for name_k, content_k in files_k.items():\n"
+            "    path_k = os.path.join(workspace, name_k)\n"
+            "    os.makedirs(os.path.dirname(path_k), exist_ok=True)\n"
+            "    with open(path_k, 'w', encoding='utf-8') as fh_k:\n"
+            "        fh_k.write(content_k)\n"
+            "open('/tmp/sol.py', 'w', encoding='utf-8').write(code)\n"
+            f"p_k = subprocess.run([sys.executable, '-I', '-B', '/tmp/sol.py'],\n"
+            f"    capture_output=True, timeout={case_timeout})\n"
+            "err_k = p_k.stderr.decode('utf-8', 'replace')\n"
+            "sec_k = []\n"
+            "if '@@SEC@@' in err_k:\n"
+            "    err_k, _, raw_k = err_k.rpartition('@@SEC@@')\n"
+            "    try:\n"
+            "        sec_k = json.loads(raw_k.strip().splitlines()[0]) if raw_k.strip() else []\n"
+            "    except Exception:\n"
+            "        sec_k = []\n"
+            "res_k = {'rc': p_k.returncode,\n"
+            "         'out': p_k.stdout.decode('utf-8', 'replace')[:2000000],\n"
+            "         'err': err_k[-400:],\n"
+            "         'timeout': False,\n"
+            "         'sec': sec_k}\n"
+            "res_all.append(res_k)\n"
+        )
+    case_loop_code = "\n".join(case_loop)
+
+    parts = [
+        "import json, os, subprocess, sys\n",
+        f"code = {repr(code)}\n",
+        f"cases = {repr([(k, fd) for k, fd, _e in cases])}\n",
+        f"workspace = {repr(WORKSPACE_DIR)}\n",
+        f"case_timeout = {case_timeout}\n",
+        f"loopback_port = {repr(loopback_port)}\n",
+        "res_all = []\n",
+        # Iniciar servidor loopback si corresponde
+        f"loopback_code = {repr(loopback_proc_code)}\n"
+        "open('/tmp/loopback_server.py', 'w', encoding='utf-8').write(loopback_code)\n"
+        "lb_proc = subprocess.Popen([sys.executable, '/tmp/loopback_server.py'])\n"
+        "time.sleep(0.5)\n"
+        if loopback_port
+        else "",
+        # Bucle de casos
+        case_loop_code,
+        "sys.stdout.write('\\n@@RESULT@@' + json.dumps(res_all))\n",
+    ]
+    return "".join(parts)
 
 
 class Verdict:
@@ -2171,11 +2277,11 @@ class Verdict:
         return f"Verdict(passed={self.passed}, failed_cases={self.failed})"
 
 
-def grade(cid, seed, harness_stdout, cases=None):
+def grade(cid, seed, workspace_stdout, cases=None):
     """Compara contra la salida esperada (solo host). `summary` NO revela la salida correcta."""
-    cases = cases or build_cases(cid, seed)
+    cases = cases or build_workspace(cid, seed)
     try:
-        res = json.loads(harness_stdout.split("@@RESULT@@")[-1])
+        res = json.loads(workspace_stdout.split("@@RESULT@@")[-1])
     except Exception:
         return Verdict(False, list(range(8)), "El sandbox no devolvio resultados (crash o timeout global).")
     if not isinstance(res, list) or len(res) != len(cases):
@@ -2202,26 +2308,26 @@ def grade(cid, seed, harness_stdout, cases=None):
 
 # ----------------------------------------------------------------------
 HAND = [
-    ("L1-01", "100 200\ne1|150|ana|FAIL\ne1|150|ana|OK\ne2|1970-01-01T00:02:30+00:00|ana|fail\n---\ne3|300|bob|FAIL\nbad\n", "ana 2"),
-    ("L1-03", "4\nIIII\n1994\nMCMXCIV\n0\n", "IV\nINVALID\nMCMXCIV\n1994\nINVALID"),
-    ("L1-04", "([)]\n(a\n'(' \n{[]}\n)\n", "3\n1\nOK\nOK\n1"),
-    ("L1-06", "1 3\n4 6\n10 12\n8 9\n", "1 6\n8 12\nTOTAL 11"),
-    ("L2-11", "2 5\nSET a 1 0\nSET b 2 1\nGET a 2\nSET c 3 3\nGET b 3\nGET a 5\nDEL c 5\n", "1\nNIL\nNIL\n1\nSIZE 0"),
-    ("L2-14", "-2^2\n2^3^2\n7/-2\n-7%3\n(1+2\n1/0\n2^-1\n", "-4\n512\n-3\n-1\nERR\nERR\nERR"),
-    ("L2-15", "5\n1 3 2 4 5\n", "4 2"),
-    ("L2-20", "5 6\nU 1 2\nQ 1 3\nU 2 3\nQ 1 3\nS 1\nC\n", "NO\nYES\n3\n3"),
-    ("L3-24", "src/**/*.py\tsrc/a/b/c.py\nsrc/**/*.py\tsrc/c.py\n*.py\ta/b.py\n{a,b}/x?.txt\tb/x1.txt\n\\[z\\].md\t[z].md\na/**\ta\nlog[!0-9]*\tlogs\n",
+    ("L1-01", {"input.txt": "100 200\ne1|150|ana|FAIL\ne1|150|ana|OK\ne2|1970-01-01T00:02:30+00:00|ana|fail\n---\ne3|300|bob|FAIL\nbad\n"}, "ana 2"),
+    ("L1-03", {"input.txt": "4\nIIII\n1994\nMCMXCIV\n0\n"}, "IV\nINVALID\nMCMXCIV\n1994\nINVALID"),
+    ("L1-04", {"input.txt": "([)]\n(a\n'(' \n{[]}\n)\n"}, "3\n1\nOK\nOK\n1"),
+    ("L1-06", {"input.txt": "1 3\n4 6\n10 12\n8 9\n"}, "1 6\n8 12\nTOTAL 11"),
+    ("L2-11", {"input.txt": "2 5\nSET a 1 0\nSET b 2 1\nGET a 2\nSET c 3 3\nGET b 3\nGET a 5\nDEL c 5\n"}, "1\nNIL\nNIL\n1\nSIZE 0"),
+    ("L2-14", {"input.txt": "-2^2\n2^3^2\n7/-2\n-7%3\n(1+2\n1/0\n2^-1\n"}, "-4\n512\n-3\n-1\nERR\nERR\nERR"),
+    ("L2-15", {"input.txt": "5\n1 3 2 4 5\n"}, "4 2"),
+    ("L2-20", {"input.txt": "5 6\nU 1 2\nQ 1 3\nU 2 3\nQ 1 3\nS 1\nC\n"}, "NO\nYES\n3\n3"),
+    ("L3-24", {"input.txt": "src/**/*.py\tsrc/a/b/c.py\nsrc/**/*.py\tsrc/c.py\n*.py\ta/b.py\n{a,b}/x?.txt\tb/x1.txt\n\\[z\\].md\t[z].md\na/**\ta\nlog[!0-9]*\tlogs\n"},
      "MATCH\nMATCH\nNO\nMATCH\nMATCH\nNO\nMATCH"),
-    ("L3-25", "4 5 1 4\n1 2 3\n1 3 2\n2 3 1\n2 4 2\n3 4 3\n", "5\n2"),
-    ("L3-27", "3 5\na 2 3\nb 3 4\nc 5 6\n", "VALUE 7\nWEIGHT 5\nITEMS a b"),
-    ("L3-29", "PUSH 5\nCALL fact\nPRINT\nHALT\nfact:\nDUP\nJZ base\nDUP\nPUSH 1\nSUB\nCALL fact\nMUL\nRET\nbase:\nPOP\nPUSH 1\nRET\n", "120\nHALT"),
-    ("L3-47", "ACQ T1 L1\nACQ T2 L1\nREL T1 L1\nREL T2 L1\n", "GRANTED T1 L1\nWAIT T2 L1\nRELEASED T1 L1 GRANTED T2\nRELEASED T2 L1"),
+    ("L3-25", {"input.txt": "4 5 1 4\n1 2 3\n1 3 2\n2 3 1\n2 4 2\n3 4 3\n"}, "5\n2"),
+    ("L3-27", {"input.txt": "3 5\na 2 3\nb 3 4\nc 5 6\n"}, "VALUE 7\nWEIGHT 5\nITEMS a b"),
+    ("L3-29", {"input.txt": "PUSH 5\nCALL fact\nPRINT\nHALT\nfact:\nDUP\nJZ base\nDUP\nPUSH 1\nSUB\nCALL fact\nMUL\nRET\nbase:\nPOP\nPUSH 1\nRET\n"}, "120\nHALT"),
+    ("L3-47", {"input.txt": "ACQ T1 L1\nACQ T2 L1\nREL T1 L1\nREL T2 L1\n"}, "GRANTED T1 L1\nWAIT T2 L1\nRELEASED T1 L1 GRANTED T2\nRELEASED T2 L1"),
 ]
 
 
 def selftest(seed="selftest"):
-    for cid, inp, exp in HAND:
-        got = POOL[cid].ref(inp)
+    for cid, files, exp in HAND:
+        got = POOL[cid].ref_workspace(files)
         assert norm(got) == norm(exp), f"HAND {cid}\n got: {got!r}\n exp: {exp!r}"
     print(f"{len(HAND)} casos escritos a mano: OK\n")
     assert len(POOL) == 100, f"Se esperaban 100 desafios, hay {len(POOL)}"
@@ -2229,11 +2335,11 @@ def selftest(seed="selftest"):
     for lvl in (1, 2, 3):
         for cid in LEVELS[lvl]:
             t = time.time()
-            a = build_cases(cid, seed)
+            a = build_workspace(cid, seed)
             dt = time.time() - t
-            b = build_cases(cid, seed)
+            b = build_workspace(cid, seed)
             assert a == b, f"{cid} no es determinista"
-            assert a != build_cases(cid, seed + "x"), f"{cid} ignora la seed"
+            assert a != build_workspace(cid, seed + "x"), f"{cid} ignora la seed"
             empties = sum(1 for _, _, e in a if not e.strip())
             distinct = len({e for _, _, e in a})
             print(f"{cid:6} {POOL[cid].title:24} {max(len(i) for _, i, _ in a) / 1024:10.1f} {dt:12.2f}  {empties:6}  {distinct:9}")

@@ -127,10 +127,10 @@ class TestScoring(unittest.TestCase):
 
 class TestChallengeBank(unittest.TestCase):
     def test_hand_cases(self):
-        for cid, inp, exp in challenges.HAND:
+        for cid, files, exp in challenges.HAND:
             with self.subTest(cid=cid):
                 self.assertEqual(
-                    challenges.norm(challenges.POOL[cid].ref(inp)),
+                    challenges.norm(challenges.POOL[cid].ref_workspace(files)),
                     challenges.norm(exp),
                 )
 
@@ -160,21 +160,21 @@ class TestChallengeBank(unittest.TestCase):
     def test_all_challenges_build_8_cases(self):
         for cid in sorted(challenges.POOL):
             with self.subTest(cid=cid):
-                cases = challenges.build_cases(cid, "suite")
+                cases = challenges.build_workspace(cid, "suite")
                 self.assertEqual(len(cases), 8)
                 self.assertEqual([k for k, _, _ in cases], list(range(8)))
-                for _, inp, exp in cases:
-                    self.assertIsInstance(inp, str)
+                for _, files, exp in cases:
+                    self.assertIsInstance(files, dict)
                     self.assertIsInstance(exp, str)
-                self.assertTrue(any(inp for _, inp, _ in cases))
+                self.assertTrue(any(files for _, files, _ in cases))
 
     def test_determinism_and_seed_sensitivity(self):
         sample = ["L1-01", "L1-53", "L2-14", "L2-20", "L3-29", "L3-53"]
         for cid in sample:
             with self.subTest(cid=cid):
-                a = challenges.build_cases(cid, "seeded")
-                b = challenges.build_cases(cid, "seeded")
-                c = challenges.build_cases(cid, "seeded-other")
+                a = challenges.build_workspace(cid, "seeded")
+                b = challenges.build_workspace(cid, "seeded")
+                c = challenges.build_workspace(cid, "seeded-other")
                 self.assertEqual(a, b)
                 self.assertNotEqual(a, c)
 
@@ -193,14 +193,13 @@ class TestChallengeBank(unittest.TestCase):
     def test_public_view(self):
         view = challenges.public_view("L1-01")
         self.assertIn("DESAFIO L1-01", view)
-        self.assertIn("EJEMPLO (entrada)", view)
-        self.assertIn("EJEMPLO (salida)", view)
+        self.assertIn("EJEMPLO (salida esperada)", view)
         self.assertIn("Entrega UN script Python 3.12", view)
 
     def test_harness_does_not_contain_expected_outputs(self):
         cid, seed = "L1-01", "harness"
-        cases = challenges.build_cases(cid, seed)
-        harness = challenges.harness_source("print('x')", [inp for _, inp, _ in cases])
+        cases = challenges.build_workspace(cid, seed)
+        harness = challenges.workspace_source("print('x')", cases)
         self.assertIn("@@RESULT@@", harness)
         self.assertIn("subprocess.run", harness)
         # Las salidas esperadas no deben viajar al sandbox.
@@ -210,14 +209,14 @@ class TestChallengeBank(unittest.TestCase):
 
     def test_grade_perfect(self):
         cid, seed = "L1-01", "grade-ok"
-        cases = challenges.build_cases(cid, seed)
+        cases = challenges.build_workspace(cid, seed)
         verdict = challenges.grade(cid, seed, _result(cases), cases)
         self.assertTrue(verdict.passed)
         self.assertEqual(verdict.failed, [])
 
     def test_grade_wrong_output(self):
         cid, seed = "L1-01", "grade-bad"
-        cases = challenges.build_cases(cid, seed)
+        cases = challenges.build_workspace(cid, seed)
         verdict = challenges.grade(
             cid, seed, _result(cases, mutate=lambda k, e: e + "X"), cases
         )
@@ -226,20 +225,20 @@ class TestChallengeBank(unittest.TestCase):
 
     def test_grade_timeout(self):
         cid, seed = "L1-01", "grade-timeout"
-        cases = challenges.build_cases(cid, seed)
+        cases = challenges.build_workspace(cid, seed)
         res = [{"rc": 0, "out": exp, "err": "", "timeout": k == 3} for k, _, exp in cases]
         verdict = challenges.grade(cid, seed, "@@RESULT@@" + json.dumps(res), cases)
         self.assertFalse(verdict.passed)
         self.assertEqual(verdict.failed, [3])
 
     def test_grade_malformed(self):
-        cases = challenges.build_cases("L1-01", "grade-malformed")
+        cases = challenges.build_workspace("L1-01", "grade-malformed")
         verdict = challenges.grade("L1-01", "grade-malformed", "not json", cases)
         self.assertFalse(verdict.passed)
         self.assertEqual(len(verdict.failed), 8)
 
     def test_grade_wrong_count(self):
-        cases = challenges.build_cases("L1-01", "grade-count")
+        cases = challenges.build_workspace("L1-01", "grade-count")
         res = [{"rc": 0, "out": cases[0][2], "err": "", "timeout": False}]
         verdict = challenges.grade("L1-01", "grade-count", "@@RESULT@@" + json.dumps(res), cases)
         self.assertFalse(verdict.passed)
@@ -247,7 +246,7 @@ class TestChallengeBank(unittest.TestCase):
 
     def test_grade_normalizes_trailing_spaces(self):
         cid, seed = "L1-01", "grade-norm"
-        cases = challenges.build_cases(cid, seed)
+        cases = challenges.build_workspace(cid, seed)
         verdict = challenges.grade(
             cid, seed, _result(cases, mutate=lambda k, e: e.replace("\n", "  \n") + "  "), cases
         )

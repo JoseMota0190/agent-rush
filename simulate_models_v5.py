@@ -38,7 +38,6 @@ import scoring
 from run_engine import (
     EventBus,
     VultrChat,
-    build_level,
     docker_available,
     ensure_image,
     extract_code,
@@ -247,7 +246,7 @@ def simulate_team(
     model_error = False
 
     for level, cid in zip((1, 2, 3), challenge_ids):
-        challenge = build_level(level, cid, seed)
+        workspace = challenges.build_workspace(cid, seed)
         level_start_tokens = state["total_tokens"]
         level_started = time.monotonic()
         model_error = False
@@ -265,7 +264,7 @@ def simulate_team(
                 "strategist",
                 models["strategist"],
                 "You are the Strategist of an AI escape room. Give a concise, concrete plan. No code.",
-                challenge["prompt"] + "\nReply with a short strategy (max 4 sentences).",
+                challenges.POOL[cid].statement + "\nReply with a short strategy (max 4 sentences).",
                 MAX_OUT["strategist"],
                 level,
                 0,
@@ -283,7 +282,7 @@ def simulate_team(
                 models["coder"],
                 "You are a precise Python coder. Output only complete executable "
                 "Python runner code. Read stdin and write stdout.",
-                challenge["prompt"] + f"\nStrategist plan:\n{strategy}",
+                challenges.POOL[cid].statement + f"\nStrategist plan:\n{strategy}",
                 MAX_OUT["coder"],
                 level,
                 0,
@@ -332,9 +331,7 @@ def simulate_team(
                     }
                 else:
                     try:
-                        harness = challenges.harness_source(
-                            code, challenge["inputs"]
-                        )
+                        harness = challenges.workspace_source(code, workspace)
                         last_result = run_harness_sandbox(harness, bus)
                     except Exception as exc:  # noqa: BLE001
                         summary = f"sandbox error: {type(exc).__name__}: {exc}"
@@ -349,9 +346,9 @@ def simulate_team(
                             cid,
                             seed,
                             last_result.get("stdout", ""),
-                            challenge["cases"],
+                            workspace,
                         )
-                        cases_passed = len(challenge["cases"]) - len(verdict.failed)
+                        cases_passed = len(workspace) - len(verdict.failed)
                         best_cases = max(best_cases, cases_passed)
                         summary = verdict.summary
                         telemetry = parse_telemetry(last_result)
@@ -379,7 +376,7 @@ def simulate_team(
                     "solution, no markdown fences, no analysis, no prose. It must read "
                     "stdin and write stdout.",
                     (
-                        f"Challenge:\n{challenge['prompt']}\n\n"
+                        f"Challenge:\n{challenges.POOL[cid].statement}\n\n"
                         f"Current code:\n{code}\n\n"
                         f"Host grading summary:\n{summary}\n\n"
                         f"Last sandbox stderr:\n{(last_result.get('stderr') or '')[-800:]}"
@@ -410,7 +407,7 @@ def simulate_team(
                     "You are the Auditor. Review the final solution and the host "
                     "grading summary. Reply with APPROVED or NEEDS_WORK and one sentence.",
                     (
-                        f"Challenge:\n{challenge['prompt']}\n\n"
+                        f"Challenge:\n{challenges.POOL[cid].statement}\n\n"
                         f"Final code:\n{last_code}\n\n"
                         f"Host grading summary: {summary}"
                     ),
@@ -426,7 +423,7 @@ def simulate_team(
                     "You are the Auditor. The level failed. Explain in 2 sentences "
                     "what failed and what should be tried next.",
                     (
-                        f"Challenge:\n{challenge['prompt']}\n\n"
+                        f"Challenge:\n{challenges.POOL[cid].statement}\n\n"
                         f"Last code:\n{last_code}\n\n"
                         f"Host grading summary: {summary}\n"
                         f"Last stderr:\n{(last_result.get('stderr') or '')[-800:]}"
@@ -450,7 +447,7 @@ def simulate_team(
             {
                 "level": level,
                 "challenge_id": cid,
-                "title": challenge["title"],
+                "title": challenges.POOL[cid].title,
                 "solved": solved,
                 "attempt": attempt_used,
                 "tokens": level_tokens,
@@ -464,7 +461,7 @@ def simulate_team(
         print(
             f"  L{level} {cid} {'SOLVED' if solved else 'FAILED'} "
             f"attempt={attempt_used} tokens={level_tokens} "
-            f"cases={best_cases}/{len(challenge['cases'])} "
+            f"cases={best_cases}/{len(workspace)} "
             f"time={levels[-1]['duration_s']}s",
             flush=True,
         )
@@ -485,7 +482,7 @@ def simulate_team(
                     "attempt": 0,
                     "tokens": 0,
                     "best_cases": 0,
-                    "cases_total": 8,
+                    "cases_total": len(workspace),
                     "points": 0.0,
                     "duration_s": 0.0,
                     "summary": "not run (budget/time)",

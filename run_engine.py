@@ -1307,9 +1307,13 @@ class RunManager:
                         f"Límite de tiempo de la run alcanzado ({RUN_TIME_LIMIT_S}s)"
                     )
 
-                challenge = build_level(level, cid, seed)
+                workspace = challenges.build_workspace(cid, seed)
                 level_start = meter.used
                 level_started = time.time()
+                challenge_meta = {
+                    "title": challenges.POOL[cid].title,
+                    "description": challenges.POOL[cid].statement,
+                }
                 bus.emit(
                     {
                         "type": "challenge",
@@ -1317,10 +1321,10 @@ class RunManager:
                         "index": level - 1,
                         "level": level,
                         "challenge_id": cid,
-                        "title": challenge["title"],
-                        "description": challenge["description"],
-                        "objective": challenge["objective"],
-                        "cases": len(challenge["cases"]),
+                        "title": challenge_meta["title"],
+                        "description": challenge_meta["description"],
+                        "objective": challenges.POOL[cid].statement,
+                        "cases": len(workspace),
                         "max_attempts": MAX_ROOM_ATTEMPTS,
                         "weight": scoring.WEIGHTS[level],
                     }
@@ -1329,7 +1333,7 @@ class RunManager:
                     {
                         "type": "agent",
                         "agent": "system",
-                        "msg": f"INITIATING LEVEL {level} ({cid} · {challenge['title']})",
+                        "msg": f"INITIATING LEVEL {level} ({cid} · {challenge_meta['title']})",
                     }
                 )
 
@@ -1339,7 +1343,7 @@ class RunManager:
                         "strategist",
                         models["strategist"],
                         "You are the Strategist of an AI coding team. Give a concise, concrete plan. No code.",
-                        challenge["prompt"]
+                        challenge_meta["description"]
                         + "\nReply with a short strategy (max 4 sentences).",
                         challenges.MAX_OUT_TOKENS.get("strategist", 600),
                         level=level,
@@ -1369,7 +1373,7 @@ class RunManager:
                         models["coder"],
                         "You are a precise Python coder. Output only complete "
                         "executable Python runner code. Read stdin and write stdout.",
-                        challenge["prompt"] + f"\nStrategist plan:\n{strategy}",
+                        challenge_meta["description"] + f"\nStrategist plan:\n{strategy}",
                         challenges.MAX_OUT_TOKENS.get("coder", 2500),
                         level=level,
                         level_start=level_start,
@@ -1453,7 +1457,7 @@ class RunManager:
                                 "room": level,
                                 "challenge_id": cid,
                                 "cases_passed": 0,
-                                "cases_total": len(challenge["cases"]),
+                                "cases_total": len(workspace),
                                 "verdict": "NO CODE",
                                 "cls": "is-error",
                             }
@@ -1470,9 +1474,7 @@ class RunManager:
                                 "duration": 0.0,
                             }
                         else:
-                            harness = challenges.harness_source(
-                                code, challenge["inputs"]
-                            )
+                            harness = challenges.workspace_source(code, workspace)
                             last_result = run_harness_sandbox(
                                 harness, bus, timeout=CONTAINER_TIMEOUT_S
                             )
@@ -1480,11 +1482,9 @@ class RunManager:
                                 cid,
                                 seed,
                                 last_result.get("stdout", ""),
-                                challenge["cases"],
+                                workspace,
                             )
-                            cases_passed = len(challenge["cases"]) - len(
-                                verdict.failed
-                            )
+                            cases_passed = len(workspace) - len(verdict.failed)
                             best_cases = max(best_cases, cases_passed)
                             summary = verdict.summary
                             try:
@@ -1508,7 +1508,7 @@ class RunManager:
                                     if compile_error
                                     else (
                                         f"level {level} · {cid} · "
-                                        f"{cases_passed}/{len(challenge['cases'])} cases · "
+                                        f"{cases_passed}/{len(workspace)} cases · "
                                         f"exit={last_result.get('exit_code')} · "
                                         f"{last_result.get('duration')}s · "
                                         f"attempt {attempt}/{max_attempts_label}"
@@ -1527,7 +1527,7 @@ class RunManager:
                                 "room": level,
                                 "challenge_id": cid,
                                 "cases_passed": cases_passed,
-                                "cases_total": len(challenge["cases"]),
+                                "cases_total": len(workspace),
                                 "verdict": (
                                     compile_error
                                     if compile_error
@@ -1614,7 +1614,7 @@ class RunManager:
                             "host grading summary. Reply with APPROVED or NEEDS_WORK "
                             "and one sentence.",
                             (
-                                f"Challenge:\n{challenge['prompt']}\n\n"
+                                f"Challenge:\n{challenge_meta['description']}\n\n"
                                 f"Final code:\n{code}\n\n"
                                 f"Host grading summary: {summary}"
                             ),
@@ -1645,7 +1645,7 @@ class RunManager:
                             "You are the Auditor. The level failed. Explain in 2 "
                             "sentences what failed and what should be tried next.",
                             (
-                                f"Challenge:\n{challenge['prompt']}\n\n"
+                                f"Challenge:\n{challenge_meta['description']}\n\n"
                                 f"Last code:\n{code}\n\n"
                                 f"Host grading summary: {summary}\n"
                                 f"Last stderr:\n"
@@ -1681,19 +1681,19 @@ class RunManager:
                 level_record = {
                     "level": level,
                     "challenge_id": cid,
-                    "title": challenge["title"],
+                    "title": challenge_meta["title"],
                     "solved": solved,
                     "attempt": attempt_used,
                     "tokens": level_tokens,
                     "best_cases": best_cases,
-                    "cases_total": len(challenge["cases"]),
+                    "cases_total": len(workspace),
                     "points": round(points, 1),
                     "summary": summary[:300],
                     "duration": round(time.time() - level_started, 1),
                 }
                 levels.append(level_record)
                 cases_passed_total += (
-                    len(challenge["cases"]) if solved else best_cases
+                    len(workspace) if solved else best_cases
                 )
 
                 if solved:
@@ -1704,14 +1704,14 @@ class RunManager:
                             "room": level,
                             "index": level - 1,
                             "challenge_id": cid,
-                            "title": challenge["title"],
+                            "title": challenge_meta["title"],
                             "time": time.strftime(
                                 "%M:%S", time.gmtime(level_record["duration"])
                             ),
                             "tokens": level_tokens,
                             "attempt": attempt_used,
-                            "cases_passed": len(challenge["cases"]),
-                            "cases_total": len(challenge["cases"]),
+                            "cases_passed": len(workspace),
+                            "cases_total": len(workspace),
                             "points": level_record["points"],
                         }
                     )
@@ -1732,9 +1732,9 @@ class RunManager:
                             "room": level,
                             "index": level - 1,
                             "challenge_id": cid,
-                            "title": challenge["title"],
+                            "title": challenge_meta["title"],
                             "cases_passed": best_cases,
-                            "cases_total": len(challenge["cases"]),
+                            "cases_total": len(workspace),
                             "attempt": attempt_used,
                             "tokens": level_tokens,
                             "points": level_record["points"],
@@ -1747,7 +1747,7 @@ class RunManager:
                             "agent": "referee",
                             "msg": (
                                 f"host grader kept best {best_cases}/"
-                                f"{len(challenge['cases'])} cases · level={level} · "
+                                f"{len(workspace)} cases · level={level} · "
                                 f"{cid} NOT SOLVED · +{level_record['points']} pts"
                             ),
                             "cls": "is-error",
