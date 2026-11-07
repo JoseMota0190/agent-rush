@@ -52,6 +52,8 @@ def _load_env(path: str = ".env") -> None:
 
 _load_env()
 
+import challenges
+import scoring
 from config.models import discover_models, PRESETS
 from config.model_profiles import ModelProfile, load_selection, save_selection
 from run_engine import (
@@ -60,6 +62,7 @@ from run_engine import (
     SandboxError,
     sandbox_probe,
     CHALLENGE_VERSION,
+    CONTAINER_TIMEOUT_S,
     SANDBOX_FLAGS,
     SANDBOX_IMAGE,
     MAX_ROOM_ATTEMPTS,
@@ -191,6 +194,23 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                     "project": "AGENT RUSH",
                     "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                     "challenge_version": CHALLENGE_VERSION,
+                    "bank": {
+                        "challenges": len(challenges.POOL),
+                        "levels": {
+                            str(level): len(challenges.LEVELS[level])
+                            for level in (1, 2, 3)
+                        },
+                        "cases_per_level": len(challenges.SIZES),
+                        "level_budgets": {
+                            str(level): budget
+                            for level, budget in challenges.LEVEL_BUDGET.items()
+                        },
+                        "scoring_weights": {
+                            str(level): weight
+                            for level, weight in scoring.WEIGHTS.items()
+                        },
+                        "max_attempts": MAX_ROOM_ATTEMPTS,
+                    },
                     "models": {
                         "count": len(models),
                         "ids": [m.get("id") for m in models if m.get("id")],
@@ -201,7 +221,8 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                     "sandbox": {
                         "image": SANDBOX_IMAGE,
                         "flags": SANDBOX_FLAGS,
-                        "timeout_seconds": 15,
+                        "timeout_seconds": CONTAINER_TIMEOUT_S,
+                        "case_timeout_seconds": challenges.CASE_TIMEOUT_S,
                         "attempts_per_room": MAX_ROOM_ATTEMPTS,
                     },
                     "endpoints": {
@@ -268,6 +289,7 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
             payload = self._read_json()
             mode = payload.get("mode")
             models = payload.get("models")
+            seed = payload.get("seed")
             if mode not in ("spectator", "orchestrator"):
                 return self._send_json({"error": "modo inválido"}, 400)
             if not isinstance(models, dict) or not all(
@@ -277,6 +299,8 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                 return self._send_json(
                     {"error": "Elegí un modelo para los tres agentes."}, 400
                 )
+            if seed is not None and not isinstance(seed, str):
+                return self._send_json({"error": "seed inválida"}, 400)
 
             available = {m.get("id") for m in get_models() if m.get("id")}
             invalid = [models[a] for a in ("strategist", "coder", "auditor") if models[a] not in available]
@@ -286,11 +310,23 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                 )
 
             try:
-                run = MANAGER.start(mode, {a: models[a] for a in ("strategist", "coder", "auditor")})
+                run = MANAGER.start(
+                    mode,
+                    {a: models[a] for a in ("strategist", "coder", "auditor")},
+                    seed=seed,
+                )
             except EngineError as exc:
                 return self._send_json({"error": str(exc)}, 429 if "en curso" in str(exc) else 503)
             return self._send_json(
-                {"run_id": run["id"], "mode": mode, "models": run["models"]}, 201
+                {
+                    "run_id": run["id"],
+                    "mode": mode,
+                    "models": run["models"],
+                    "seed": run.get("seed"),
+                    "challenges": run.get("challenges", []),
+                    "challenge_version": CHALLENGE_VERSION,
+                },
+                201,
             )
 
         if path == "/api/sandbox/probe":

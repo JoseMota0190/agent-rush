@@ -201,6 +201,7 @@ def verify(proof, expected):
   const successRoomsEl = $("#successRooms");
   const successTokensEl = $("#successTokens");
   const successTimeEl = $("#successTime");
+  const successScoreEl = $("#successScore");
 
   const energyChip = $("#energy");
   const energyUsedEl = $("#energyUsed");
@@ -422,6 +423,7 @@ def verify(proof, expected):
 
       room.classList.toggle("is-done", info.state === "done");
       room.classList.toggle("is-active", info.state === "active");
+      room.classList.toggle("is-failed", info.state === "failed");
 
       const meta = room.querySelector(".room-meta");
       if (!meta) return;
@@ -430,6 +432,12 @@ def verify(proof, expected):
         meta.textContent = t("game.room.meta.resolved", {
           status: t("game.room.resolved"),
           time: info.time || "00:00",
+        });
+      } else if (info.state === "failed") {
+        meta.textContent = t("game.room.meta.failed", {
+          status: t("game.room.failed"),
+          cases: info.cases ?? 0,
+          total: info.total ?? 8,
         });
       } else if (info.state === "active") {
         meta.textContent = t("game.room.meta.inProgress", {
@@ -455,6 +463,17 @@ def verify(proof, expected):
     if (!roomsState[index]) return;
 
     roomsState[index] = { state: "done", time };
+    if (roomsState[index + 1]) {
+      roomsState[index + 1] = { state: "active", attempt: 1, max: 3 };
+    }
+    renderRooms();
+    setLevel(Math.min(3, index + 2));
+  }
+
+  function failRoom(index, cases, total) {
+    if (!roomsState[index]) return;
+
+    roomsState[index] = { state: "failed", cases: cases ?? 0, total: total ?? 8 };
     if (roomsState[index + 1]) {
       roomsState[index + 1] = { state: "active", attempt: 1, max: 3 };
     }
@@ -567,6 +586,26 @@ def verify(proof, expected):
     if (!challenge) return;
     currentChallenge = challenge;
 
+    const level = Number(challenge.level || challenge.room || 1);
+    const roomEl = $$("#roomList .room")[level - 1];
+    const roomName = roomEl && roomEl.querySelector(".room-name");
+    if (roomName) {
+      roomName.removeAttribute("data-i18n");
+      roomName.textContent = t("game.room.levelName", {
+        n: level,
+        title: challenge.title || "",
+      });
+    }
+
+    const briefingLevel = $(".briefing-level");
+    if (briefingLevel && challenge.challenge_id) {
+      briefingLevel.removeAttribute("data-i18n");
+      briefingLevel.textContent = t("game.briefing.level", {
+        n: level,
+        id: challenge.challenge_id,
+      });
+    }
+
     $$("[data-challenge]").forEach((card) => {
       const kicker = card.querySelector(".challenge-kicker");
       const title = card.querySelector("h3");
@@ -645,7 +684,12 @@ def verify(proof, expected):
         setEnvironmentState("active");
         appendLog({
           src: "system",
-          msg: `run_started · mode=${evt.mode}`,
+          msg:
+            `run_started · mode=${evt.mode}` +
+            (evt.seed ? ` · seed=${evt.seed}` : "") +
+            (Array.isArray(evt.challenges)
+              ? ` · ${evt.challenges.join(" / ")}`
+              : ""),
           kind: "chat",
           ts: evt.ts,
         });
@@ -729,33 +773,74 @@ def verify(proof, expected):
         setTimeout(() => setBotState("auditor", "idle"), 1600);
         break;
 
-      case "run_completed":
-        runFinished = true;
-        runRooms = Number(evt.rooms_solved) || 0;
-        closeRunStream();
-        setRunState("completed");
-        setBotState("strategist", "idle");
-        setBotState("coder", "idle");
-        setBotState("auditor", "approved");
+      case "room_failed":
+        failRoom(
+          evt.index,
+          Number(evt.cases_passed) || 0,
+          Number(evt.cases_total) || 8
+        );
+        setBotState("auditor", "error");
+        setMissionState("audit");
+        setEnvironmentState("active");
+        setTimeout(() => setBotState("auditor", "idle"), 1600);
+        break;
+
+      case "security":
         appendLog({
           src: "referee",
-          msg: `RUN COMPLETE · ${runRooms}/3 rooms · ${evt.duration}s`,
+          msg:
+            "SECURITY · " +
+            (evt.event_type || "event") +
+            " · -" +
+            (Number(evt.penalty) || 0) +
+            " pts · " +
+            (evt.evidence || ""),
           kind: "audit",
-          cls: "is-ok",
+          cls: "is-error",
           ts: evt.ts,
         });
-        if (successPanel && successRoomsEl && successTokensEl && successTimeEl) {
-          const roomsSolved = Number(evt.rooms_solved) || 0;
+        break;
+
+      case "run_completed": {
+        runFinished = true;
+        runRooms = Number(evt.rooms_solved) || 0;
+        const success = evt.success !== false && runRooms === 3;
+        closeRunStream();
+        setRunState(success ? "completed" : "failed");
+        setBotState("strategist", "idle");
+        setBotState("coder", "idle");
+        setBotState("auditor", success ? "approved" : "error");
+        const score = Number(evt.score) || 0;
+        appendLog({
+          src: "referee",
+          msg:
+            (success ? "RUN COMPLETE" : "MISSION INCOMPLETE") +
+            ` · ${runRooms}/3 rooms · score ${score} · ${evt.duration}s`,
+          kind: "audit",
+          cls: success ? "is-ok" : "is-error",
+          ts: evt.ts,
+        });
+        if (
+          success &&
+          successPanel &&
+          successRoomsEl &&
+          successTokensEl &&
+          successTimeEl
+        ) {
           const tokens = Number(evt.tokens) || metrics.tokens || 0;
           const duration = Number(evt.duration) || 0;
           const mm = String(Math.floor(duration / 60)).padStart(2, "0");
           const ss = String(Math.floor(duration % 60)).padStart(2, "0");
-          successRoomsEl.textContent = `${roomsSolved}/3`;
+          successRoomsEl.textContent = `${runRooms}/3`;
           successTokensEl.textContent = tokens.toLocaleString("en-US");
           successTimeEl.textContent = `${mm}:${ss}`;
+          if (successScoreEl) successScoreEl.textContent = String(score);
           successPanel.hidden = false;
+        } else if (successPanel) {
+          successPanel.hidden = true;
         }
         break;
+      }
 
       case "disqualified":
         runFinished = true;

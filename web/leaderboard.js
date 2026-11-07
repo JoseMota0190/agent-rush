@@ -81,7 +81,7 @@
 
     const thead = document.createElement("thead");
     const headRow = document.createElement("tr");
-    ["rank", "squad", "time", "tokens", "status"].forEach((key) => {
+    ["rank", "squad", "score", "time", "tokens", "status"].forEach((key) => {
       const th = document.createElement("th");
       th.textContent = t("lb.headers." + key);
       headRow.appendChild(th);
@@ -97,9 +97,20 @@
         (row.success ? "ok-row" : "error-row") +
         (row.rank === 1 ? " top" : "");
 
+      const details = [
+        row.seed ? "seed " + row.seed : "",
+        Array.isArray(row.challenges) ? row.challenges.join(" / ") : "",
+        row.cases_total ? row.cases_passed + "/" + row.cases_total + " cases" : "",
+        row.security_status || "",
+      ]
+        .filter(Boolean)
+        .join(" · ");
+      if (details) tr.title = details;
+
       const cells = [
         [row.rank, ""],
         [row.squad, "squad"],
+        [row.score != null ? String(row.score) : "—", "mono score"],
         [row.time, "mono"],
         [formatTokens(row.tokens), "mono"],
       ];

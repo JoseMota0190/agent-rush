@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<link rel="icon" href="data:," />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>AGENT RUSH — AI Escape Room</title>
 <link rel="stylesheet" href="styles.css" />
@@ -123,7 +124,7 @@
                 <span class="briefing-kicker" data-i18n="game.briefing.kicker">MISSION BRIEFING</span>
                 <span class="briefing-level" data-i18n="game.briefing.level1">LEVEL 1</span>
               </div>
-              <div class="briefing-challenge">
+              <div class="briefing-challenge" data-challenge>
                 <div class="challenge-kicker" data-i18n="game.challenge.kicker">CHALLENGE · ROOM 1</div>
                 <h3 data-i18n="game.challenge.title">THE LOGS</h3>
                 <p data-i18n="game.challenge.desc">The access terminal is locked. Parse the corrupted auth.log, recover the token and open the door.</p>
@@ -186,6 +187,10 @@
               <div class="metric">
                 <span class="metric-label" data-i18n="game.success.timeLabel">Time</span>
                 <span class="metric-value" id="successTime">00:00</span>
+              </div>
+              <div class="metric">
+                <span class="metric-label" data-i18n="game.success.scoreLabel">Score</span>
+                <span class="metric-value" id="successScore">0</span>
               </div>
             </div>
             <div class="success-auditor" data-i18n="game.success.auditor">AUDITOR APPROVED</div>

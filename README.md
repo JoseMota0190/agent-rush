@@ -30,6 +30,10 @@ drop y límites de memoria/CPU/pids/tiempo.
 - **Plan D (2026-11-05):** navbar flotante, hero 40/60 con el título en tres
   líneas, mission briefing, panel de éxito, sala 3D reforzada y cámara
   responsive para tablet/móvil.
+- **Banco v4 (2026-11-07):** 100 desafíos (33/34/33 por nivel) elegidos por
+  seed, 8 casos ocultos por nivel, grading determinista en el host, presupuesto
+  de tokens por nivel, score 0–1000, penalizaciones de seguridad por telemetría
+  real del sandbox y leaderboard con seed/desafíos/casos/seguridad.
 
 ## 📁 Estructura del Proyecto
 ```
@@ -258,7 +262,8 @@ El sistema sigue el patrón **Orchestrator + Workers** para garantizar:
 - **Efimeridad**: Cada ejecución levanta y destruye un contenedor efímero.
 - **Red aislada**: Sin tráfico saliente (`--network none`).
 - **Sin variables sensibles**: API keys nunca dentro del contenedor.
-- **Límites estrictos**: timeout 15 s, 256 MB de memoria, 0.5 CPU, 64 PIDs.
+- **Límites estrictos**: 10 s por caso, 90 s por intento del banco, 256 MB de
+  memoria, 0.5 CPU, 64 PIDs.
 - **Usuario sin privilegios**: UID/GID `65534`, `--cap-drop ALL`,
   `no-new-privileges`.
 
@@ -281,10 +286,12 @@ agente; la tabla es solo el escuadrón que mejor rindió en la calibración.
 ## 📊 Leaderboard y Métricas
 
 El leaderboard real guarda, por run verificada:
-- **Tiempo total** y **tokens** consumidos.
-- **Modo** (spectator / orchestrator).
+- **Score final 0–1000** (performance menos penalizaciones de seguridad).
+- **Performance score**, estado de seguridad y penalización.
+- **Tiempo total**, **tokens** y **casos aprobados** (de 24).
+- **Seed**, **desafíos elegidos** (`L1-xx`, `L2-xx`, `L3-xx`) y **modo**.
 - **Modelos por rol** (strategist + coder + auditor).
-- Filtra por `challenge_version` y rankea **por modo** (1..n).
+- Filtra por `challenge_version` (`v4-bank-1`) y rankea **por modo** (1..n).
 
 ## 🛠️ Personalización
 
@@ -292,9 +299,11 @@ El leaderboard real guarda, por run verificada:
 Edita `config/prompts.py` y actualiza las rutas de enrutamiento en `main.py`.
 
 ### Nuevos Puzzles/Salas
-1. Agrega descripción en `RoomChallenge` (estado.py)
-2. Actualiza los prompts del Strategist para el nuevo tipo de reto
-3. Ajusta los patrones de detección de FLAG en el Auditor
+El banco v4 vive en `challenges.py`: cada desafío define `statement`, `gen` y
+`ref` y se registra con `@reg(...)`. El motor selecciona uno por nivel con
+`challenges.pick(seed)`, genera 8 casos ocultos y gradúa en el host con
+`challenges.grade(...)`. El scoring está en `scoring.py` y la spec en
+`SCORING.md`.
 
 ### Cambiar Límites de Seguridad
 Modifica `tools/vultr_sandbox.py`:

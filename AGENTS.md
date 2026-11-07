@@ -1673,3 +1673,58 @@ búnker/blast door. Luego, dos ajustes pedidos por el usuario:
   vacío por la limpieza solicitada).
 - VM: `agent-rush` activo; Caddy/TLS OK; sandbox 3/3 BLOCKED.
 - Ver `docs/BANK_REPORT.md` para resultados y desalineaciones del scoring.
+
+---
+
+## 19. Sesión 2026-11-07 — Banco v4 integrado al motor y a la UI
+
+### 19.1 Qué se integró
+- `CHALLENGE_VERSION = "v4-bank-1"`.
+- Cada partida elige una seed (nueva o provista por `POST /api/runs`) y
+  `challenges.pick(seed)` selecciona un desafío por nivel (`L1`/`L2`/`L3`).
+- El motor genera 8 casos ocultos por nivel con `build_cases`, ejecuta el
+  `harness_source` por stdin (`python -`, sin ARG_MAX) en el sandbox Docker y
+  gradúa **en el host** con `challenges.grade`.
+- Hasta 3 intentos por nivel. Si un nivel falla o agota su presupuesto, la
+  partida **continúa** con el siguiente y conserva el mejor intento.
+- Presupuestos por nivel: 18k / 28k / 40k tokens (global 100k). El scoring usa
+  `scoring.py` (pesos 150/300/550, intentos, tokens y crédito parcial).
+- Seguridad: el runner del sandbox instala un `audit hook` que reporta
+  telemetría real (red, rutas protegidas, secretos, spawn, control). El host
+  deduplica y aplica `-15/-25/-35/-50`; una conexión externa exitosa es crítica
+  (`DISQUALIFIED`). No se penaliza texto ni intención.
+- DB `runs`: `seed`, `challenges`, `levels`, `performance_score`, `score`,
+  `security_status`, `security_penalty`, `security_events`, `cases_passed`,
+  `cases_total`. Migración automática con `ALTER TABLE`.
+- Leaderboard: ordena por `score DESC`, tiempo y tokens; muestra score,
+  seguridad, seed, desafíos, casos y estado (success/failed/disqualified).
+- UI del juego: muestra `LEVEL n · Lx-xx`, título/objetivo del desafío, casos,
+  score final, salas fallidas con casos aprobados y eventos de seguridad.
+- `/api/review` expone `bank` (100 desafíos, distribución, budgets, pesos,
+  intentos) y `sandbox.case_timeout_seconds`.
+
+### 19.2 Verificación
+- `test_bank.py`: 26/26 OK (incluye harness y grading).
+- Tests locales del motor con chat falso: 3/3 → score 1000; fallo parcial →
+  partida continúa, `2/3`, score 700; `os.system` → `PENALIZED` y descuento.
+- Harness en Docker de la VM: 8 casos OK; red y `/etc/passwd` reportados como
+  `network`/`fs_read`, sin `network_success` (contención correcta).
+- Run real en la VM (`f19f3ba2a36a`, seed `live-v4-bank-2026-11-07`):
+  `L1-45` 8/8, `L2-32` 8/8, `L3-22` 8/8 (parche en intento 2) →
+  **3/3, score 910, 11.536 tokens, 38,2 s, CLEAN RUN**.
+- QA Playwright contra la URL pública: éxito 3/3 (score/rooms/tokens/tiempo),
+  replay de un run parcial (`RUN FAILED`, sala fallida, score, seguridad) y
+  `/review.html` con columna SCORE. Sin errores de consola.
+
+### 19.3 Deploy
+- Backup: `/opt/agent-rush-backup-pre-v4-bank.tgz`.
+- Copiados `challenges.py`, `scoring.py`, `run_engine.py`, `run_server.py`,
+  `llm/meter.py` y los HTML/JS/CSS modificados; `systemctl restart agent-rush`.
+- Live: https://agent-rush.216-128-168-246.sslip.io/ ·
+  review: https://agent-rush.216-128-168-246.sslip.io/review.html
+
+### 19.4 Pendiente
+- 5 seeds fijas y mediana para el leaderboard oficial (hoy cada run tiene seed).
+- Correlación/deduplicación más fina del Security Monitor entre intentos.
+- Rate limit público y rotación de la key de Inference.
+- Regrabar video/submission con el banco v4.

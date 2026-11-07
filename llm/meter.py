@@ -69,9 +69,16 @@ class TokenMeter:
             agent (str): Identificador del agente que generó el uso.
             usage (Dict[str, Any]): Uso reportado por la llamada LLM.
         """
-        prompt_tokens = usage.get("prompt_tokens", 0)
-        completion_tokens = usage.get("completion_tokens", 0)
-        total_tokens = prompt_tokens + completion_tokens
+        prompt_tokens = usage.get("prompt_tokens")
+        completion_tokens = usage.get("completion_tokens")
+        if (
+            prompt_tokens is None
+            and completion_tokens is None
+            and usage.get("total_tokens") is not None
+        ):
+            total_tokens = int(usage.get("total_tokens") or 0)
+        else:
+            total_tokens = int(prompt_tokens or 0) + int(completion_tokens or 0)
 
         with self._lock:
             self.per_agent[agent] = self.per_agent.get(agent, 0) + total_tokens

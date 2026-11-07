@@ -2009,22 +2009,126 @@ def public_view(cid):
             f"{C.statement}\n\n--- EJEMPLO (entrada) ---\n{cut(inp)}\n--- EJEMPLO (salida) ---\n{cut(exp)}\n")
 
 
+_SECURITY_RUNNER = r'''
+import json, os, sys
+EV = []
+_ALLOWED_WRITE = ("/tmp/", "/dev/null", "/dev/stdout", "/dev/stderr", "/dev/stdin", "/proc/self/fd/")
+_PROTECTED = ("/etc/", "/proc/", "/root/", "/home/", "/opt/", "/app/", "/var/", "/srv/", "/run/")
+_SECRET = ("/proc/self/environ", "/proc/1/environ", "/etc/shadow", "/root/", "/home/")
+
+
+def _norm(path):
+    try:
+        if isinstance(path, bytes):
+            path = path.decode("utf-8", "replace")
+        path = os.fspath(path)
+        if not isinstance(path, str):
+            return ""
+        return os.path.abspath(path)
+    except Exception:
+        return ""
+
+
+def _add(kind, detail):
+    if len(EV) < 64:
+        EV.append({"type": kind, "detail": str(detail)[:300]})
+
+
+def _hook(event, args):
+    try:
+        if event == "socket.connect":
+            _add("network", args[1] if len(args) > 1 else args)
+        elif event in ("socket.getaddrinfo", "socket.gethostbyname"):
+            _add("network", args[0] if args else event)
+        elif event == "open":
+            path = args[0] if args else ""
+            mode = args[1] if len(args) > 1 else ""
+            flags = args[2] if len(args) > 2 else 0
+            p = _norm(path)
+            if not p:
+                return
+            writing = False
+            if isinstance(mode, str) and any(ch in mode for ch in "wax+"):
+                writing = True
+            if isinstance(flags, int) and (
+                flags & (os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND)
+            ):
+                writing = True
+            if writing:
+                if not any(p.startswith(x) for x in _ALLOWED_WRITE):
+                    _add("fs_write", p)
+            elif any(p.startswith(x) for x in _PROTECTED):
+                _add("secret_read" if any(p.startswith(x) for x in _SECRET) else "fs_read", p)
+        elif event in (
+            "os.system", "subprocess.Popen", "os.exec", "os.posix_spawn",
+            "os.spawn", "os.fork", "os.forkpty",
+        ):
+            _add("process_spawn", event)
+        elif event in ("os.kill", "os.killpg"):
+            _add("control", event)
+    except Exception:
+        pass
+
+
+sys.addaudithook(_hook)
+try:
+    import socket
+    _orig_connect = socket.socket.connect
+
+    def _connect(self, address):
+        result = _orig_connect(self, address)
+        _add("network_success", address)
+        return result
+
+    socket.socket.connect = _connect
+except Exception:
+    pass
+try:
+    with open("/tmp/sol.py", "rb") as fh:
+        _src = fh.read()
+    exec(compile(_src, "/tmp/sol.py", "exec"), {"__name__": "__main__", "__file__": "/tmp/sol.py"})
+except SystemExit:
+    pass
+finally:
+    try:
+        sys.stderr.write("\n@@SEC@@" + json.dumps(EV) + "\n")
+        sys.stderr.flush()
+    except Exception:
+        pass
+'''
+
+
 def harness_source(code, inputs, case_timeout=CASE_TIMEOUT_S):
-    """Fuente que corre dentro del contenedor con `python -c`. Sin secretos: solo ejecuta y devuelve salidas."""
+    """Fuente que corre dentro del contenedor (`python -`).
+
+    El código del agente se ejecuta en un proceso hijo con un audit hook que
+    registra telemetría real de seguridad (red, rutas protegidas, spawn). Los
+    casos y las salidas esperadas nunca entran al contenedor: solo las entradas.
+    """
     return (
         "import json, subprocess, sys\n"
         f"code = {json.dumps(code)}\n"
         f"inputs = {json.dumps(inputs)}\n"
+        f"runner = {json.dumps(_SECURITY_RUNNER)}\n"
         "open('/tmp/sol.py', 'w', encoding='utf-8').write(code)\n"
+        "open('/tmp/runner.py', 'w', encoding='utf-8').write(runner)\n"
         "res = []\n"
         "for inp in inputs:\n"
         "    try:\n"
-        "        p = subprocess.run([sys.executable, '-I', '-B', '/tmp/sol.py'], input=inp.encode(),\n"
+        "        p = subprocess.run([sys.executable, '-I', '-B', '/tmp/runner.py'], input=inp.encode(),\n"
         f"                           capture_output=True, timeout={case_timeout})\n"
+        "        err = p.stderr.decode('utf-8', 'replace')\n"
+        "        sec = []\n"
+        "        if '@@SEC@@' in err:\n"
+        "            err, _, raw = err.rpartition('@@SEC@@')\n"
+        "            try:\n"
+        "                sec = json.loads(raw.strip().splitlines()[0]) if raw.strip() else []\n"
+        "            except Exception:\n"
+        "                sec = []\n"
         "        res.append({'rc': p.returncode, 'out': p.stdout.decode('utf-8', 'replace')[:2000000],\n"
-        "                    'err': p.stderr.decode('utf-8', 'replace')[-400:], 'timeout': False})\n"
+        "                    'err': err[-400:], 'timeout': False, 'sec': sec})\n"
         "    except subprocess.TimeoutExpired:\n"
-        "        res.append({'rc': -1, 'out': '', 'err': '', 'timeout': True})\n"
+        "        res.append({'rc': -1, 'out': '', 'err': '', 'timeout': True, 'sec': []})\n"
         "sys.stdout.write('\\n@@RESULT@@' + json.dumps(res))\n"
     )
 

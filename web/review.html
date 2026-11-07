@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
+<link rel="icon" href="data:," />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
 <title>AGENT RUSH — LIVE REVIEW</title>
@@ -324,11 +325,13 @@
       return;
     }
     const rows = data.rows.map((r) => (
-      "<tr><td>" + r.rank + "</td><td class='mono'>" + esc(r.squad) +
+      "<tr title='" + esc([r.seed, (r.challenges || []).join(" / "), r.security_status].filter(Boolean).join(" · ")) + "'><td>" + r.rank +
+      "</td><td class='mono'>" + esc(r.squad) +
+      "</td><td class='mono'>" + Number(r.score || 0) +
       "</td><td class='mono'>" + esc(r.time) + "</td><td class='mono'>" +
-      Number(r.tokens).toLocaleString() + "</td></tr>"
+      Number(r.tokens).toLocaleString() + "</td><td>" + esc(r.security_status || "") + "</td></tr>"
     )).join("");
-    target.innerHTML = "<table><thead><tr><th>#</th><th>SQUAD</th><th>TIME</th><th>TOKENS</th></tr></thead><tbody>" + rows + "</tbody></table>";
+    target.innerHTML = "<table><thead><tr><th>#</th><th>SQUAD</th><th>SCORE</th><th>TIME</th><th>TOKENS</th><th>SECURITY</th></tr></thead><tbody>" + rows + "</tbody></table>";
   }
 
   async function load() {
@@ -420,11 +423,26 @@
       return;
     }
     if (t === "challenge") {
-      log(ts() + '<span class="who system">challenge</span>room ' + e.room + " · " + esc(e.title || ""));
+      log(ts() + '<span class="who system">challenge</span>level ' + e.level + " · " +
+        esc(e.challenge_id || "") + " · " + esc(e.title || "") + " · " +
+        (e.cases || 0) + " cases");
       return;
     }
     if (t === "room_solved") {
-      log(ts() + '<span class="who referee">referee</span><span class="ok">ROOM ' + e.room + " SOLVED</span>");
+      log(ts() + '<span class="who referee">referee</span><span class="ok">LEVEL ' + e.room + " SOLVED · " +
+        (e.challenge_id || "") + " · " + (e.cases_passed || 0) + "/" + (e.cases_total || 8) +
+        " cases · +" + (e.points || 0) + " pts</span>");
+      return;
+    }
+    if (t === "room_failed") {
+      log(ts() + '<span class="who referee">referee</span><span class="err">LEVEL ' + e.room + " NOT SOLVED · " +
+        (e.challenge_id || "") + " · best " + (e.cases_passed || 0) + "/" + (e.cases_total || 8) +
+        " cases · +" + (e.points || 0) + " pts</span>");
+      return;
+    }
+    if (t === "security") {
+      log(ts() + '<span class="who referee">security</span><span class="err">' + esc(e.event_type || "") +
+        " · -" + Number(e.penalty || 0) + " pts · " + esc(e.evidence || "") + "</span>");
       return;
     }
     if (t === "run_started") {
@@ -432,10 +450,14 @@
       return;
     }
     if (t === "run_completed") {
-      log(ts() + '<span class="who referee">referee</span><span class="ok">RUN COMPLETED · ' +
-        e.rooms_solved + "/3 · " + Number(e.tokens || 0).toLocaleString() + " tokens · " +
-        Number(e.duration || 0).toFixed(1) + "s</span>");
-      finishRun("completed", "ok");
+      const cls = e.success ? "ok" : "err";
+      log(ts() + '<span class="who referee">referee</span><span class="' + cls + '">' +
+        (e.success ? "RUN COMPLETED" : "MISSION INCOMPLETE") + " · " +
+        e.rooms_solved + "/3 · score " + Number(e.score || 0) + " · " +
+        Number(e.tokens || 0).toLocaleString() + " tokens · " +
+        Number(e.duration || 0).toFixed(1) + "s · " +
+        esc((e.security && e.security.status) || "CLEAN RUN") + "</span>");
+      finishRun(e.success ? "completed" : "failed", e.success ? "ok" : "bad");
       setTimeout(load, 1500);
       return;
     }
