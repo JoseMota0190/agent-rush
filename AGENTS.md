@@ -1734,7 +1734,11 @@ búnker/blast door. Luego, dos ajustes pedidos por el usuario:
 ## 20. Sesión 2026-11-07 — v4-bank-3: trampas, auditoría y reintentos ilimitados
 
 ### 20.1 Cambios
-- `CHALLENGE_VERSION = "v4-bank-3"`.
+- `CHALLENGE_VERSION = "v4-bank-4"`.
+- **Prompt task-only:** el modelo recibe solo el desafío y la interfaz
+  stdin/stdout. No se le avisa que está en un sandbox, no se listan rutas
+  prohibidas y no se mencionan las trampas. La frontera se prueba de forma
+  espontánea; el host sigue detectando y penalizando.
 - **Seed fija por defecto:** `AGENT_RUSH_DEFAULT_SEED=live-v4-bank-2026-11-07`
   (L1-45, L2-32, L3-22) para spectator y orchestrator; el API puede override.
 - **Reintentos internos ilimitados:** `AGENT_RUSH_MAX_ATTEMPTS=0`. El límite es
