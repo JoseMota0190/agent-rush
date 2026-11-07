@@ -1540,3 +1540,67 @@ python deploy/deploy.py --region sao --plan vc2-1c-2gb
 
 ---
 
+## 17. Sesión 2026-11-05 (noche) — puerta de búnker + VULTR integrado
+
+### 17.1 Objetivo
+Mejorar la puerta de la sala para que parezca de verdad la puerta de un
+búnker/blast door. Luego, dos ajustes pedidos por el usuario:
+1. Quitar el letrero "BLOQUEADO" y, en su lugar, integrar el panel negro con el
+   logo + las letras **VULTR** dentro de la puerta.
+2. Subir el volante (la manija grande) porque la cabeza del robot **CODER** lo
+   tapaba.
+
+### 17.2 Hecho (`web/scene.js`, `buildRoom`)
+- **Puerta rediseñada como blast door:** hoja gruesa (2.2 × 3.9 × 0.26) con
+  bisel, marco reforzado (jambas + dintel + guardas + guardacantos), umbral,
+  tiras de luz de sellado y remaches perimetrales.
+- **Volante central de 5 radios** (`wheel`) con aro exterior/interior, hub y tapa
+  (`door.userData.wheel`).
+- **Cerrojos perimetrales** que entran al marco: 2 por lado (y = 1.0 y 2.9) con
+  alojamiento cilíndrico, más pasadores superior e inferior centrados.
+- **Bisagras pesadas** en el lado izquierdo (3 barriles con topes).
+- **Banda de peligro tipo chevron** en la base (banda oscura + franjas ámbar a 45°).
+- **Panel VULTR integrado en la puerta** (reemplaza al cartel BLOQUEADO): bisel
+  metálico + zócalo de acero + placa negra + 4 tornillos en las esquinas + logo
+  centrado + retroiluminación azul (`vultrPlateLight`). `VULTR_PANEL_Y = 3.4`.
+- **Volante subido** a `WHEEL_CY = 2.45` (antes `DOOR_CY = 1.95`); el panel de
+  teclado/LED (`lockPanel`, `led`, `keypad`, teclas) se alineó con el volante.
+  Así la cabeza del robot del medio ya no ocluye la manija.
+- **Se quitó el cartel "BLOQUEADO"/"DESBLOQUEADO"** y toda su infraestructura:
+  `doorSign`, `signLight`, `paintDoorSign()`, `doorSignCtx`, `doorSignTexture`
+  y las llamadas en `setEnvironmentState`. El LED **LOCKED / UNLOCKED** sigue
+  funcionando en el panel de bloqueo.
+- `vultrLogoTexture()` ahora **centra el arte** (V + "VULTR") con
+  `ctx.translate(190, 0)`; antes quedaba pegado a la izquierda.
+- `buildSigns()` ya **no** crea el cartel VULTR suelto sobre el dintel; solo deja
+  `neonLight` (lo usa `setEnvironmentState`). Se eliminaron `plaqueMat` y
+  `plaqueFrameMat`.
+- **Cámara spectator** subida a `pos (0, 2.30, 5.10)` / `target (0, 1.30, -1.35)`
+  (antes 2.12 / 1.08) para encuadrar mejor la puerta y liberar el rótulo de sala.
+- Cache-buster: `scene.js?v=1762400080` en `web/app.js` y `web/hero.js`.
+
+### 17.3 Archivos
+- `web/scene.js` (todo lo anterior).
+- `web/app.js`, `web/hero.js` (solo el `?v=`).
+
+### 17.4 Verificación
+- `node --check web/scene.js` OK; sin referencias a `paintDoorSign`/`doorSign*`.
+- Playwright local (puerto **8010**): juego 1366×768 y 1920×1080 + landing 1600×900.
+  - Volante visible por completo por encima de las cabezas.
+  - Panel VULTR negro integrado en la puerta, con tornillos y logo centrado.
+  - Sin errores de escena (solo el 404/400 de la API de Vultr sin key).
+- `AGENTS.md` actualizado (esta sección).
+
+### 17.5 Gotchas / notas
+- Servidor local en **8010** (`python run_server.py --port 8010 --no-open`):
+  Docker Desktop ocupa `0.0.0.0:8000` y `localhost` resuelve a `::1`.
+- PowerShell 5: sin `&&`; usar `127.0.0.1` en los checks HTTP; los métodos .NET
+  (`[IO.File]::...`) usan el CWD del proceso, no el de PowerShell → pasar rutas
+  absolutas.
+- El panel VULTR y el volante conviven con los remaches superiores de la hoja
+  (top rivets en y = 3.76): el bisel del panel llega hasta 3.68.
+- Pendiente global (secciones 15.6/16.4): subir el video y enviar el submission
+  en LabLab; opcional rate limit público.
+
+---
+

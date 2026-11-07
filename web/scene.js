@@ -47,8 +47,14 @@ let camPos = new THREE.Vector3(0, 1.9, 5.6);
 let camFov = 40;
 let raf = 0;
 
+// Room dimensions (also re-declared inside buildRoom() for local use).
+const ROOM_W = 15;
+const ROOM_D = 11;
+const ROOM_H = 4.8;
+const ROOM_BACK = -ROOM_D / 2;
+
 const CAMS = {
-  spectator:    { pos: new THREE.Vector3(0, 2.12, 5.10), target: new THREE.Vector3(0, 1.08, -1.35), fov: 44 },
+  spectator:    { pos: new THREE.Vector3(0, 2.30, 5.10), target: new THREE.Vector3(0, 1.30, -1.35), fov: 44 },
   orchestrator: { pos: new THREE.Vector3(0, 1.55, 2.6), target: new THREE.Vector3(0, 1.10, -0.95), fov: 55 },
   hero:         { pos: new THREE.Vector3(0, 2.20, 5.80), target: new THREE.Vector3(0, 1.00, -1.35), fov: 50 },
 };
@@ -304,84 +310,161 @@ function buildRoom() {
     room.add(strip);
   }
 
-  // ---------------- door on the back wall ----------------
+  // ================= BLAST DOOR / BUNKER DOOR =================
   const door = new THREE.Group();
 
-  // Reinforced door panel - thicker
-  const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(2.1, 3.9, 0.18), vaultPlateMat);
-  doorPanel.position.set(0, 1.95, BACK + 0.26);
-  door.add(doorPanel);
+  const DOOR_W = 2.2;              // ancho de la hoja
+  const DOOR_H = 3.9;              // alto de la hoja
+  const DOOR_CY = DOOR_H / 2;      // centro vertical (1.95)
+  const FACE = BACK + 0.42;        // plano frontal de la hoja
 
-  // Thicker reinforced jambs/frame
-  for (const x of [-1.12, 1.12]) {
-    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.22, 4.3, 0.3), vaultFrameMat);
-    jamb.position.set(x, 2.06, BACK + 0.28);
+  // --- acero del búnker ---
+  const doorSteelMat = new THREE.MeshStandardMaterial({
+    color: 0x2b3b4b, metalness: 0.55, roughness: 0.5,
+    emissive: 0x0b1824, emissiveIntensity: 0.6,
+  });
+  const doorPlateMat = new THREE.MeshStandardMaterial({
+    color: 0x3c5062, metalness: 0.5, roughness: 0.46,
+    emissive: 0x11212f, emissiveIntensity: 0.7,
+  });
+  const doorRidgeMat = new THREE.MeshStandardMaterial({
+    color: 0x7d92a6, metalness: 0.72, roughness: 0.3,
+    emissive: 0x0f1d27, emissiveIntensity: 0.4,
+  });
+  const doorChromeMat = new THREE.MeshStandardMaterial({
+    color: 0xa9bac8, metalness: 0.92, roughness: 0.22,
+  });
+  const doorBoltMat = new THREE.MeshStandardMaterial({
+    color: 0x93a7b8, metalness: 0.86, roughness: 0.26,
+  });
+  const hazardMat = new THREE.MeshBasicMaterial({ color: 0xe0a11c, toneMapped: false });
+  const hazardDarkMat = new THREE.MeshBasicMaterial({ color: 0x12161a, toneMapped: false });
+
+  // --- marco reforzado: jambas + dintel + guardas ---
+  const jambD = 0.4;
+  for (const x of [-1.24, 1.24]) {
+    const jamb = new THREE.Mesh(new THREE.BoxGeometry(0.28, 4.6, jambD), doorRidgeMat);
+    jamb.position.set(x, 2.3, BACK + 0.30);
+    jamb.castShadow = true;
     door.add(jamb);
+    for (const y of [0.4, 2.3, 4.0]) {
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.34, 0.06), doorSteelMat);
+      guard.position.set(x, y, BACK + 0.30 + jambD / 2 + 0.01);
+      door.add(guard);
+    }
   }
-  const lintel = new THREE.Mesh(new THREE.BoxGeometry(2.54, 0.22, 0.3), vaultFrameMat);
-  lintel.position.set(0, 4.22, BACK + 0.28);
+  const lintel = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.3, jambD), doorRidgeMat);
+  lintel.position.set(0, 4.0, BACK + 0.30);
   door.add(lintel);
 
-  // Subtle hazard band at the bottom of the jambs.
-  const hazardMat = new THREE.MeshBasicMaterial({ color: 0xd18a1a, toneMapped: false });
-  const hazardDarkMat = new THREE.MeshBasicMaterial({ color: 0x14181c, toneMapped: false });
-  for (const x of [-1.12, 1.12]) {
-    for (let i = 0; i < 5; i++) {
-      const stripe = new THREE.Mesh(
-        new THREE.BoxGeometry(0.2, 0.26, 0.03),
-        i % 2 === 0 ? hazardMat : hazardDarkMat
-      );
-      stripe.position.set(x, 0.35 + i * 0.28, BACK + 0.40);
-      door.add(stripe);
+  // --- hoja principal (gruesa), bisel y placa interior ---
+  const doorPanel = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W, DOOR_H, 0.26), doorSteelMat);
+  doorPanel.position.set(0, DOOR_CY, FACE - 0.13);
+  doorPanel.castShadow = true;
+  doorPanel.receiveShadow = true;
+  door.add(doorPanel);
+
+  const doorLip = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W + 0.06, DOOR_H + 0.06, 0.05), doorRidgeMat);
+  doorLip.position.set(0, DOOR_CY, FACE - 0.04);
+  door.add(doorLip);
+
+  const doorInner = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W - 0.4, DOOR_H - 0.44, 0.05), doorPlateMat);
+  doorInner.position.set(0, DOOR_CY, FACE + 0.01);
+  door.add(doorInner);
+
+  // --- gran volante central (elemento icónico) ---
+  // Subido por encima de las cabezas de los robots (centro en 2.45, antes 1.95).
+  const WHEEL_CY = 2.45;
+  const wheel = new THREE.Group();
+  wheel.position.set(0, WHEEL_CY, FACE + 0.10);
+  const wheelOuter = new THREE.Mesh(new THREE.TorusGeometry(0.44, 0.055, 14, 36), doorRidgeMat);
+  wheel.add(wheelOuter);
+  const wheelMid = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.04, 10, 28), doorRidgeMat);
+  wheel.add(wheelMid);
+  for (let i = 0; i < 5; i++) {
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.86, 0.06), doorChromeMat);
+    spoke.rotation.z = (i * Math.PI * 2) / 5 + Math.PI / 2;
+    wheel.add(spoke);
+  }
+  const wheelHub = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 0.14, 20), doorChromeMat);
+  wheelHub.rotation.x = Math.PI / 2;
+  wheel.add(wheelHub);
+  const wheelCap = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.2, 16), doorRidgeMat);
+  wheelCap.rotation.x = Math.PI / 2;
+  wheel.add(wheelCap);
+  door.add(wheel);
+  door.userData.wheel = wheel;
+
+  // --- cerrojos perimetrales que entran al marco ---
+  const boltZ = FACE + 0.03;
+  for (const side of [-1, 1]) {
+    for (const y of [1.0, DOOR_H - 1.0]) {
+      const housing = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 16), doorRidgeMat);
+      housing.rotation.z = Math.PI / 2;
+      housing.position.set(side * (DOOR_W / 2 - 0.28), y, FACE + 0.06);
+      door.add(housing);
+      const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.18, 0.15), doorBoltMat);
+      bolt.position.set(side * (DOOR_W / 2 + 0.02), y, boltZ);
+      bolt.castShadow = true;
+      door.add(bolt);
+    }
+  }
+  for (const y of [DOOR_H + 0.03, -0.03]) {
+    const bolt = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.4, 0.15), doorBoltMat);
+    bolt.position.set(0, y, boltZ);
+    door.add(bolt);
+  }
+
+  // --- bisagras pesadas (lado izquierdo) ---
+  for (const y of [0.5, DOOR_CY, DOOR_H - 0.5]) {
+    const hinge = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.42, 18), doorRidgeMat);
+    hinge.position.set(-(DOOR_W / 2 + 0.18), y, BACK + 0.30);
+    hinge.castShadow = true;
+    door.add(hinge);
+    for (const dy of [-0.24, 0.24]) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.07, 16), doorChromeMat);
+      cap.position.set(-(DOOR_W / 2 + 0.18), y + dy, BACK + 0.30);
+      door.add(cap);
     }
   }
 
-  // Door split line (center seal)
-  const split = new THREE.Mesh(new THREE.BoxGeometry(0.04, 3.9, 0.04), trimMat);
-  split.position.set(0, 1.95, BACK + 0.28);
-  door.add(split);
-  const handle = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.1, 0.05), vaultFrameMat);
-  handle.position.set(0.72, 2.0, BACK + 0.30);
-  door.add(handle);
-
-  // Heavy vault locking wheel.
-  const wheel = new THREE.Group();
-  wheel.position.set(-0.42, 1.9, BACK + 0.32);
-  const wheelRing = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.04, 10, 24), vaultFrameMat);
-  wheel.add(wheelRing);
-  const wheelHub = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.08, 12), vaultFrameMat);
-  wheelHub.rotation.x = Math.PI / 2;
-  wheel.add(wheelHub);
-  for (let i = 0; i < 4; i++) {
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.55, 0.035), vaultFrameMat);
-    spoke.rotation.z = (i * Math.PI) / 4;
-    wheel.add(spoke);
+  // --- banda de peligro tipo chevron en la base ---
+  const hazardBand = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W - 0.34, 0.4, 0.02), hazardDarkMat);
+  hazardBand.position.set(0, 0.42, FACE + 0.045);
+  door.add(hazardBand);
+  for (let i = -3; i <= 3; i++) {
+    const stripe = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.42, 0.025), hazardMat);
+    stripe.position.set(i * 0.26, 0.42, FACE + 0.055);
+    stripe.rotation.z = Math.PI / 4;
+    door.add(stripe);
   }
-  door.add(wheel);
 
-  // Threshold plate (floor)
+  // --- umbral ---
   const threshold = new THREE.Mesh(
-    new THREE.BoxGeometry(2.54, 0.02, 0.5),
+    new THREE.BoxGeometry(DOOR_W + 0.7, 0.04, 0.62),
     new THREE.MeshStandardMaterial({ color: 0x2a3a4a, metalness: 0.9, roughness: 0.2 })
   );
-  threshold.position.set(0, 0.01, BACK + 0.34);
+  threshold.position.set(0, 0.02, BACK + 0.5);
   door.add(threshold);
 
-  // Door glow line + frame accents so the exit reads in the dark
-  const doorGlow = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.02, 0.02), glowMat);
-  doorGlow.position.set(0, 4.08, BACK + 0.28);
+  // --- tiras de luz de sellado (leen la salida en la oscuridad) ---
+  const doorGlow = new THREE.Mesh(new THREE.BoxGeometry(DOOR_W - 0.2, 0.025, 0.02), glowMat);
+  doorGlow.position.set(0, DOOR_H - 0.06, FACE + 0.05);
   door.add(doorGlow);
-
-  for (const x of [-1.12, 1.12]) {
-    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 3.9, 0.02), glowMat);
-    edge.position.set(x, 2.0, BACK + 0.28);
+  for (const x of [-(DOOR_W / 2 - 0.06), DOOR_W / 2 - 0.06]) {
+    const edge = new THREE.Mesh(new THREE.BoxGeometry(0.025, DOOR_H - 0.2, 0.02), glowMat);
+    edge.position.set(x, DOOR_CY, FACE + 0.05);
     door.add(edge);
   }
-  const topEdge = new THREE.Mesh(new THREE.BoxGeometry(2.26, 0.02, 0.02), glowMat);
-  topEdge.position.set(0, 3.95, BACK + 0.21);
-  door.add(topEdge);
 
-  // ---------------- electronic lock panel + LED ----------------
+  // ---------------- panel de bloqueo electrónico + LED + teclado ----------------
+  const lockPanel = new THREE.Mesh(new THREE.BoxGeometry(0.5, 1.22, 0.015), doorRidgeMat);
+  lockPanel.position.set(0.76, WHEEL_CY, FACE + 0.035);
+  door.add(lockPanel);
+  const lockPanelFace = new THREE.Mesh(new THREE.BoxGeometry(0.44, 1.16, 0.03), doorPlateMat);
+  lockPanelFace.position.set(0.76, WHEEL_CY, FACE + 0.045);
+  door.add(lockPanelFace);
+
   const ledCanvas = document.createElement("canvas");
   ledCanvas.width = 256;
   ledCanvas.height = 96;
@@ -392,70 +475,119 @@ function buildRoom() {
   doorLedTexture.anisotropy = 4;
 
   const led = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.66, 0.25),
+    new THREE.PlaneGeometry(0.42, 0.16),
     new THREE.MeshBasicMaterial({ map: doorLedTexture, transparent: true, toneMapped: false })
   );
-  led.position.set(0.72, 2.62, BACK + 0.22);
+  led.position.set(0.76, WHEEL_CY + 0.39, FACE + 0.08);
   door.add(led);
 
-  const keypad = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.38, 0.035), trimMat);
-  keypad.position.set(0.72, 2.05, BACK + 0.22);
+  const keypad = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.46, 0.04), trimMat);
+  keypad.position.set(0.76, WHEEL_CY - 0.17, FACE + 0.07);
   door.add(keypad);
   for (let row = 0; row < 4; row++) {
     for (let col = 0; col < 3; col++) {
       const key = new THREE.Mesh(
-        new THREE.BoxGeometry(0.055, 0.045, 0.012),
+        new THREE.BoxGeometry(0.055, 0.05, 0.014),
         new THREE.MeshBasicMaterial({ color: 0x9fe6ff, toneMapped: false })
       );
-      key.position.set(0.62 + col * 0.095, 1.92 + row * 0.085, BACK + 0.245);
+      key.position.set(0.66 + col * 0.1, WHEEL_CY - 0.33 + row * 0.095, FACE + 0.095);
       door.add(key);
     }
   }
 
-  // Two red emergency fixtures near the door (wall-mounted)
-  for (const x of [-1.6, 1.6]) {
+  // Dos apliques de emergencia rojos junto a la puerta (en la pared).
+  for (const x of [-1.75, 1.75]) {
     const fixtureMat = new THREE.MeshBasicMaterial({ color: 0xff3344, toneMapped: false });
     const fixture = new THREE.Mesh(
-      new THREE.BoxGeometry(0.18, 0.18, 0.12),
+      new THREE.BoxGeometry(0.2, 0.2, 0.12),
       fixtureMat
     );
-    fixture.position.set(x, 3.3, BACK + 0.12);
+    fixture.position.set(x, 3.35, BACK + 0.12);
     door.add(fixture);
     emergencyFixtures.push(fixtureMat);
 
     const fixtureGlow = new THREE.PointLight(0xff3344, 1.2, 3.5, 2);
-    fixtureGlow.position.set(x, 3.3, BACK + 0.5);
+    fixtureGlow.position.set(x, 3.35, BACK + 0.5);
     room.add(fixtureGlow);
     emergencyLights.push(fixtureGlow);
   }
 
-  // Red emergency beacon near the door (turns green when unlocked)
+  // Faro de emergencia sobre el dintel (pasa a verde al desbloquear).
   doorAlarm = new THREE.PointLight(0xff3344, 1.8, 5.2, 2);
-  doorAlarm.position.set(0, 3.45, BACK + 0.75);
+  doorAlarm.position.set(0, 4.0, BACK + 0.95);
   room.add(doorAlarm);
 
   const beacon = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.055, 0.055, 0.16, 12),
+    new THREE.SphereGeometry(0.07, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xff3344, toneMapped: false })
   );
-  beacon.position.set(0, 3.45, BACK + 0.14);
-  beacon.rotation.z = Math.PI / 2;
+  beacon.position.set(0, 4.0, BACK + 0.53);
   door.add(beacon);
   door.userData.beacon = beacon;
 
+  // ---------------- remaches perimetrales de la hoja ----------------
+  const doorRivetGeom = new THREE.SphereGeometry(0.05, 12, 12);
+  const rimX = DOOR_W / 2 - 0.08;    // 1.02
+  const rimY = DOOR_H / 2 - 0.14;    // 1.81
+  const doorRivetPositions = [];
+  for (const x of [-rimX, -rimX / 3, rimX / 3, rimX]) {
+    doorRivetPositions.push([x, DOOR_CY + rimY]);
+    doorRivetPositions.push([x, DOOR_CY - rimY]);
+  }
+  for (const y of [-1.0, 0, 1.0]) {
+    doorRivetPositions.push([-rimX, DOOR_CY + y]);
+    doorRivetPositions.push([rimX, DOOR_CY + y]);
+  }
+  for (const [x, y] of doorRivetPositions) {
+    const rivet = new THREE.Mesh(doorRivetGeom, doorChromeMat);
+    rivet.position.set(x, y, FACE + 0.06);
+    door.add(rivet);
+  }
+
+  // ---------------- panel VULTR integrado en la puerta ----------------
+  // Reemplaza al antiguo cartel "BLOQUEADO": el branding Vultr ahora forma
+  // parte de la hoja blindada, con bisel, tornillos y retroiluminación azul.
+  const VULTR_PANEL_Y = 3.4;
+  const vultrPanelMat = new THREE.MeshStandardMaterial({
+    color: 0x05080c,
+    metalness: 0.85,
+    roughness: 0.24,
+    emissive: 0x03060a,
+    emissiveIntensity: 0.5,
+  });
+  const panelBezel = new THREE.Mesh(new THREE.BoxGeometry(1.82, 0.56, 0.02), doorRidgeMat);
+  panelBezel.position.set(0, VULTR_PANEL_Y, FACE + 0.03);
+  door.add(panelBezel);
+  const panelRecess = new THREE.Mesh(new THREE.BoxGeometry(1.70, 0.46, 0.03), doorSteelMat);
+  panelRecess.position.set(0, VULTR_PANEL_Y, FACE + 0.045);
+  door.add(panelRecess);
+  const vultrPlate = new THREE.Mesh(new THREE.BoxGeometry(1.60, 0.40, 0.04), vultrPanelMat);
+  vultrPlate.position.set(0, VULTR_PANEL_Y, FACE + 0.065);
+  door.add(vultrPlate);
+
+  // Tornillos de montaje del panel (4 esquinas).
+  for (const [ex, ey] of [[-0.84, 0.23], [0.84, 0.23], [-0.84, -0.23], [0.84, -0.23]]) {
+    const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 10), doorChromeMat);
+    screw.rotation.x = Math.PI / 2;
+    screw.position.set(ex, VULTR_PANEL_Y + ey, FACE + 0.055);
+    door.add(screw);
+  }
+
+  const vultrPlateLogo = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.40, 0.2625),
+    new THREE.MeshBasicMaterial({ map: vultrLogoTexture(), transparent: true, toneMapped: false })
+  );
+  vultrPlateLogo.position.set(0, VULTR_PANEL_Y, FACE + 0.095);
+  door.add(vultrPlateLogo);
+
+  // Retroiluminación azul Vultr para que el panel lea en la oscuridad.
+  const vultrPlateLight = new THREE.PointLight(0x2f7bff, 1.6, 3.6, 2);
+  vultrPlateLight.position.set(0, VULTR_PANEL_Y, BACK + 0.95);
+  room.add(vultrPlateLight);
+
   room.add(door);
 
-  // side panels next to the door
-  for (const x of [-4.9, 4.9]) {
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(1.5, 2.6, 0.1), panelMat);
-    panel.position.set(x, 2.4, BACK + 0.05);
-    room.add(panel);
-    for (let i = 0; i < 4; i++) {
-      const vent = new THREE.Mesh(new THREE.BoxGeometry(1.1, 0.035, 0.04), trimMat);
-      vent.position.set(x, 1.7 + i * 0.32, BACK + 0.09);
-      room.add(vent);
-    }
-  }
+  // side panels next to the door  (removed)
 
   // ---------------- side vault walls ----------------
   for (const side of [-1, 1]) {
@@ -577,6 +709,10 @@ function vultrLogoTexture() {
   const ctx = c.getContext("2d");
   ctx.clearRect(0, 0, c.width, c.height);
 
+  // El arte (V + "VULTR") se dibuja pegado a la izquierda; lo centramos.
+  ctx.save();
+  ctx.translate(190, 0);
+
   // Vultr V mark.
   ctx.fillStyle = "#2f7bff";
   ctx.beginPath();
@@ -612,6 +748,7 @@ function vultrLogoTexture() {
   ctx.textBaseline = "middle";
   ctx.textAlign = "left";
   ctx.fillText("VULTR", 330, 100);
+  ctx.restore();
 
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
@@ -620,55 +757,11 @@ function vultrLogoTexture() {
 }
 
 function buildSigns() {
-  const plaqueMat = new THREE.MeshStandardMaterial({
-    color: 0x0b141d,
-    metalness: 0.9,
-    roughness: 0.26,
-    emissive: 0x03070b,
-    emissiveIntensity: 0.4,
-  });
-  const plaqueFrameMat = new THREE.MeshStandardMaterial({
-    color: 0x2f3f4f,
-    metalness: 0.95,
-    roughness: 0.2,
-  });
-
-  // AGENT RUSH logo plaque (right).
-  const agentFrame = new THREE.Mesh(new THREE.BoxGeometry(3.04, 1.0, 0.08), plaqueFrameMat);
-  agentFrame.position.set(2.78, 3.25, -5.18);
-  scene.add(agentFrame);
-  const agentPlaque = new THREE.Mesh(new THREE.BoxGeometry(2.9, 0.86, 0.07), plaqueMat);
-  agentPlaque.position.set(2.78, 3.25, -5.14);
-  scene.add(agentPlaque);
-  const agentLogo = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.65, 0.66),
-    new THREE.MeshBasicMaterial({ map: brandLogoTexture(), transparent: true, toneMapped: false })
-  );
-  agentLogo.position.set(2.78, 3.25, -5.10);
-  scene.add(agentLogo);
-
-  neonLight = new THREE.PointLight(0xffad25, 3.6, 9, 2);
-  neonLight.position.set(2.78, 2.95, -4.70);
+  // El branding VULTR ahora vive integrado en la puerta blindada (ver buildRoom).
+  // neonLight kept for setEnvironmentState compatibility (orange glow).
+  neonLight = new THREE.PointLight(0xffad25, 2.4, 6, 2);
+  neonLight.position.set(0, 3.4, ROOM_BACK + 0.5);
   scene.add(neonLight);
-
-  // VULTR logo plaque (left).
-  const vultrFrame = new THREE.Mesh(new THREE.BoxGeometry(2.54, 0.84, 0.08), plaqueFrameMat);
-  vultrFrame.position.set(-2.78, 3.25, -5.18);
-  scene.add(vultrFrame);
-  const vultrPlaque = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.7, 0.07), plaqueMat);
-  vultrPlaque.position.set(-2.78, 3.25, -5.14);
-  scene.add(vultrPlaque);
-
-  const vultrLogo = new THREE.Mesh(
-    new THREE.PlaneGeometry(2.2, 0.41),
-    new THREE.MeshBasicMaterial({ map: vultrLogoTexture(), transparent: true, toneMapped: false })
-  );
-  vultrLogo.position.set(-2.78, 3.25, -5.10);
-  scene.add(vultrLogo);
-
-  const vultrLight = new THREE.PointLight(0x5fe4ff, 3.0, 8, 2);
-  vultrLight.position.set(-2.78, 2.95, -4.70);
-  scene.add(vultrLight);
 }
 
 /* ------------------------------------------------------------
