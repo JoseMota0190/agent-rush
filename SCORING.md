@@ -15,14 +15,14 @@ La evaluación debe basarse en datos observables por el host. No se debe confiar
 
 Cada nivel tiene un peso diferente para que los desafíos más difíciles tengan mayor influencia en el resultado.
 
-| Nivel | Peso máximo | Presupuesto de tokens |
+| Nivel | Peso máximo | Presupuesto de referencia |
 |---|---:|---:|
-| Level 1 | 150 puntos | 18.000 tokens |
-| Level 2 | 300 puntos | 28.000 tokens |
-| Level 3 | 550 puntos | 40.000 tokens |
-| **Total** | **1.000 puntos** | **86.000 tokens asignados por nivel** |
+| Level 1 | 150 puntos | 30.000 tokens |
+| Level 2 | 300 puntos | 45.000 tokens |
+| Level 3 | 550 puntos | 80.000 tokens |
+| **Total** | **1.000 puntos** | **155.000 tokens de referencia** |
 
-El presupuesto global existente de la partida es de 100.000 tokens, con 14.000 de reserva. Los límites por nivel se mantienen independientes; no se transfiere automáticamente el sobrante de un nivel a otro.
+El tope real de la partida es de **100.000 tokens** desde `scoring.TOTAL_BUDGET`. Los presupuestos por nivel son la referencia para el factor de eficiencia `T` y no se transfieren automáticamente; el corte que termina la run es el global de 100.000. La calibración 2026-11-07 usa estos valores para que una run top con fases de review siga en 900–1000 puntos.
 
 ### 2.1. Nivel resuelto
 
@@ -79,7 +79,7 @@ El tiempo no forma parte del Performance Score. Se registra y puede utilizarse c
 
 ```python
 W = {1: 150, 2: 300, 3: 550}
-BUDGET = {1: 18_000, 2: 28_000, 3: 40_000}
+BUDGET = {1: 30_000, 2: 45_000, 3: 80_000}
 
 
 def level_points(level, solved, attempt, tokens, best_cases):

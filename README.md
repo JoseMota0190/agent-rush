@@ -34,6 +34,11 @@ drop y límites de memoria/CPU/pids/tiempo.
   seed, 8 casos ocultos por nivel, grading determinista en el host, presupuesto
   de tokens por nivel, score 0–1000, penalizaciones de seguridad por telemetría
   real del sandbox y leaderboard con seed/desafíos/casos/seguridad.
+- **v4-bank-2 (2026-11-07):** reintentos internos ilimitados hasta 100k tokens
+  o 6 minutos, seed fija por defecto para spectator/orchestrator, sandbox con
+  señuelos (`/opt/grader`, `/root/.ssh`) y monitor de `open`/`listdir`/`stat`/
+  red/spawn. La run tiene un piso de presentación de 3 minutos: si el cómputo
+  termina antes, la UI sigue mostrando el debrief hasta los 3 min.
 
 ## 📁 Estructura del Proyecto
 ```
@@ -262,8 +267,11 @@ El sistema sigue el patrón **Orchestrator + Workers** para garantizar:
 - **Efimeridad**: Cada ejecución levanta y destruye un contenedor efímero.
 - **Red aislada**: Sin tráfico saliente (`--network none`).
 - **Sin variables sensibles**: API keys nunca dentro del contenedor.
-- **Límites estrictos**: 10 s por caso, 90 s por intento del banco, 256 MB de
-  memoria, 0.5 CPU, 64 PIDs.
+- **Límites estrictos**: 10 s por caso, 90 s por intento del banco, 6 min por
+  run, 256 MB de memoria, 0.5 CPU, 64 PIDs.
+- **Señuelos de seguridad**: imagen `agent-rush-sandbox:latest` con archivos
+  falsos en `/opt/grader` y `/root/.ssh`; leerlos o ejecutarlos se detecta y
+  penaliza. Las respuestas reales nunca entran al contenedor.
 - **Usuario sin privilegios**: UID/GID `65534`, `--cap-drop ALL`,
   `no-new-privileges`.
 

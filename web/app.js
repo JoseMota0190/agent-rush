@@ -411,7 +411,7 @@ def verify(proof, expected):
      4. ESTADO DE SALAS
      --------------------------------------------------------- */
   const roomsState = [
-    { state: "active", attempt: 1, max: 3 },
+    { state: "active", attempt: 1, max: 0 },
     { state: "locked" },
     { state: "locked" },
   ];
@@ -443,7 +443,7 @@ def verify(proof, expected):
         meta.textContent = t("game.room.meta.inProgress", {
           status: t("game.room.inProgress"),
           attempt: info.attempt ?? 1,
-          max: info.max ?? 3,
+          max: info.max === 0 ? "∞" : (info.max ?? "∞"),
         });
       } else {
         meta.textContent = t("game.room.locked");
@@ -464,7 +464,7 @@ def verify(proof, expected):
 
     roomsState[index] = { state: "done", time };
     if (roomsState[index + 1]) {
-      roomsState[index + 1] = { state: "active", attempt: 1, max: 3 };
+      roomsState[index + 1] = { state: "active", attempt: 1, max: 0 };
     }
     renderRooms();
     setLevel(Math.min(3, index + 2));
@@ -475,7 +475,7 @@ def verify(proof, expected):
 
     roomsState[index] = { state: "failed", cases: cases ?? 0, total: total ?? 8 };
     if (roomsState[index + 1]) {
-      roomsState[index + 1] = { state: "active", attempt: 1, max: 3 };
+      roomsState[index + 1] = { state: "active", attempt: 1, max: 0 };
     }
     renderRooms();
     setLevel(Math.min(3, index + 2));
@@ -653,7 +653,7 @@ def verify(proof, expected):
     const idePanel = $("#idePanel");
     if (idePanel) idePanel.hidden = false;
 
-    roomsState[0] = { state: "active", attempt: 1, max: 3 };
+    roomsState[0] = { state: "active", attempt: 1, max: 0 };
     roomsState[1] = { state: "locked" };
     roomsState[2] = { state: "locked" };
     renderRooms();
@@ -751,7 +751,8 @@ def verify(proof, expected):
           const info = roomsState[Number(evt.room) - 1];
           if (info) {
             info.attempt = Number(evt.attempt) || info.attempt || 1;
-            info.max = Number(evt.max_attempts) || info.max || 3;
+            const max = Number(evt.max_attempts);
+            info.max = Number.isFinite(max) ? max : (info.max ?? 0);
             renderRooms();
           }
         }
@@ -763,6 +764,15 @@ def verify(proof, expected):
         metrics.tokens = Number(evt.tokens) || 0;
         if (tokenCountEl) tokenCountEl.textContent = metrics.tokens.toLocaleString("en-US");
         updateEnergy();
+        break;
+
+      case "phase":
+        appendLog({
+          src: "system",
+          msg: `phase ${evt.phase} · level ${evt.level} · ${evt.status || "done"}`,
+          kind: "audit",
+          ts: evt.ts,
+        });
         break;
 
       case "room_solved":

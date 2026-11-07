@@ -63,6 +63,8 @@ from run_engine import (
     sandbox_probe,
     CHALLENGE_VERSION,
     CONTAINER_TIMEOUT_S,
+    RUN_TIME_LIMIT_S,
+    MIN_RUN_PRESENTATION_S,
     SANDBOX_FLAGS,
     SANDBOX_IMAGE,
     MAX_ROOM_ATTEMPTS,
@@ -210,6 +212,9 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                             for level, weight in scoring.WEIGHTS.items()
                         },
                         "max_attempts": MAX_ROOM_ATTEMPTS,
+                        "unlimited_attempts": MAX_ROOM_ATTEMPTS == 0,
+                        "time_limit_seconds": RUN_TIME_LIMIT_S,
+                        "min_presentation_seconds": MIN_RUN_PRESENTATION_S,
                     },
                     "models": {
                         "count": len(models),
@@ -224,6 +229,9 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                         "timeout_seconds": CONTAINER_TIMEOUT_S,
                         "case_timeout_seconds": challenges.CASE_TIMEOUT_S,
                         "attempts_per_room": MAX_ROOM_ATTEMPTS,
+                        "unlimited_attempts": MAX_ROOM_ATTEMPTS == 0,
+                        "run_time_limit_seconds": RUN_TIME_LIMIT_S,
+                        "min_presentation_seconds": MIN_RUN_PRESENTATION_S,
                     },
                     "endpoints": {
                         "runs": "POST /api/runs",

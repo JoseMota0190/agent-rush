@@ -37,6 +37,19 @@ systemctl enable --now docker
 docker pull python:3.12-slim
 docker pull caddy:2
 
+echo "== Sandbox con senuelos de seguridad =="
+docker build -t agent-rush-sandbox:latest \
+  -f "$APP_DIR/deploy/sandbox/Dockerfile" "$APP_DIR/deploy/sandbox"
+for kv in \
+  "AGENT_RUSH_SANDBOX_IMAGE=agent-rush-sandbox:latest" \
+  "AGENT_RUSH_MAX_ATTEMPTS=0" \
+  "AGENT_RUSH_RUN_TIME_LIMIT_S=360" \
+  "AGENT_RUSH_MIN_PRESENTATION_S=180" \
+  "VULTR_REASONING_EFFORT=medium"; do
+  key="${kv%%=*}"
+  grep -q "^${key}=" "$APP_DIR/.env" || echo "$kv" >> "$APP_DIR/.env"
+done
+
 echo "== App =="
 mkdir -p "$APP_DIR/data"
 install -m 0644 "$APP_DIR/deploy/agent-rush.service" /etc/systemd/system/agent-rush.service

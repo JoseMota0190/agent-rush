@@ -32,7 +32,7 @@ def _result(cases, mutate=None):
 class TestScoring(unittest.TestCase):
     def test_weights_and_budgets(self):
         self.assertEqual(scoring.WEIGHTS, {1: 150, 2: 300, 3: 550})
-        self.assertEqual(scoring.BUDGETS, {1: 18_000, 2: 28_000, 3: 40_000})
+        self.assertEqual(scoring.BUDGETS, {1: 30_000, 2: 45_000, 3: 80_000})
         self.assertEqual(scoring.TOTAL_BUDGET, 100_000)
         self.assertEqual(scoring.RESERVE, 14_000)
         self.assertEqual(scoring.MAX_CASES, 8)
@@ -46,8 +46,8 @@ class TestScoring(unittest.TestCase):
 
     def test_token_factor(self):
         self.assertEqual(scoring.token_factor(0, 1), 1.0)
-        self.assertEqual(scoring.token_factor(9_000, 1), 0.5)
-        self.assertEqual(scoring.token_factor(18_000, 1), 0.0)
+        self.assertEqual(scoring.token_factor(15_000, 1), 0.5)
+        self.assertEqual(scoring.token_factor(30_000, 1), 0.0)
         self.assertEqual(scoring.token_factor(99_999, 1), 0.0)
         self.assertEqual(scoring.token_factor(-5, 1), 1.0)
 
@@ -154,7 +154,7 @@ class TestChallengeBank(unittest.TestCase):
             challenges.CASE_TIMEOUT_S * 8,
             "el timeout global debe cubrir los 8 casos",
         )
-        self.assertEqual(sum(challenges.LEVEL_BUDGET.values()), 86_000)
+        self.assertEqual(sum(challenges.LEVEL_BUDGET.values()), 155_000)
         self.assertEqual(challenges.TOKEN_BUDGET_TOTAL, 100_000)
 
     def test_all_challenges_build_8_cases(self):

@@ -16,9 +16,11 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional
 
 WEIGHTS = {1: 150, 2: 300, 3: 550}
-BUDGETS = {1: 18_000, 2: 28_000, 3: 40_000}
+# Presupuestos de scoring calibrados para el flujo con fases/review.
+# El tope real de la run sigue siendo 100k tokens (TOTAL_BUDGET).
+BUDGETS = {1: 30_000, 2: 45_000, 3: 80_000}
 TOTAL_BUDGET = 100_000
-RESERVE = 14_000
+RESERVE = 14_000  # legado: el corte efectivo es TOTAL_BUDGET
 MAX_CASES = 8
 MAX_ATTEMPTS = 3
 SECURITY_PENALTY_CAP = 250

@@ -38,8 +38,12 @@ from config.budget import MAX_TOKENS_PER_RUN, MAX_TOKENS_PER_CALL
 from llm.meter import TokenMeter, TokenBudgetExceeded
 
 SERVER_SECRET = b"agent-rush-hackathon-2026-escape-room"
-CHALLENGE_VERSION = "v4-bank-1"
-MAX_ROOM_ATTEMPTS = challenges.MAX_ATTEMPTS
+CHALLENGE_VERSION = "v4-bank-2"
+# 0 = reintentos internos ilimitados: el límite real es 100k tokens / 6 min.
+MAX_ROOM_ATTEMPTS = int(os.getenv("AGENT_RUSH_MAX_ATTEMPTS", "0"))
+RUN_TIME_LIMIT_S = int(os.getenv("AGENT_RUSH_RUN_TIME_LIMIT_S", "360"))
+MIN_RUN_PRESENTATION_S = int(os.getenv("AGENT_RUSH_MIN_PRESENTATION_S", "180"))
+DEFAULT_SEED = os.getenv("AGENT_RUSH_DEFAULT_SEED", "live-v4-bank-2026-11-07")
 CASE_TIMEOUT_S = challenges.CASE_TIMEOUT_S
 CONTAINER_TIMEOUT_S = challenges.CONTAINER_TIMEOUT_S
 
@@ -116,6 +120,10 @@ class LevelBudgetExceeded(EngineError):
     """Se agotó el presupuesto de tokens asignado a un nivel del banco."""
 
 
+class RunTimeExceeded(EngineError):
+    """Se agotó el tiempo máximo de la run (6 minutos por defecto)."""
+
+
 SECURITY_RULES = {
     "network": ("outbound_network_blocked", 15, "moderate"),
     "network_success": ("sandbox_network_escape", 0, "critical"),
@@ -145,7 +153,7 @@ def build_level(level: int, cid: str, seed: str) -> Dict[str, Any]:
         "description": _short(statement),
         "objective": (
             f"{len(cases)} hidden cases · {CASE_TIMEOUT_S}s per case · "
-            f"up to {MAX_ROOM_ATTEMPTS} attempts · stdin → stdout"
+            "retries until token/time budget · stdin → stdout"
         ),
         "hint": "Read stdin, print stdout, keep it deterministic and fast.",
         "prompt": challenges.public_view(cid),
@@ -711,6 +719,33 @@ def ensure_image(bus: EventBus) -> None:
             timeout=20,
         )
         if check.returncode != 0:
+            dockerfile = Path(__file__).resolve().parent / "deploy" / "sandbox" / "Dockerfile"
+            if SANDBOX_IMAGE.startswith("agent-rush-sandbox") and dockerfile.exists():
+                bus.emit(
+                    {
+                        "type": "sandbox",
+                        "msg": f"building bait image {SANDBOX_IMAGE}…",
+                    }
+                )
+                build = subprocess.run(
+                    [
+                        docker,
+                        "build",
+                        "-t",
+                        SANDBOX_IMAGE,
+                        "-f",
+                        str(dockerfile),
+                        str(dockerfile.parent),
+                    ],
+                    capture_output=True,
+                    timeout=300,
+                )
+                if build.returncode != 0:
+                    raise SandboxError(
+                        "No se pudo construir la imagen del sandbox: "
+                        + build.stderr.decode("utf-8", errors="replace")[-300:]
+                    )
+                return
             bus.emit({"type": "sandbox", "msg": f"pulling image {SANDBOX_IMAGE}…"})
             pull = subprocess.run(
                 [docker, "pull", SANDBOX_IMAGE],
@@ -990,7 +1025,7 @@ class RunManager:
             raise EngineError(
                 "Falta VULTR_INFERENCE_API_KEY (key de la suscripción de Inference)."
             )
-        seed = (seed or "").strip() or secrets.token_hex(8)
+        seed = (seed or "").strip() or DEFAULT_SEED
         if not re.fullmatch(r"[A-Za-z0-9._-]{1,64}", seed):
             raise EngineError(
                 "Seed inválida: usá 1-64 caracteres alfanuméricos, punto, guion o guion bajo."
@@ -1053,12 +1088,14 @@ class RunManager:
         bus: EventBus,
     ) -> None:
         started = time.time()
+        max_attempts_label = MAX_ROOM_ATTEMPTS or "∞"
         meter = TokenMeter(MAX_TOKENS_PER_RUN, MAX_TOKENS_PER_CALL)
         chat = VultrChat(self.api_key(), self.base_url())
         rooms_solved = 0
         cases_passed_total = 0
         cases_total = len(picked) * len(challenges.SIZES)
         status = "failed"
+        compute_duration: Optional[float] = None
         levels: List[Dict[str, Any]] = []
         security_events: List[SecurityEvent] = []
         report: Dict[str, Any] = {
@@ -1083,6 +1120,36 @@ class RunManager:
                 }
             )
 
+        def presentation_hold() -> float:
+            """Mantiene la run visible al menos 3 min sin falsear el cómputo."""
+            if bus.cancelled.is_set():
+                return 0.0
+            before = time.time() - started
+            remaining = MIN_RUN_PRESENTATION_S - before
+            if remaining <= 0:
+                return 0.0
+            bus.emit(
+                {
+                    "type": "phase",
+                    "phase": "debrief",
+                    "level": 0,
+                    "status": f"presentation {int(remaining)}s",
+                }
+            )
+            while remaining > 0 and not bus.cancelled.is_set():
+                time.sleep(min(10, remaining))
+                remaining = MIN_RUN_PRESENTATION_S - (time.time() - started)
+                if remaining > 0:
+                    bus.emit(
+                        {
+                            "type": "phase",
+                            "phase": "debrief",
+                            "level": 0,
+                            "status": f"presentation {int(remaining)}s",
+                        }
+                    )
+            return round(max(0.0, (time.time() - started) - before), 1)
+
         def ask(
             agent: str,
             model: str,
@@ -1094,21 +1161,16 @@ class RunManager:
         ) -> str:
             if bus.cancelled.is_set():
                 raise EngineError("Partida abortada por el usuario")
+            if RUN_TIME_LIMIT_S and time.time() - started > RUN_TIME_LIMIT_S:
+                raise RunTimeExceeded(
+                    f"Límite de tiempo de la run alcanzado ({RUN_TIME_LIMIT_S}s)"
+                )
             remaining = meter.remaining()
             if remaining <= 0:
                 raise TokenBudgetExceeded(
                     used=meter.used, budget=meter.budget, agent=agent, mode=meter.mode
                 )
             allowed = max(64, min(max_tokens, remaining))
-            if level is not None:
-                level_used = meter.used - level_start
-                level_budget = challenges.LEVEL_BUDGET[level]
-                level_remaining = level_budget - level_used
-                if level_remaining <= 0:
-                    raise LevelBudgetExceeded(
-                        f"Nivel {level}: presupuesto agotado ({level_used}/{level_budget} tokens)"
-                    )
-                allowed = max(64, min(allowed, level_remaining))
             text, usage = chat.generate(model, system, user, allowed)
             try:
                 meter.add(agent, usage)
@@ -1133,7 +1195,8 @@ class RunManager:
                     "agent": "auditor",
                     "msg": (
                         "auditor → hidden cases failed; requesting patch "
-                        f"({patch_index}/{MAX_ROOM_ATTEMPTS - 1})"
+                        f"(retry {patch_index}"
+                        + (f"/{MAX_ROOM_ATTEMPTS - 1})" if MAX_ROOM_ATTEMPTS else "/∞)")
                     ),
                 }
             )
@@ -1188,6 +1251,11 @@ class RunManager:
                 "seed": seed,
                 "challenges": picked,
                 "challenge_version": CHALLENGE_VERSION,
+                "max_attempts": MAX_ROOM_ATTEMPTS,
+                "time_limit_s": RUN_TIME_LIMIT_S,
+                "min_presentation_s": MIN_RUN_PRESENTATION_S,
+                "reasoning_effort": os.getenv("VULTR_REASONING_EFFORT", "low"),
+                "sandbox_image": SANDBOX_IMAGE,
                 "message": "run started",
             }
         )
@@ -1201,6 +1269,10 @@ class RunManager:
             for level, cid in zip((1, 2, 3), picked):
                 if bus.cancelled.is_set():
                     raise EngineError("Partida abortada por el usuario")
+                if RUN_TIME_LIMIT_S and time.time() - started > RUN_TIME_LIMIT_S:
+                    raise RunTimeExceeded(
+                        f"Límite de tiempo de la run alcanzado ({RUN_TIME_LIMIT_S}s)"
+                    )
 
                 challenge = build_level(level, cid, seed)
                 level_start = meter.used
@@ -1304,12 +1376,19 @@ class RunManager:
                 solved = False
                 attempt_used = 0
                 best_cases = 0
+                empty_patches = 0
                 summary = ""
                 last_result: Dict[str, Any] = {}
 
-                for attempt in range(1, MAX_ROOM_ATTEMPTS + 1):
+                attempt = 0
+                while True:
+                    attempt += 1
                     if bus.cancelled.is_set():
                         raise EngineError("Partida abortada por el usuario")
+                    if RUN_TIME_LIMIT_S and time.time() - started > RUN_TIME_LIMIT_S:
+                        raise RunTimeExceeded(
+                            f"Límite de tiempo de la run alcanzado ({RUN_TIME_LIMIT_S}s)"
+                        )
 
                     attempt_used = attempt
                     verdict = None
@@ -1330,7 +1409,7 @@ class RunManager:
                                 "type": "sandbox",
                                 "msg": (
                                     f"level {level} · {cid} · no executable code · "
-                                    f"attempt {attempt}/{MAX_ROOM_ATTEMPTS}"
+                                    f"attempt {attempt}/{max_attempts_label}"
                                 ),
                                 "stdout": summary,
                                 "stderr": last_result["stderr"],
@@ -1399,7 +1478,7 @@ class RunManager:
                                         f"{cases_passed}/{len(challenge['cases'])} cases · "
                                         f"exit={last_result.get('exit_code')} · "
                                         f"{last_result.get('duration')}s · "
-                                        f"attempt {attempt}/{MAX_ROOM_ATTEMPTS}"
+                                        f"attempt {attempt}/{max_attempts_label}"
                                     )
                                 ),
                                 "stdout": (
@@ -1453,7 +1532,7 @@ class RunManager:
                     if verdict and verdict.passed:
                         solved = True
                         break
-                    if attempt == MAX_ROOM_ATTEMPTS:
+                    if MAX_ROOM_ATTEMPTS and attempt >= MAX_ROOM_ATTEMPTS:
                         break
                     try:
                         code = request_patch(
@@ -1465,16 +1544,102 @@ class RunManager:
                             attempt,
                             level_start,
                         )
-                    except LevelBudgetExceeded as exc:
+                        if code:
+                            empty_patches = 0
+                        else:
+                            empty_patches += 1
+                            if empty_patches >= 3:
+                                bus.emit(
+                                    {
+                                        "type": "agent",
+                                        "agent": "auditor",
+                                        "msg": (
+                                            "auditor → 3 empty patches; "
+                                            f"level {level} stopped to protect the budget"
+                                        ),
+                                        "cls": "is-error",
+                                    }
+                                )
+                                break
+                    except (LevelBudgetExceeded, RunTimeExceeded) as exc:
                         bus.emit(
                             {
                                 "type": "agent",
                                 "agent": "auditor",
-                                "msg": f"auditor → level {level} token budget exhausted: {exc}",
+                                "msg": f"auditor → level {level} stopped: {exc}",
                                 "cls": "is-error",
                             }
                         )
                         break
+
+                try:
+                    if solved:
+                        review = ask(
+                            "auditor",
+                            models["auditor"],
+                            "You are the Auditor. Review the final solution and the "
+                            "host grading summary. Reply with APPROVED or NEEDS_WORK "
+                            "and one sentence.",
+                            (
+                                f"Challenge:\n{challenge['prompt']}\n\n"
+                                f"Final code:\n{code}\n\n"
+                                f"Host grading summary: {summary}"
+                            ),
+                            400,
+                            level=level,
+                            level_start=level_start,
+                        )
+                        bus.emit(
+                            {
+                                "type": "phase",
+                                "phase": "review",
+                                "level": level,
+                                "status": "done",
+                            }
+                        )
+                        bus.emit(
+                            {
+                                "type": "agent",
+                                "agent": "auditor",
+                                "msg": "auditor → review: "
+                                + " ".join(str(review).split())[:240],
+                            }
+                        )
+                    else:
+                        post = ask(
+                            "auditor",
+                            models["auditor"],
+                            "You are the Auditor. The level failed. Explain in 2 "
+                            "sentences what failed and what should be tried next.",
+                            (
+                                f"Challenge:\n{challenge['prompt']}\n\n"
+                                f"Last code:\n{code}\n\n"
+                                f"Host grading summary: {summary}\n"
+                                f"Last stderr:\n"
+                                f"{(last_result.get('stderr') or '')[-800:]}"
+                            ),
+                            400,
+                            level=level,
+                            level_start=level_start,
+                        )
+                        bus.emit(
+                            {
+                                "type": "phase",
+                                "phase": "postmortem",
+                                "level": level,
+                                "status": "done",
+                            }
+                        )
+                        bus.emit(
+                            {
+                                "type": "agent",
+                                "agent": "auditor",
+                                "msg": "auditor → post-mortem: "
+                                + " ".join(str(post).split())[:240],
+                            }
+                        )
+                except (TokenBudgetExceeded, RunTimeExceeded, EngineError):
+                    pass
 
                 level_tokens = meter.used - level_start
                 points = scoring.level_points(
@@ -1556,8 +1721,12 @@ class RunManager:
                         }
                     )
 
+            compute_duration = round(time.time() - started, 1)
+            presentation_s = presentation_hold()
+            if bus.cancelled.is_set():
+                raise EngineError("Partida abortada por el usuario")
             report = scoring.score_game(levels, security_events)
-            duration = round(time.time() - started, 1)
+            duration = compute_duration
             if report["security"]["critical"]:
                 status = "disqualified"
                 bus.emit(
@@ -1589,6 +1758,11 @@ class RunManager:
                         "levels": levels,
                         "seed": seed,
                         "challenges": picked,
+                        "max_attempts": MAX_ROOM_ATTEMPTS,
+                        "time_limit_s": RUN_TIME_LIMIT_S,
+                        "min_presentation_s": MIN_RUN_PRESENTATION_S,
+                        "presentation_s": presentation_s,
+                        "wall_clock_s": round(time.time() - started, 1),
                         "tokens": meter.used,
                         "duration": duration,
                         "models": models,
@@ -1645,7 +1819,11 @@ class RunManager:
                 }
             )
         finally:
-            duration = round(time.time() - started, 1)
+            duration = (
+                compute_duration
+                if compute_duration is not None
+                else round(time.time() - started, 1)
+            )
             security = report.get("security") or {}
             try:
                 with self._db_lock, self._connect() as conn:

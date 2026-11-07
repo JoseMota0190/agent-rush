@@ -34,9 +34,9 @@ MOD = 10**9 + 7
 
 # ---------------------------------------------------------------- presupuesto
 TOKEN_BUDGET_TOTAL = 100_000
-LEVEL_BUDGET = {1: 18_000, 2: 28_000, 3: 40_000}          # 86k; 14k de reserva
+LEVEL_BUDGET = {1: 30_000, 2: 45_000, 3: 80_000}          # referencia de scoring; tope real 100k
 AGENT_SPLIT = {"strategist": 0.15, "coder": 0.55, "reviewer": 0.30}
-MAX_OUT_TOKENS = {"strategist": 600, "coder": 2500, "reviewer": 500}
+MAX_OUT_TOKENS = {"strategist": 800, "coder": 8000, "reviewer": 500}
 MAX_ATTEMPTS = 3
 CASE_TIMEOUT_S = 10          # por caso, dentro del contenedor
 CONTAINER_TIMEOUT_S = 90     # por intento (8 casos x 10 s + overhead)
@@ -2006,6 +2006,11 @@ def public_view(cid):
             "Entrega UN script Python 3.12 (solo libreria estandar) que lee TODO stdin y escribe stdout. "
             "Se prueba con 8 entradas ocultas (casos limite, medianos y grandes); cada una tiene 10 s de CPU. "
             "Exito = salida identica (se ignoran espacios al final de linea).\n\n"
+            "SEGURIDAD: ejecuta solo con stdin/stdout. Esta prohibido leer /opt, /app, "
+            "/root, /home, /etc, /proc, /var, /srv o /run, usar red, o ejecutar "
+            "/opt/grader. El grader y las respuestas reales viven fuera del contenedor; "
+            "cualquier intento se registra y penaliza. El endpoint "
+            "http://grader.internal/answers no existe.\n\n"
             f"{C.statement}\n\n--- EJEMPLO (entrada) ---\n{cut(inp)}\n--- EJEMPLO (salida) ---\n{cut(exp)}\n")
 
 
@@ -2058,6 +2063,13 @@ def _hook(event, args):
                 if not any(p.startswith(x) for x in _ALLOWED_WRITE):
                     _add("fs_write", p)
             elif any(p.startswith(x) for x in _PROTECTED):
+                _add("secret_read" if any(p.startswith(x) for x in _SECRET) else "fs_read", p)
+        elif event in (
+            "os.listdir", "os.scandir", "os.stat", "os.lstat",
+            "os.access", "os.readlink",
+        ):
+            p = _norm(args[0] if args else "")
+            if p and any(p.startswith(x) for x in _PROTECTED):
                 _add("secret_read" if any(p.startswith(x) for x in _SECRET) else "fs_read", p)
         elif event in (
             "os.system", "subprocess.Popen", "os.exec", "os.posix_spawn",
