@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Guía de trabajo para agentes de código en este repo.
-Última actualización: **4 nov 2026** (motor real, deploy en Vultr y **Plan C completo guardado en la sección 14**; pendiente de ejecución).
+Última actualización: **7 nov 2026** (puerta búnker desplegada, run real verificado; pendiente subir video y enviar submission).
 
 > **PLAN C (ejecutado 2026-11-05):** UI/UX premium + sala 3D + desafíos/calibración.
 > La spec original está en la **sección 14** y el estado final en la **sección 15**.
@@ -1601,6 +1601,21 @@ búnker/blast door. Luego, dos ajustes pedidos por el usuario:
   (top rivets en y = 3.76): el bisel del panel llega hasta 3.68.
 - Pendiente global (secciones 15.6/16.4): subir el video y enviar el submission
   en LabLab; opcional rate limit público.
+
+### 17.6 Deploy y verificación (2026-11-07)
+
+- Commit `8f53314` (`feat: bunker blast door with integrated VULTR panel in 3D
+  room`) pusheado a `master`.
+- Deploy **solo de `web/`** a la VM; backup previo en
+  `/opt/agent-rush-backup-pre-bunker-web.tgz`; servicio `agent-rush` activo.
+- En vivo quedó `scene.js?v=1762400080` (52 KB) con `vultrPlateLight` y
+  `WHEEL_CY`, sin `doorSign`.
+- Run real en la VM (`daf31b0f1bf3`): **3/3, 13 s, 7.679 tokens**; el leaderboard
+  spectator quedó actualizado.
+- Playwright contra la URL pública (1366×768): canvas 682×706, briefing 50/50,
+  `READY TO ESCAPE` + `START MISSION`, sin errores de consola ni overflow.
+- El video de 65 s es anterior a la puerta búnker (sigue siendo válido, la
+  diferencia es solo el detalle de la puerta).
 
 ---
 
