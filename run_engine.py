@@ -791,6 +791,35 @@ class RunManager:
         with self._lock:
             return self._runs.get(run_id)
 
+    def current(self) -> Optional[Dict[str, Any]]:
+        """Run activa (sin bus ni secretos), para el panel de review."""
+        with self._lock:
+            if not self._active_id:
+                return None
+            entry = self._runs.get(self._active_id)
+            if not entry:
+                return None
+            return {
+                "id": entry["id"],
+                "mode": entry["mode"],
+                "models": entry.get("models", {}),
+                "busy": bool(entry.get("busy")),
+                "started": entry.get("started"),
+            }
+
+    def stats(self) -> Dict[str, Any]:
+        """Contadores agregados, sin exponer filas ni secretos."""
+        with self._db_lock, self._connect() as conn:
+            total = conn.execute("SELECT COUNT(*) FROM runs").fetchone()[0]
+            success = conn.execute(
+                "SELECT COUNT(*) FROM runs WHERE status='success' AND challenge_version=?",
+                (CHALLENGE_VERSION,),
+            ).fetchone()[0]
+        return {
+            "runs_total": int(total),
+            "runs_success_current_version": int(success),
+        }
+
     def start(self, mode: str, models: Dict[str, str]) -> Dict[str, Any]:
         if not self.api_key():
             raise EngineError(

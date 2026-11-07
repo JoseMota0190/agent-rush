@@ -8,6 +8,8 @@ Sirve web/ y expone:
     GET  /api/agents
     POST /api/agents
     GET  /api/leaderboard
+    GET  /api/health
+    GET  /api/review          (snapshot en vivo para revisión)
     POST /api/runs
     GET  /api/runs/<id>/events   (SSE)
     POST /api/runs/<id>/abort
@@ -52,7 +54,16 @@ _load_env()
 
 from config.models import discover_models, PRESETS
 from config.model_profiles import ModelProfile, load_selection, save_selection
-from run_engine import MANAGER, EngineError, SandboxError, sandbox_probe
+from run_engine import (
+    MANAGER,
+    EngineError,
+    SandboxError,
+    sandbox_probe,
+    CHALLENGE_VERSION,
+    SANDBOX_FLAGS,
+    SANDBOX_IMAGE,
+    MAX_ROOM_ATTEMPTS,
+)
 
 WEB_DIR = BASE_DIR / "web"
 
@@ -173,6 +184,42 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
             return self._send_json(board)
         if path == "/api/health":
             return self._send_json({"ok": True, "has_key": bool(os.getenv("VULTR_INFERENCE_API_KEY"))})
+        if path == "/api/review":
+            models = get_models()
+            return self._send_json(
+                {
+                    "project": "AGENT RUSH",
+                    "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                    "challenge_version": CHALLENGE_VERSION,
+                    "models": {
+                        "count": len(models),
+                        "ids": [m.get("id") for m in models if m.get("id")],
+                    },
+                    "leaderboard": MANAGER.leaderboard(),
+                    "active_run": MANAGER.current(),
+                    "stats": MANAGER.stats(),
+                    "sandbox": {
+                        "image": SANDBOX_IMAGE,
+                        "flags": SANDBOX_FLAGS,
+                        "timeout_seconds": 15,
+                        "attempts_per_room": MAX_ROOM_ATTEMPTS,
+                    },
+                    "endpoints": {
+                        "runs": "POST /api/runs",
+                        "events": "GET /api/runs/<id>/events",
+                        "abort": "POST /api/runs/<id>/abort",
+                        "sandbox_probe": "POST /api/sandbox/probe",
+                    },
+                    "links": {
+                        "landing": "/",
+                        "game": "/game.html",
+                        "review": "/review.html",
+                        "sandbox": "/sandbox.html",
+                        "repo": "https://github.com/JoseMota0190/agent-rush",
+                    },
+                    "has_inference_key": bool(os.getenv("VULTR_INFERENCE_API_KEY")),
+                }
+            )
 
         parts = path.strip("/").split("/")
         if len(parts) == 4 and parts[:2] == ["api", "runs"] and parts[3] == "events":

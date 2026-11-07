@@ -1617,5 +1617,16 @@ búnker/blast door. Luego, dos ajustes pedidos por el usuario:
 - El video de 65 s es anterior a la puerta búnker (sigue siendo válido, la
   diferencia es solo el detalle de la puerta).
 
+### 17.7 Panel de revisión en vivo (2026-11-07)
+
+- `GET /api/review`: snapshot JSON sin secretos con `challenge_version`,
+  modelos, leaderboard, run activa, stats, flags del sandbox y links.
+- `web/review.html`: dashboard de revisión + consola para lanzar una run real y
+  consumir SSE, probe de contención y botón para copiar el “review pack”.
+- `RunManager.current()` y `RunManager.stats()`: helpers read-only para el panel.
+- Deploy: backup `/opt/agent-rush-backup-pre-review.tgz`; servicio activo.
+- QA: Playwright contra la URL pública, run `23fe4e36f65e` → **3/3, 25 s,
+  10.120 tokens**, sin errores de consola; `/review.html` y `/api/review` → 200.
+
 ---
 

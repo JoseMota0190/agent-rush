@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>AGENT RUSH — LIVE REVIEW</title>
+<style>
+  @font-face { font-family: Orbitron; src: url("fonts/orbitron-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: Orbitron; src: url("fonts/orbitron-latin-800-normal.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+  @font-face { font-family: Inter; src: url("fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: Inter; src: url("fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+  @font-face { font-family: "JetBrains Mono"; src: url("fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "JetBrains Mono"; src: url("fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+
+  :root {
+    --bg: #050B14;
+    --panel: #0C1928;
+    --panel-2: #091421;
+    --line: #17344B;
+    --orange: #FFAD25;
+    --cyan: #26C9FF;
+    --violet: #B66AFF;
+    --green: #13DB8C;
+    --red: #FF5D6C;
+    --text: #E6F1FF;
+    --muted: #8FB0C8;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); }
+  body {
+    font-family: Inter, "Segoe UI", system-ui, sans-serif;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, rgba(38,201,255,.10), transparent 60%),
+      radial-gradient(900px 500px at 95% 0%, rgba(255,173,37,.08), transparent 55%),
+      var(--bg);
+    min-height: 100vh;
+  }
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre { font-family: "JetBrains Mono", Consolas, monospace; }
+
+  .topbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 14px 22px; border-bottom: 1px solid var(--line);
+    background: rgba(5,11,20,.86); backdrop-filter: blur(10px);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; font-family: Orbitron, sans-serif; letter-spacing: .08em; }
+  .diamond { width: 16px; height: 16px; border: 3px solid var(--orange); transform: rotate(45deg); box-shadow: 0 0 18px rgba(255,173,37,.55); }
+  .brand b { color: var(--orange); }
+  .tag { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--cyan); border: 1px solid rgba(38,201,255,.4); padding: 2px 8px; border-radius: 999px; }
+  .top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pill { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); border: 1px solid var(--line); background: var(--panel); padding: 5px 10px; border-radius: 999px; }
+  .pill.ok { color: var(--green); border-color: rgba(19,219,140,.4); }
+  .pill.bad { color: var(--red); border-color: rgba(255,93,108,.4); }
+  button {
+    font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: .06em;
+    color: var(--text); background: var(--panel); border: 1px solid var(--line);
+    padding: 7px 12px; border-radius: 8px; cursor: pointer; transition: .15s;
+  }
+  button:hover { border-color: var(--cyan); box-shadow: 0 0 16px rgba(38,201,255,.18); }
+  button.primary { color: #1a1200; background: var(--orange); border-color: var(--orange); font-weight: 700; }
+  button.primary:hover { box-shadow: 0 0 22px rgba(255,173,37,.45); }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  select, input {
+    font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px;
+  }
+  select:focus, input:focus { outline: none; border-color: var(--cyan); }
+
+  main { max-width: 1500px; margin: 0 auto; padding: 22px; display: grid; gap: 18px; }
+  .grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 18px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .card {
+    background: linear-gradient(180deg, rgba(12,25,40,.96), rgba(9,20,33,.96));
+    border: 1px solid var(--line); border-radius: 14px; padding: 18px;
+    box-shadow: 0 18px 40px rgba(0,0,0,.28);
+    min-width: 0;
+  }
+  .span2 { grid-column: span 12; }
+  .span4 { grid-column: span 4; }
+  .span6 { grid-column: span 6; }
+  .span8 { grid-column: span 8; }
+  h1, h2, h3 { font-family: Orbitron, sans-serif; letter-spacing: .06em; margin: 0 0 10px; }
+  h1 { font-size: 22px; }
+  h2 { font-size: 13px; color: var(--cyan); }
+  h3 { font-size: 11px; color: var(--muted); }
+  p { color: var(--muted); line-height: 1.55; margin: 0 0 10px; }
+  .muted { color: var(--muted); }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 12px; }
+  .kv .k { color: var(--muted); }
+  .kv .v { text-align: right; }
+  .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .links a {
+    font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--text);
+    border: 1px solid var(--line); background: var(--panel-2); padding: 7px 10px; border-radius: 8px;
+  }
+  .links a:hover { border-color: var(--orange); color: var(--orange); text-decoration: none; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-family: "JetBrains Mono", monospace; font-size: 10.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 8px; }
+  .chip.hot { color: var(--orange); border-color: rgba(255,173,37,.35); }
+  .chip.cyan { color: var(--cyan); border-color: rgba(38,201,255,.35); }
+
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid rgba(23,52,75,.65); }
+  th { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+  td { color: var(--text); }
+  tr:last-child td { border-bottom: none; }
+  .empty { color: var(--muted); font-size: 12px; padding: 10px 0; }
+
+  .run-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-bottom: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--muted); letter-spacing: .08em; }
+  .run-meta { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+  #log {
+    margin: 0; min-height: 220px; max-height: 420px; overflow: auto;
+    background: #040910; border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px; font-size: 11.5px; line-height: 1.6; color: #bfe8ff; white-space: pre-wrap; word-break: break-word;
+  }
+  .log-entry { display: block; padding: 2px 0; }
+  .log-entry .time { color: #50708a; margin-right: 8px; }
+  .log-entry .who { font-weight: 700; margin-right: 8px; }
+  .who.system { color: var(--cyan); }
+  .who.strategist { color: var(--orange); }
+  .who.coder { color: var(--cyan); }
+  .who.auditor { color: var(--violet); }
+  .who.referee { color: var(--green); }
+  .who.sandbox { color: #9fb6c9; }
+  .ok { color: var(--green); }
+  .err { color: var(--red); }
+  .warn { color: var(--orange); }
+  .probe-row { display: flex; justify-content: space-between; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(23,52,75,.55); font-size: 12px; }
+  .probe-row:last-child { border-bottom: none; }
+  .badge { font-family: "JetBrains Mono", monospace; font-size: 10px; padding: 2px 7px; border-radius: 999px; }
+  .badge.blocked { color: var(--green); border: 1px solid rgba(19,219,140,.4); }
+  .badge.allowed { color: var(--red); border: 1px solid rgba(255,93,108,.4); }
+  footer { max-width: 1500px; margin: 0 auto; padding: 8px 22px 28px; color: #54718a; font-size: 11px; font-family: "JetBrains Mono", monospace; }
+
+  @media (max-width: 1000px) {
+    .span4, .span6, .span8 { grid-column: span 12; }
+    .grid2 { grid-template-columns: 1fr; }
+    .topbar { flex-direction: column; align-items: flex-start; }
+  }
+</style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="diamond"></span>
+      <span>AGENT <b>RUSH</b></span>
+      <span class="tag">LIVE REVIEW</span>
+    </div>
+    <div class="top-actions">
+      <span id="clock" class="pill">--:--:--</span>
+      <span id="health" class="pill">API …</span>
+      <button id="copy">COPY REVIEW PACK</button>
+      <button id="refresh">REFRESH</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid">
+      <div class="card span2">
+        <h1>AGENT RUSH — live project review</h1>
+        <p>
+          This page is a read-only view of the deployed project plus a live run console.
+          It exposes the real state: challenge version, Vultr models, leaderboard,
+          sandbox configuration and the SSE event stream of an actual run.
+          No secrets, no mocked data.
+        </p>
+        <div class="links">
+          <a href="/" target="_blank" rel="noopener">LANDING ↗</a>
+          <a href="/game.html" target="_blank" rel="noopener">GAME ↗</a>
+          <a href="/sandbox.html" target="_blank" rel="noopener">SANDBOX ↗</a>
+          <a href="/api/review" target="_blank" rel="noopener">API REVIEW JSON ↗</a>
+          <a href="/api/leaderboard" target="_blank" rel="noopener">LEADERBOARD JSON ↗</a>
+          <a href="/api/models" target="_blank" rel="noopener">MODELS JSON ↗</a>
+          <a href="https://github.com/JoseMota0190/agent-rush" target="_blank" rel="noopener">GITHUB REPO ↗</a>
+        </div>
+      </div>
+
+      <div class="card span4">
+        <h2>PROJECT</h2>
+        <div class="kv">
+          <span class="k">Challenge version</span><span class="v mono" id="kv-version">…</span>
+          <span class="k">Active run</span><span class="v mono" id="kv-active">…</span>
+          <span class="k">Runs total</span><span class="v mono" id="kv-total">…</span>
+          <span class="k">Verified runs (v)</span><span class="v mono" id="kv-success">…</span>
+          <span class="k">Inference key</span><span class="v mono" id="kv-key">…</span>
+        </div>
+      </div>
+
+      <div class="card span4">
+        <h2>VULTR MODELS</h2>
+        <div id="models" class="chips"><span class="empty">loading…</span></div>
+      </div>
+
+      <div class="card span4">
+        <h2>SANDBOX</h2>
+        <div class="kv">
+          <span class="k">Image</span><span class="v mono" id="sb-image">…</span>
+          <span class="k">Timeout</span><span class="v mono" id="sb-timeout">…</span>
+          <span class="k">Attempts / room</span><span class="v mono" id="sb-attempts">…</span>
+        </div>
+        <div id="sb-flags" class="chips" style="margin-top:10px"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>LIVE RUN — real Vultr inference + Docker sandbox + SSE</h2>
+      <div class="run-controls">
+        <div class="field">
+          <label>MODE</label>
+          <select id="run-mode">
+            <option value="spectator">spectator</option>
+            <option value="orchestrator">orchestrator</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>STRATEGIST</label>
+          <select id="run-strategist"></select>
+        </div>
+        <div class="field">
+          <label>CODER</label>
+          <select id="run-coder"></select>
+        </div>
+        <div class="field">
+          <label>AUDITOR</label>
+          <select id="run-auditor"></select>
+        </div>
+        <button id="start" class="primary">START LIVE RUN</button>
+        <button id="abort" disabled>ABORT</button>
+      </div>
+      <div class="run-meta">
+        <span id="run-status" class="pill">idle</span>
+        <span id="run-id" class="pill">no run</span>
+        <span id="run-energy" class="pill">energy 0 / 100000</span>
+      </div>
+      <pre id="log"></pre>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <h2>SPECTATOR LEADERBOARD</h2>
+        <div id="lb-spectator"><div class="empty">loading…</div></div>
+      </div>
+      <div class="card">
+        <h2>ORCHESTRATOR LEADERBOARD</h2>
+        <div id="lb-orchestrator"><div class="empty">loading…</div></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>CONTAINMENT PROBE — real Docker sandbox</h2>
+      <p>Runs three attempts inside the hardened container: host filesystem write, secret read and outbound network. All must be blocked.</p>
+      <button id="probe">RUN CONTAINMENT PROBE</button>
+      <div id="probe-out" style="margin-top:12px"></div>
+    </section>
+  </main>
+
+  <footer>
+    AGENT RUSH · Vultr Agent Rush Hackathon · LabLab · Blast Radius Zero ·
+    repo MIT · <span id="generated">—</span>
+  </footer>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const state = { models: [], review: null, es: null, runId: null, busy: false };
+  const DEFAULT_MODELS = {
+    strategist: "deepseek-v4.1-flash-1017",
+    coder: "glm-5.3-flash",
+    auditor: "deepseek-v4.1-flash-1017",
+  };
+
+  const esc = (s) => String(s == null ? "" : s)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
+  function clock() {
+    const d = new Date();
+    $("clock").textContent = d.toTimeString().slice(0, 8);
+  }
+
+  function log(html, cls) {
+    const el = $("log");
+    const entry = document.createElement("span");
+    entry.className = "log-entry " + (cls || "");
+    entry.innerHTML = html;
+    el.appendChild(entry);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function ts() {
+    return '<span class="time">' + new Date().toLocaleTimeString() + "</span>";
+  }
+
+  function renderModels(models) {
+    state.models = models;
+    const ids = models.map((m) => m.id).filter(Boolean);
+    $("models").innerHTML = ids.length
+      ? ids.map((id) => '<span class="chip cyan">' + esc(id) + "</span>").join("")
+      : '<span class="empty">no models returned</span>';
+
+    for (const role of ["strategist", "coder", "auditor"]) {
+      const sel = $("run-" + role);
+      const current = sel.value;
+      sel.innerHTML = ids.map((id) => '<option value="' + esc(id) + '">' + esc(id) + "</option>").join("");
+      if (ids.includes(current)) sel.value = current;
+      else if (ids.includes(DEFAULT_MODELS[role])) sel.value = DEFAULT_MODELS[role];
+      else if (ids.length) sel.value = ids[0];
+    }
+  }
+
+  function renderLeaderboard(mode) {
+    const board = state.review && state.review.leaderboard;
+    const data = board && board[mode];
+    const target = $("lb-" + mode);
+    if (!data || !data.rows || !data.rows.length) {
+      target.innerHTML = '<div class="empty">No verified runs for this mode yet.</div>';
+      return;
+    }
+    const rows = data.rows.map((r) => (
+      "<tr><td>" + r.rank + "</td><td class='mono'>" + esc(r.squad) +
+      "</td><td class='mono'>" + esc(r.time) + "</td><td class='mono'>" +
+      Number(r.tokens).toLocaleString() + "</td></tr>"
+    )).join("");
+    target.innerHTML = "<table><thead><tr><th>#</th><th>SQUAD</th><th>TIME</th><th>TOKENS</th></tr></thead><tbody>" + rows + "</tbody></table>";
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/api/review", { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      state.review = data;
+      $("health").textContent = data.has_inference_key ? "INFERENCE KEY OK" : "NO INFERENCE KEY";
+      $("health").className = "pill " + (data.has_inference_key ? "ok" : "bad");
+      $("kv-version").textContent = data.challenge_version || "—";
+      $("kv-active").textContent = data.active_run ? data.active_run.id + " (" + data.active_run.mode + ")" : "none";
+      $("kv-total").textContent = data.stats ? data.stats.runs_total : "—";
+      $("kv-success").textContent = data.stats ? data.stats.runs_success_current_version : "—";
+      $("kv-key").textContent = data.has_inference_key ? "configured" : "missing";
+      $("generated").textContent = "generated " + (data.generated_at || "—");
+
+      const sb = data.sandbox || {};
+      $("sb-image").textContent = sb.image || "—";
+      $("sb-timeout").textContent = (sb.timeout_seconds || "—") + " s";
+      $("sb-attempts").textContent = sb.attempts_per_room || "—";
+      $("sb-flags").innerHTML = (sb.flags || []).map((f) => '<span class="chip">' + esc(f) + "</span>").join("");
+
+      renderModels((data.models && data.models.ids || []).map((id) => ({ id })));
+      renderLeaderboard("spectator");
+      renderLeaderboard("orchestrator");
+
+      if (!state.busy && data.active_run && data.active_run.busy) {
+        // Another client is running: attach to its stream.
+        attach(data.active_run.id, data.active_run.mode);
+      }
+    } catch (err) {
+      $("health").textContent = "API ERROR";
+      $("health").className = "pill bad";
+      log(ts() + '<span class="err">review fetch failed: ' + esc(err.message) + "</span>");
+    }
+  }
+
+  function setRunUI(status, cls) {
+    $("run-status").textContent = status;
+    $("run-status").className = "pill " + (cls || "");
+  }
+
+  function attach(runId, mode) {
+    if (state.es) state.es.close();
+    state.runId = runId;
+    state.busy = true;
+    $("start").disabled = true;
+    $("abort").disabled = false;
+    $("run-id").textContent = runId;
+    $("kv-active").textContent = runId + " (" + (mode || "?") + ")";
+    setRunUI("running · " + (mode || ""), "ok");
+    log(ts() + '<span class="who system">system</span>attached to run ' + esc(runId) + " (" + esc(mode || "?") + ")");
+
+    const es = new EventSource("/api/runs/" + encodeURIComponent(runId) + "/events");
+    state.es = es;
+
+    es.onmessage = (ev) => {
+      let e;
+      try { e = JSON.parse(ev.data); } catch { return; }
+      handleEvent(e);
+    };
+    es.onerror = () => {
+      if (es.readyState === EventSource.CLOSED) {
+        finishRun("stream closed", "");
+      }
+    };
+  }
+
+  function handleEvent(e) {
+    const t = e.type;
+    if (t === "energy") {
+      $("run-energy").textContent = "energy " + Number(e.tokens || 0).toLocaleString() + " / " + Number(e.budget || 100000).toLocaleString();
+      return;
+    }
+    if (t === "agent") {
+      const who = e.agent || "system";
+      const code = e.code
+        ? ' <span class="muted">[' + (e.lines || "?") + " lines]</span>"
+        : "";
+      log(ts() + '<span class="who ' + esc(who) + '">' + esc(who) + "</span>" + esc(e.msg || "") + code);
+      return;
+    }
+    if (t === "sandbox") {
+      const cls = e.cls === "is-ok" ? "ok" : (e.cls === "is-error" ? "err" : "");
+      log(ts() + '<span class="who sandbox">sandbox</span><span class="' + cls + '">' + esc(e.msg || "") + "</span>");
+      if (e.stdout) log(ts() + '<span class="who sandbox">stdout</span>' + esc(String(e.stdout).slice(0, 900)));
+      if (e.stderr) log(ts() + '<span class="who sandbox">stderr</span>' + esc(String(e.stderr).slice(0, 900)));
+      return;
+    }
+    if (t === "challenge") {
+      log(ts() + '<span class="who system">challenge</span>room ' + e.room + " · " + esc(e.title || ""));
+      return;
+    }
+    if (t === "room_solved") {
+      log(ts() + '<span class="who referee">referee</span><span class="ok">ROOM ' + e.room + " SOLVED</span>");
+      return;
+    }
+    if (t === "run_started") {
+      log(ts() + '<span class="who system">run_started</span>' + esc(e.run_id || "") + " · " + esc(e.mode || ""));
+      return;
+    }
+    if (t === "run_completed") {
+      log(ts() + '<span class="who referee">referee</span><span class="ok">RUN COMPLETED · ' +
+        e.rooms_solved + "/3 · " + Number(e.tokens || 0).toLocaleString() + " tokens · " +
+        Number(e.duration || 0).toFixed(1) + "s</span>");
+      finishRun("completed", "ok");
+      setTimeout(load, 1500);
+      return;
+    }
+    if (t === "run_failed" || t === "aborted" || t === "disqualified") {
+      log(ts() + '<span class="who referee">referee</span><span class="err">' + esc(t) + " · " + esc(e.error || e.message || "") + "</span>");
+      finishRun(t, "bad");
+      return;
+    }
+    log(ts() + '<span class="who system">' + esc(t) + "</span>" + esc(JSON.stringify(e).slice(0, 500)));
+  }
+
+  function finishRun(status, cls) {
+    if (state.es) { state.es.close(); state.es = null; }
+    state.busy = false;
+    state.runId = null;
+    $("kv-active").textContent = "none";
+    $("start").disabled = false;
+    $("abort").disabled = true;
+    setRunUI(status, cls);
+  }
+
+  async function startRun() {
+    if (state.busy) return;
+    const models = {
+      strategist: $("run-strategist").value,
+      coder: $("run-coder").value,
+      auditor: $("run-auditor").value,
+    };
+    const mode = $("run-mode").value;
+    $("start").disabled = true;
+    setRunUI("starting…", "warn");
+    log(ts() + '<span class="who system">system</span>POST /api/runs · ' + esc(mode) + " · " + esc(JSON.stringify(models)));
+    try {
+      const res = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode, models }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      attach(data.run_id, data.mode);
+    } catch (err) {
+      log(ts() + '<span class="who system">system</span><span class="err">start failed: ' + esc(err.message) + "</span>");
+      setRunUI("idle", "");
+      $("start").disabled = false;
+    }
+  }
+
+  async function abortRun() {
+    if (!state.runId) return;
+    try {
+      await fetch("/api/runs/" + encodeURIComponent(state.runId) + "/abort", { method: "POST" });
+    } catch (err) {
+      log(ts() + '<span class="who system">system</span><span class="err">abort failed: ' + esc(err.message) + "</span>");
+    }
+  }
+
+  async function probe() {
+    const btn = $("probe");
+    btn.disabled = true;
+    $("probe-out").innerHTML = '<div class="empty">running sandbox probe…</div>';
+    try {
+      const res = await fetch("/api/sandbox/probe", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || ("HTTP " + res.status));
+      $("probe-out").innerHTML = (data.results || []).map((r) => (
+        '<div class="probe-row"><span>' + esc(r.name) + '</span><span class="badge ' +
+        (r.blocked ? "blocked" : "allowed") + '">' + (r.blocked ? "BLOCKED" : "ALLOWED") + "</span></div>"
+      )).join("");
+    } catch (err) {
+      $("probe-out").innerHTML = '<div class="err">probe failed: ' + esc(err.message) + "</div>";
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function copyPack() {
+    const base = location.origin;
+    const text = [
+      "AGENT RUSH — LIVE REVIEW PACK",
+      "Landing: " + base + "/",
+      "Game: " + base + "/game.html",
+      "Review page: " + base + "/review.html",
+      "Sandbox: " + base + "/sandbox.html",
+      "Live JSON: " + base + "/api/review",
+      "Leaderboard: " + base + "/api/leaderboard",
+      "Models: " + base + "/api/models",
+      "Repo: https://github.com/JoseMota0190/agent-rush",
+      "",
+      'Start a run: POST /api/runs { "mode": "spectator", "models": { "strategist": "...", "coder": "...", "auditor": "..." } }',
+      "Stream: GET /api/runs/<run_id>/events (SSE)",
+      "Abort: POST /api/runs/<run_id>/abort",
+      "Containment: POST /api/sandbox/probe",
+    ].join("\n");
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = $("copy");
+      btn.textContent = "COPIED";
+      setTimeout(() => { btn.textContent = "COPY REVIEW PACK"; }, 1400);
+    }).catch(() => {
+      prompt("Copy this pack:", text);
+    });
+  }
+
+  // Wire up
+  $("refresh").addEventListener("click", load);
+  $("copy").addEventListener("click", copyPack);
+  $("start").addEventListener("click", startRun);
+  $("abort").addEventListener("click", abortRun);
+  $("probe").addEventListener("click", probe);
+
+  clock();
+  setInterval(clock, 1000);
+  load();
+  setInterval(load, 15000);
+})();
+</script>
+</body>
+</html>

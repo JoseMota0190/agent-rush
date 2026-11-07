@@ -3,6 +3,7 @@
 ## Links
 
 - **Demo:** https://agent-rush.216-128-168-246.sslip.io/
+- **Live review (estado + run real):** https://agent-rush.216-128-168-246.sslip.io/review.html
 - **Sandbox containment:** https://agent-rush.216-128-168-246.sslip.io/sandbox.html
 - **Repo público (MIT):** https://github.com/JoseMota0190/agent-rush
 - **Video:** `docs/agent-rush-demo.mp4` (65 s, Plan D: navbar/hero nuevos,
