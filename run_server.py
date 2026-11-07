@@ -316,7 +316,11 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                     seed=seed,
                 )
             except EngineError as exc:
-                return self._send_json({"error": str(exc)}, 429 if "en curso" in str(exc) else 503)
+                message = str(exc)
+                status = 400 if "Seed inválida" in message else (
+                    429 if "en curso" in message else 503
+                )
+                return self._send_json({"error": message}, status)
             return self._send_json(
                 {
                     "run_id": run["id"],
