@@ -1344,6 +1344,7 @@ class RunManager:
                         models["strategist"],
                         "You are the Strategist of an AI coding team. Give a concise, concrete plan. No code.",
                         challenge_meta["description"]
+                        + "\n\nDatos: lee los archivos que necesites de /tmp/workspace/."
                         + "\nReply with a short strategy (max 4 sentences).",
                         challenges.MAX_OUT_TOKENS.get("strategist", 600),
                         level=level,
@@ -1372,8 +1373,14 @@ class RunManager:
                         "coder",
                         models["coder"],
                         "You are a precise Python coder. Output only complete "
-                        "executable Python runner code. Read stdin and write stdout.",
-                        challenge_meta["description"] + f"\nStrategist plan:\n{strategy}",
+                        "executable Python runner code. Read ALL input data from "
+                        "files in /tmp/workspace/ (use open() to read each file), "
+                        "and write the answer to stdout. Do not read from stdin. "
+                        "Do not assume any specific filename; list the directory "
+                        "if needed.",
+                        challenge_meta["description"]
+                        + f"\n\nDatos del desafío: archivos en /tmp/workspace/."
+                        + f"\nStrategist plan:\n{strategy}",
                         challenges.MAX_OUT_TOKENS.get("coder", 2500),
                         level=level,
                         level_start=level_start,
@@ -1615,7 +1622,8 @@ class RunManager:
                             "and one sentence.",
                             (
                                 f"Challenge:\n{challenge_meta['description']}\n\n"
-                                f"Final code:\n{code}\n\n"
+                                f"Datos: los archivos del desafío están en /tmp/workspace/."
+                                f"\nFinal code:\n{code}\n\n"
                                 f"Host grading summary: {summary}"
                             ),
                             400,
@@ -1646,7 +1654,8 @@ class RunManager:
                             "sentences what failed and what should be tried next.",
                             (
                                 f"Challenge:\n{challenge_meta['description']}\n\n"
-                                f"Last code:\n{code}\n\n"
+                                f"Datos: los archivos del desafío están en /tmp/workspace/."
+                                f"\nLast code:\n{code}\n\n"
                                 f"Host grading summary: {summary}\n"
                                 f"Last stderr:\n"
                                 f"{(last_result.get('stderr') or '')[-800:]}"

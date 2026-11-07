@@ -263,8 +263,10 @@ def simulate_team(
             strategy = ask(
                 "strategist",
                 models["strategist"],
-                "You are the Strategist of an AI escape room. Give a concise, concrete plan. No code.",
-                challenges.POOL[cid].statement + "\nReply with a short strategy (max 4 sentences).",
+                "You are the Strategist of an AI coding team. Give a concise, concrete plan. No code.",
+                challenges.POOL[cid].statement
+                + "\n\nDatos: lee los archivos que necesites de /tmp/workspace/."
+                + "\nReply with a short strategy (max 4 sentences).",
                 MAX_OUT["strategist"],
                 level,
                 0,
@@ -280,9 +282,15 @@ def simulate_team(
             raw_code = ask(
                 "coder",
                 models["coder"],
-                "You are a precise Python coder. Output only complete executable "
-                "Python runner code. Read stdin and write stdout.",
-                challenges.POOL[cid].statement + f"\nStrategist plan:\n{strategy}",
+                "You are a precise Python coder. Output only complete "
+                "executable Python runner code. Read ALL input data from "
+                "files in /tmp/workspace/ (use open() to read each file), "
+                "and write the answer to stdout. Do not read from stdin. "
+                "Do not assume any specific filename; list the directory "
+                "if needed.",
+                challenges.POOL[cid].statement
+                + f"\n\nDatos del desafío: archivos en /tmp/workspace/."
+                + f"\nStrategist plan:\n{strategy}",
                 MAX_OUT["coder"],
                 level,
                 0,
@@ -408,7 +416,8 @@ def simulate_team(
                     "grading summary. Reply with APPROVED or NEEDS_WORK and one sentence.",
                     (
                         f"Challenge:\n{challenges.POOL[cid].statement}\n\n"
-                        f"Final code:\n{last_code}\n\n"
+                        f"Datos: los archivos del desafío están en /tmp/workspace/."
+                        f"\nFinal code:\n{last_code}\n\n"
                         f"Host grading summary: {summary}"
                     ),
                     MAX_OUT["review"],
@@ -424,7 +433,8 @@ def simulate_team(
                     "what failed and what should be tried next.",
                     (
                         f"Challenge:\n{challenges.POOL[cid].statement}\n\n"
-                        f"Last code:\n{last_code}\n\n"
+                        f"Datos: los archivos del desafío están en /tmp/workspace/."
+                        f"\nLast code:\n{last_code}\n\n"
                         f"Host grading summary: {summary}\n"
                         f"Last stderr:\n{(last_result.get('stderr') or '')[-800:]}"
                     ),
@@ -452,7 +462,7 @@ def simulate_team(
                 "attempt": attempt_used,
                 "tokens": level_tokens,
                 "best_cases": best_cases,
-                "cases_total": len(challenge["cases"]),
+                "cases_total": len(workspace),
                 "points": round(points, 1),
                 "duration_s": round(time.monotonic() - level_started, 1),
                 "summary": summary[:300],
@@ -482,7 +492,7 @@ def simulate_team(
                     "attempt": 0,
                     "tokens": 0,
                     "best_cases": 0,
-                    "cases_total": len(workspace),
+                    "cases_total": 8,
                     "points": 0.0,
                     "duration_s": 0.0,
                     "summary": "not run (budget/time)",
