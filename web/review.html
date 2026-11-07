@@ -440,6 +440,12 @@
         " cases · +" + (e.points || 0) + " pts</span>");
       return;
     }
+    if (t === "security_audit") {
+      const cls = e.total > 0 && e.blocked === e.total ? "ok" : "err";
+      log(ts() + '<span class="who referee">security_audit</span><span class="' + cls + '">' +
+        (e.error ? "ERROR · " + esc(e.error) : e.blocked + "/" + e.total + " BLOCKED") + "</span>");
+      return;
+    }
     if (t === "security") {
       log(ts() + '<span class="who referee">security</span><span class="err">' + esc(e.event_type || "") +
         " · -" + Number(e.penalty || 0) + " pts · " + esc(e.evidence || "") + "</span>");

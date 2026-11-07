@@ -534,7 +534,7 @@ def main() -> None:
     parser.add_argument("--teams", default="")
     parser.add_argument("--reasoning", default="medium", choices=("low", "medium", "high"))
     parser.add_argument("--max-attempts", type=int, default=0)
-    parser.add_argument("--time-limit", type=int, default=360)
+    parser.add_argument("--time-limit", type=int, default=330)
     args = parser.parse_args()
 
     global MAX_ATTEMPTS, RUN_TIME_LIMIT_S

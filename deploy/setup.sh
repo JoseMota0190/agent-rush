@@ -43,7 +43,7 @@ docker build -t agent-rush-sandbox:latest \
 for kv in \
   "AGENT_RUSH_SANDBOX_IMAGE=agent-rush-sandbox:latest" \
   "AGENT_RUSH_MAX_ATTEMPTS=0" \
-  "AGENT_RUSH_RUN_TIME_LIMIT_S=360" \
+  "AGENT_RUSH_RUN_TIME_LIMIT_S=330" \
   "AGENT_RUSH_MIN_PRESENTATION_S=180" \
   "VULTR_REASONING_EFFORT=medium"; do
   key="${kv%%=*}"

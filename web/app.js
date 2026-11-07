@@ -196,6 +196,7 @@ def verify(proof, expected):
   const pauseBtn = $("#pauseLogs");
   const missionEl = $("#missionState");
   const runIdChip = $("#runIdChip");
+  const sandboxChip = $("#sandboxChip");
   const filterBtns = $$(".log-filter");
   const successPanel = $("#missionSuccess");
   const successRoomsEl = $("#successRooms");
@@ -765,6 +766,32 @@ def verify(proof, expected):
         if (tokenCountEl) tokenCountEl.textContent = metrics.tokens.toLocaleString("en-US");
         updateEnergy();
         break;
+
+      case "security_audit": {
+        const blocked = Number(evt.blocked) || 0;
+        const total = Number(evt.total) || 0;
+        appendLog({
+          src: "referee",
+          msg:
+            evt.error
+              ? `SECURITY AUDIT · ERROR · ${evt.error}`
+              : `SECURITY AUDIT · ${blocked}/${total} BLOCKED`,
+          kind: "audit",
+          cls: total > 0 && blocked === total ? "is-ok" : "is-error",
+          ts: evt.ts,
+        });
+        if (sandboxChip) {
+          sandboxChip.removeAttribute("data-i18n");
+          sandboxChip.textContent = evt.error
+            ? "SANDBOX AUDIT ERROR"
+            : `SANDBOX ${blocked}/${total} BLOCKED`;
+          sandboxChip.classList.toggle(
+            "ok",
+            total > 0 && blocked === total
+          );
+        }
+        break;
+      }
 
       case "phase":
         appendLog({

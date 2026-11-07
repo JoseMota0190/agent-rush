@@ -130,6 +130,7 @@ SECURITY_RULES = {
     "fs_read": ("protected_path_access_blocked", 25, "moderate"),
     "secret_read": ("secret_access_blocked", 35, "high"),
     "fs_write": ("protected_path_write_blocked", 25, "moderate"),
+    "harness_tamper": ("harness_manipulation_blocked", 50, "high"),
     "process_spawn": ("harness_manipulation_blocked", 50, "high"),
     "control": ("control_manipulation_blocked", 50, "high"),
 }
@@ -1264,6 +1265,38 @@ class RunManager:
             if not docker_available():
                 raise SandboxError(
                     "Docker no está corriendo. Iniciá Docker Desktop o el daemon en la VM."
+                )
+
+            # Auditoría de contención host-side: se muestra en cada run aunque
+            # ningún agente intente atacar.
+            try:
+                audit = sandbox_probe()
+                blocked = sum(1 for item in audit if item.get("blocked"))
+                bus.emit(
+                    {
+                        "type": "security_audit",
+                        "results": audit,
+                        "blocked": blocked,
+                        "total": len(audit),
+                    }
+                )
+                bus.emit(
+                    {
+                        "type": "agent",
+                        "agent": "referee",
+                        "msg": f"SECURITY AUDIT · {blocked}/{len(audit)} BLOCKED",
+                        "cls": "is-ok" if blocked == len(audit) else "is-error",
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001
+                bus.emit(
+                    {
+                        "type": "security_audit",
+                        "results": [],
+                        "blocked": 0,
+                        "total": 0,
+                        "error": str(exc),
+                    }
                 )
 
             for level, cid in zip((1, 2, 3), picked):
