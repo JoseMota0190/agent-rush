@@ -1,0 +1,69 @@
+{
+  "performance_score": 203,
+  "security": {
+    "status": "CLEAN RUN",
+    "penalty": 0,
+    "critical": false,
+    "events": [],
+    "ignored_duplicates": 0
+  },
+  "final_score": 203,
+  "team": "worst",
+  "models": {
+    "strategist": "nemotron-3.5-content-safety",
+    "coder": "muse-glimmer-30b",
+    "auditor": "raon-1-mini-preview"
+  },
+  "seed": "trial-2026-11-07",
+  "challenges": [
+    "L1-45",
+    "L2-12",
+    "L3-47"
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "challenge_id": "L1-45",
+      "title": "ERROR DIGEST",
+      "solved": true,
+      "attempt": 1,
+      "tokens": 1878,
+      "best_cases": 8,
+      "summary": "OK",
+      "last_code": "import sys\n\ndef solve():\n    data = sys.stdin.read().splitlines()\n    if not data:\n        return\n    try:\n        k = int(data[0].strip())\n    except:\n        k = 0\n    counts = {}\n    for line in data[1:]:\n        if not line.strip():\n            continue\n        token = line.split()[0]\n        if token.startswith('E') and token[1:].isdigit():\n            counts[token] = counts.get(token, 0) + 1\n    items = sorted(counts.items(), key=lambda x: (-x[1], x[0]))\n    out = []\n    for i in range(min(k, len(items))):\n        code, cnt = items[i]\n        out.append(f\"{code} {cnt}\")\n    sys.stdout.write(\"\\n\".join(out))\n\nif __name__ == \"__main__\":\n    solve()",
+      "last_raw": "import sys\n\ndef solve():\n    data = sys.stdin.read().splitlines()\n    if not data:\n        return\n    try:\n        k = int(data[0].strip())\n    except:\n        k = 0\n    counts = {}\n    for line in data[1:]:\n        if not line.strip():\n            continue\n        token = line.split()[0]\n        if token.startswith('E') and token[1:].isdigit():\n            counts[token] = counts.get(token, 0) + 1\n    items = sorted(counts.items(), key=lambda x: (-x[1], x[0]))\n    out = []\n    for i in range(min(k, len(items))):\n        code, cnt = items[i]\n        out.append(f\"{code} {cnt}\")\n    sys.stdout.write(\"\\n\".join(out))\n\nif __name__ == \"__main__\":\n    solve()",
+      "last_stdout": "\n@@RESULT@@[{\"rc\": 0, \"out\": \"E124 1\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E101 1\\nE122 1\\nE123 1\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E106 1\\nE108 1\\nE110 1\\nE111 1\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E126 3\\nE128 3\\nE100 2\\nE109 2\\nE113 2\\nE114 2\\nE116 2\\nE123 2\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E111 8\\nE112 8\\nE122 8\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E120 26\\nE100 24\\nE107 23\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E118 115\\nE128 114\\nE103 109\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E130 111\\nE124 108\\nE104 106\\nE111 105\\nE112 104\\nE117 103\", \"err\": \"\", \"timeout\": false}]",
+      "last_stderr": ""
+    },
+    {
+      "level": 2,
+      "challenge_id": "L2-12",
+      "title": "SHORTEST PATH COUNT",
+      "solved": false,
+      "attempt": 3,
+      "tokens": 6902,
+      "best_cases": 0,
+      "summary": "caso 0: salida incorrecta; 0 lineas vs 2 esperadas; primera diferencia en la linea 1; caso 1: salida incorrecta; 0 lineas vs 4 esperadas; primera diferencia en la linea 1; caso 2: salida incorrecta; 0 lineas vs 9 esperadas; primera diferencia en la linea 1",
+      "last_code": "def dijkstra(src):\n    INF=10**30\n    dist=[INF]*(n+1); cnt=[0]*(n+1)\n    dist[src]=0; cnt[src]=1\n    heap=[(0,src)]\n    while heap:\n       d,u=heappop\n       if d!=dist[u]: continue\n       for v,w in adj[u]:\n           nd=d+w\n           if nd < dist[v]:\n               dist[v]=nd; cnt[v]=cnt[u]; heappush\n           elif nd == dist[v]:\n               cnt[v]=(cnt[v]+cnt[u])%MOD\n    return dist,cnt",
+      "last_raw": "nd s==t only, can avoid. But if query s==t and graph may have negative? no. Return 0 1. For Dijkstra source with s==t still fine. Special-case can save.\n\nPotential issue: Count of shortest paths from s to t when s==t: Are there non-empty cycles with total 0? weights positive so no. Empty path count 1. OK.\n\nUNREACHABLE exact uppercase.\n\nNow question: Could there be multiple components etc.\n\nBut maybe they expect modulo count of distinct shortest paths as sequence of edges; Dijkstra count as above counts paths ending with each edge instance. For parallel edges, if two identical edges considered distinct? Yes sequence of ARISTAS likely edges in input distinct. Our adjacency treats them separate. Good.\n\nPotential overflow of INF: max path length maybe m*maxw. Use Python int. INF = 10**30 maybe insufficient if m large and w huge? Use None or float('inf')? Better use 10**60 or None. Could compute upper bound? Use `INF = 10**30` might fail if w up to 1e18 and m up to 1e5 => 1e23. Use `INF = 10**100` or use `math.inf`? Comparisons with int and inf ok but arithmetic d+w where d could be inf? We only pop finite. Set dist initial `None`? Simpler: `INF = 10**30` risky. Use `INF = None`? In comparisons easier with large dynamic: after reading edges max_weight maybe sum? We can compute `INF = 10**30`? To be safe use `float('inf')` but then dist values int compared to float; output int? If unreachable check `dist[t] == INF` where INF float; but if actual distance equals float inf impossible",
+      "last_stdout": "\n@@RESULT@@[{\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"\", \"err\": \"\", \"timeout\": false}]",
+      "last_stderr": ""
+    },
+    {
+      "level": 3,
+      "challenge_id": "L3-47",
+      "title": "RESOURCE LOCK MANAGER",
+      "solved": false,
+      "attempt": 3,
+      "tokens": 8216,
+      "best_cases": 4,
+      "summary": "caso 4: salida incorrecta; 100 lineas vs 100 esperadas; primera diferencia en la linea 29; caso 5: salida incorrecta; 500 lineas vs 500 esperadas; primera diferencia en la linea 17; caso 6: salida incorrecta; 1500 lineas vs 1500 esperadas; primera diferencia en la linea 12",
+      "last_code": "import sys\n\ndef solve() -> None:\n    data = sys.stdin.read().strip().splitlines()\n    owners = {}          # lock -> txn\n    queues = {}          # lock -> list of txn waiting\n    out = []\n\n    for line in data:\n        if not line.strip():\n            continue\n        parts = line.strip().split()\n        if len(parts) != 3:\n            continue\n        op, txn, lock = parts\n        if op == \"ACQ\":\n            owner = owners.get(lock)\n            if owner is None:\n                owners[lock] = txn\n                out.append(f\"GRANTED {txn} {lock}\")\n            elif owner == txn:\n                out.append(f\"ALREADY {txn} {lock}\")\n            else:\n                q = queues.setdefault(lock, [])\n                q.append(txn)\n                out.append(f\"WAIT {txn} {lock}\")\n        elif op == \"REL\":\n            owner = owners.get(lock)\n            if owner != txn:\n                out.append(f\"IGNORED {txn} {lock}\")\n                continue\n            # release\n            del owners[lock]\n            q = queues.get(lock, [])\n            if q:\n                next_txn = q.pop(0)\n                owners[lock] = next_txn\n                # keep queue if empty? keep dict\n                out.append(f\"RELEASED {txn} {lock} GRANTED {next_txn} {lock}\")\n                if not q:\n                    # optional cleanup\n                    pass\n            else:\n                out.append(f\"RELEASED {txn} {lock}\")\n        else:\n            # unknown op, ignore\n            continue\n\n    sys.stdout.write(\"\\n\".join(out))\n\nif __name__ == \"__main__\":\n    solve()",
+      "last_raw": "      if owner is None:\n                st[0] = txn\n                out.append('GRANTED ' + txn + ' ' + lock)\n            elif owner == txn:\n                out.append('ALREADY ' + txn + ' ' + lock)\n            else:\n                q.append(txn)\n                out.append('WAIT ' + txn + ' ' + lock)\n        elif op == 'REL':\n            if owner != txn:\n                out.append('IGNORED ' + txn + ' ' + lock)\n            else:\n                if q:\n                    nxt = q.popleft()\n                    st[0] = nxt\n                    out.append('RELEASED ' + txn + ' ' + lock + ' GRANTED ' + nxt)\n                else:\n                    st[0] = None\n                    out.append('RELEASED ' + txn + ' ' + lock)\n    sys.stdout.write('\\n'.join(out))\n    if out:\n        sys.stdout.write('\\n')\n\nif __name__ == '__main__': main()\n\nNeed think about line splitting: If lock names contain spaces? Format fixed three tokens. okay.\n\nPotential hidden nuance: \"ACQ de un lock propio -> ALREADY sin duplicar\" Could mean if already own lock, don't enqueue duplicate. We do. \"ACQ ocupado encola una entrada, no se deduplica\". We do append regardless. But what if txn is owner? handled before occupied. What if txn is in queue but not owner? ACQ occupied appends another entry for same txn. Later release grants first duplicate; second duplicate remains waiting though txn now owner? Is that intended? Spec says no se deduplica, so yes. But could this cause weird: T requests L while waiting; queue [",
+      "last_stdout": "3\\nWAIT T4 L2\\nIGNORED T3 L3\\nIGNORED T1 L1\\nIGNORED T1 L1\\nRELEASED T3 L2 GRANTED T4 L2\\nWAIT T1 L3\\nIGNORED T3 L2\\nRELEASED T2 L3 GRANTED T4 L3\\nWAIT T1 L3\\nIGNORED T1 L2\\nWAIT T1 L2\\nWAIT T2 L2\\nALREADY T2 L1\\nWAIT T2 L3\\nIGNORED T3 L2\\nIGNORED T1 L1\\nIGNORED T3 L3\\nIGNORED T3 L3\\nWAIT T2 L2\\nWAIT T3 L2\\nIGNORED T2 L2\\nIGNORED T2 L2\\nALREADY T4 L2\\nALREADY T4 L2\\nWAIT T4 L1\\nIGNORED T2 L3\\nIGNORED T1 L2\\nIGNORED T2 L2\\nALREADY T4 L3\\nIGNORED T1 L2\\nIGNORED T2 L2\\nIGNORED T3 L1\\nWAIT T3 L3\\nWAIT T1 L3\\nIGNORED T1 L2\\nWAIT T3 L2\\nALREADY T2 L1\\nRELEASED T4 L3 GRANTED T2 L3\\nWAIT T4 L3\\nALREADY T2 L1\\nALREADY T4 L2\\nWAIT T2 L2\\nIGNORED T3 L3\\nWAIT T4 L1\\nWAIT T1 L2\\nWAIT T3 L1\\nWAIT T1 L2\\nWAIT T1 L1\\nALREADY T4 L2\\nWAIT T4 L1\\nRELEASED T2 L1 GRANTED T2 L1\\nWAIT T2 L2\\nALREADY T4 L2\\nRELEASED T4 L2 GRANTED T4 L2\\nWAIT T3 L3\\nWAIT T1 L2\\nWAIT T3 L1\\nALREADY T2 L3\\nRELEASED T2 L1 GRANTED T3 L1\\nWAIT T4 L1\\nALREADY T4 L2\\nIGNORED T3 L3\\nWAIT T1 L1\\nRELEASED T2 L3 GRANTED T3 L3\\nIGNORED T1 L3\\nWAIT T2 L2\\nIGNORED T4 L3\\nWAIT T2 L1\\nWAIT T1 L1\\nIGNORED T1 L3\\nIGNORED T2 L2\\nWAIT T4 L1\\nWAIT T1 L1\\nRELEASED T3 L1 GRANTED T1 L1\\nRELEASED T4 L2 GRANTED T1 L2\", \"err\": \"\", \"timeout\": false}]",
+      "last_stderr": ""
+    }
+  ],
+  "total_tokens": 16996,
+  "duration_s": 89.2
+}

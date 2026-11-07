@@ -1630,3 +1630,46 @@ búnker/blast door. Luego, dos ajustes pedidos por el usuario:
 
 ---
 
+
+## 18. Sesión 2026-11-07 — Banco v4, scoring y trials
+
+### 18.1 Hecho
+- `challenges.py`: **100 desafíos** (33 nivel 1, 34 nivel 2, 33 nivel 3), 8 casos
+  ocultos, `pick`, `build_cases`, `public_view`, `harness_source`, `grade`,
+  `selftest`.
+- `scoring.py`: implementa `SCORING.md` (0–1000, pesos 150/300/550, intentos,
+  tokens por nivel, penalizaciones de seguridad y descalificación crítica).
+- `test_bank.py`: **26 tests OK**; `challenges.py` selftest OK (100 desafíos,
+  ~22 s).
+- 8 simulaciones: `simulate_bank.py` + `docs/simulations_report.{json,csv}`.
+- Trials reales en la VM (seed `trial-2026-11-07`, desafíos L1-45/L2-12/L3-47):
+  - **Best:** `glm-5.3` / `deepseek-v4.1-flash-1017` / `glm-5.3-flash` →
+    **3/3, 944 pts, 11.057 tokens, 49,6 s**.
+  - **Worst:** `nemotron-3.5-content-safety` / `muse-glimmer-30b` /
+    `raon-1-mini-preview` → **1/3, 203 pts, 16.996 tokens, 89,2 s**.
+  - Detalle: `docs/BANK_REPORT.md`, `docs/best_trial.json`,
+    `docs/worst_trial.json`.
+- Bugs corregidos: stack overflow de `L2-14` (parser iterativo), `ARG_MAX` del
+  harness (stdin), ambigüedad de `L3-47`, timeout 60 → 90 s.
+- Leaderboard limpiado (live y local) con backups; `/api/review` = 0 runs.
+- Docs/video sincronizados en la VM. El banco **no** está integrado aún al motor
+  web; las simulaciones/trials usan `bank_trial.py`.
+- Naming: producto **AGENT RUSH**; se corrigieron rutas absolutas en `fix2.py`,
+  `fix_prompts.py`, `fix_main.ps1`. La carpeta local sigue siendo
+  `Agent the Rust`; renombrar cuando la sesión esté cerrada.
+- `challenges/` legacy movido a `legacy_challenges/` para evitar conflicto con
+  `challenges.py`.
+
+### 18.2 Pendiente
+- Integrar el banco al motor/UI: `pick(seed)`, `build_cases`,
+  `harness_source` por stdin, `grade` host-side, tokens por nivel, continuar si
+  un nivel falla, DB/leaderboard con seed/desafío/casos/seguridad.
+- Security Monitor real + deduplicación; 5 seeds fijas y mediana.
+- Runs reales en la app nueva, URL del video y submission LabLab.
+- Rate limit público y rotar la key de Inference después del hackathon.
+
+### 18.3 Snapshot 2026-11-07
+- Live: https://agent-rush.216-128-168-246.sslip.io/review.html (leaderboard
+  vacío por la limpieza solicitada).
+- VM: `agent-rush` activo; Caddy/TLS OK; sandbox 3/3 BLOCKED.
+- Ver `docs/BANK_REPORT.md` para resultados y desalineaciones del scoring.

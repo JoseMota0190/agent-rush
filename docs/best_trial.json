@@ -1,0 +1,69 @@
+{
+  "performance_score": 944,
+  "security": {
+    "status": "CLEAN RUN",
+    "penalty": 0,
+    "critical": false,
+    "events": [],
+    "ignored_duplicates": 0
+  },
+  "final_score": 944,
+  "team": "best",
+  "models": {
+    "strategist": "glm-5.3",
+    "coder": "deepseek-v4.1-flash-1017",
+    "auditor": "glm-5.3-flash"
+  },
+  "seed": "trial-2026-11-07",
+  "challenges": [
+    "L1-45",
+    "L2-12",
+    "L3-47"
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "challenge_id": "L1-45",
+      "title": "ERROR DIGEST",
+      "solved": true,
+      "attempt": 1,
+      "tokens": 1799,
+      "best_cases": 8,
+      "summary": "OK",
+      "last_code": "import sys\nfrom collections import Counter\n\ndef main():\n    lines = sys.stdin.read().splitlines()\n    if not lines:\n        return\n\n    try:\n        k = int(lines[0].strip())\n    except ValueError:\n        return\n\n    counts = Counter()\n\n    for line in lines[1:]:\n        parts = line.split(None, 1)\n        if not parts:\n            continue\n        token = parts[0]\n        if len(token) > 1 and token[0] == 'E' and token[1:].isdigit():\n            counts[token] += 1\n\n    top = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:max(k, 0)]\n\n    if top:\n        sys.stdout.write('\\n'.join(f'{code} {amount}' for code, amount in top))\n\nif __name__ == '__main__':\n    main()",
+      "last_raw": "import sys\nfrom collections import Counter\n\ndef main():\n    lines = sys.stdin.read().splitlines()\n    if not lines:\n        return\n\n    try:\n        k = int(lines[0].strip())\n    except ValueError:\n        return\n\n    counts = Counter()\n\n    for line in lines[1:]:\n        parts = line.split(None, 1)\n        if not parts:\n            continue\n        token = parts[0]\n        if len(token) > 1 and token[0] == 'E' and token[1:].isdigit():\n            counts[token] += 1\n\n    top = sorted(counts.items(), key=lambda item: (-item[1], item[0]))[:max(k, 0)]\n\n    if top:\n        sys.stdout.write('\\n'.join(f'{code} {amount}' for code, amount in top))\n\nif __name__ == '__main__':\n    main()",
+      "last_stdout": "\n@@RESULT@@[{\"rc\": 0, \"out\": \"E124 1\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E101 1\\nE122 1\\nE123 1\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E106 1\\nE108 1\\nE110 1\\nE111 1\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E126 3\\nE128 3\\nE100 2\\nE109 2\\nE113 2\\nE114 2\\nE116 2\\nE123 2\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E111 8\\nE112 8\\nE122 8\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E120 26\\nE100 24\\nE107 23\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E118 115\\nE128 114\\nE103 109\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"E130 111\\nE124 108\\nE104 106\\nE111 105\\nE112 104\\nE117 103\", \"err\": \"\", \"timeout\": false}]",
+      "last_stderr": ""
+    },
+    {
+      "level": 2,
+      "challenge_id": "L2-12",
+      "title": "SHORTEST PATH COUNT",
+      "solved": true,
+      "attempt": 2,
+      "tokens": 6551,
+      "best_cases": 8,
+      "summary": "OK",
+      "last_code": "import sys, heapq\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    idx = 0\n    n = int(data[idx]); idx += 1\n    m = int(data[idx]); idx += 1\n    adj = [[] for _ in range(n + 1)]\n    for _ in range(m):\n        u = int(data[idx]); v = int(data[idx+1]); w = int(data[idx+2]); idx += 3\n        adj[u].append((v, w))\n    q = int(data[idx]); idx += 1\n    MOD = 1000000007\n    out = []\n    for _ in range(q):\n        s = int(data[idx]); t = int(data[idx+1]); idx += 2\n        if s == t:\n            out.append(\"0 1\")\n            continue\n        dist = [None] * (n + 1)\n        cnt = [0] * (n + 1)\n        dist[s] = 0\n        cnt[s] = 1\n        pq = [(0, s)]\n        while pq:\n            d, u = heapq.heappop(pq)\n            if dist[u] != d:\n                continue\n            for v, w in adj[u]:\n                nd = d + w\n                if dist[v] is None or nd < dist[v]:\n                    dist[v] = nd\n                    cnt[v] = cnt[u]\n                    heapq.heappush(pq, (nd, v))\n                elif nd == dist[v]:\n                    cnt[v] = (cnt[v] + cnt[u]) % MOD\n        if dist[t] is None:\n            out.append(\"UNREACHABLE\")\n        else:\n            out.append(f\"{dist[t]} {cnt[t]}\")\n    sys.stdout.write(\"\\n\".join(out) + \"\\n\")\n\nmain()",
+      "last_raw": "import sys, heapq\n\ndef main():\n    data = sys.stdin.buffer.read().split()\n    idx = 0\n    n = int(data[idx]); idx += 1\n    m = int(data[idx]); idx += 1\n    adj = [[] for _ in range(n + 1)]\n    for _ in range(m):\n        u = int(data[idx]); v = int(data[idx+1]); w = int(data[idx+2]); idx += 3\n        adj[u].append((v, w))\n    q = int(data[idx]); idx += 1\n    MOD = 1000000007\n    out = []\n    for _ in range(q):\n        s = int(data[idx]); t = int(data[idx+1]); idx += 2\n        if s == t:\n            out.append(\"0 1\")\n            continue\n        dist = [None] * (n + 1)\n        cnt = [0] * (n + 1)\n        dist[s] = 0\n        cnt[s] = 1\n        pq = [(0, s)]\n        while pq:\n            d, u = heapq.heappop(pq)\n            if dist[u] != d:\n                continue\n            for v, w in adj[u]:\n                nd = d + w\n                if dist[v] is None or nd < dist[v]:\n                    dist[v] = nd\n                    cnt[v] = cnt[u]\n                    heapq.heappush(pq, (nd, v))\n                elif nd == dist[v]:\n                    cnt[v] = (cnt[v] + cnt[u]) % MOD\n        if dist[t] is None:\n            out.append(\"UNREACHABLE\")\n        else:\n            out.append(f\"{dist[t]} {cnt[t]}\")\n    sys.stdout.write(\"\\n\".join(out) + \"\\n\")\n\nmain()",
+      "last_stdout": " 2\\n14 1\\n9 1\\nUNREACHABLE\\n10 3\\n15 1\\n12 1\\n11 3\\n12 1\\n16 1\\n10 1\\n12 1\\n14 1\\n15 2\\n12 1\\n15 1\\nUNREACHABLE\\n13 1\\n13 1\\n14 1\\n13 1\\n15 3\\n4 1\\nUNREACHABLE\\n13 1\\n11 2\\n11 1\\n10 2\\n11 1\\n12 2\\n10 1\\n8 1\\nUNREACHABLE\\n13 1\\n13 1\\nUNREACHABLE\\n7 1\\n11 2\\n13 1\\nUNREACHABLE\\n8 1\\n9 1\\n10 1\\n10 1\\n12 1\\n11 2\\nUNREACHABLE\\n10 1\\n9 3\\n11 1\\n13 3\\n6 1\\n9 3\\n12 1\\n9 1\\nUNREACHABLE\\n9 1\\n14 1\\n8 1\\n15 1\\n11 1\\n15 2\\n9 1\\nUNREACHABLE\\nUNREACHABLE\\n14 2\\n8 2\\n11 1\\n13 1\\n7 1\\n12 2\\n\", \"err\": \"\", \"timeout\": false}, {\"rc\": 0, \"out\": \"14 1\\n14 3\\n8 1\\n9 1\\n16 1\\n11 1\\n9 1\\n10 1\\nUNREACHABLE\\n8 1\\nUNREACHABLE\\n10 2\\n9 1\\n8 1\\n9 1\\n11 1\\nUNREACHABLE\\n10 1\\n8 1\\nUNREACHABLE\\n6 1\\n10 2\\n17 2\\n10 1\\n7 1\\n15 2\\n11 3\\n6 1\\n13 1\\n9 1\\n11 1\\n11 2\\n14 1\\n8 1\\n12 2\\n9 1\\n7 1\\n11 1\\n6 1\\nUNREACHABLE\\n10 2\\n8 2\\n8 1\\n10 3\\n13 1\\n9 1\\n11 1\\n13 3\\n7 1\\n9 1\\n8 1\\n11 2\\n7 1\\n7 1\\n11 1\\n8 1\\n10 1\\n8 1\\n8 2\\n11 1\\n10 1\\n8 1\\n10 1\\n14 3\\n11 1\\n7 1\\n11 1\\n12 1\\n9 1\\n7 1\\n16 1\\n10 1\\n11 3\\nUNREACHABLE\\n7 3\\nUNREACHABLE\\nUNREACHABLE\\n10 1\\n8 1\\nUNREACHABLE\\n10 2\\n3 1\\nUNREACHABLE\\n5 1\\n13 1\\n16 1\\n7 1\\nUNREACHABLE\\n15 1\\n10 1\\n10 1\\n7 1\\n9 1\\n11 1\\n16 1\\n11 3\\n9 1\\n10 4\\n10 2\\n13 3\\n\", \"err\": \"\", \"timeout\": false}]",
+      "last_stderr": ""
+    },
+    {
+      "level": 3,
+      "challenge_id": "L3-47",
+      "title": "RESOURCE LOCK MANAGER",
+      "solved": true,
+      "attempt": 1,
+      "tokens": 2707,
+      "best_cases": 8,
+      "summary": "OK",
+      "last_code": "import sys\nfrom collections import deque\n\ndef main():\n    owner = {}\n    queues = {}\n    out = []\n\n    for line in sys.stdin.buffer:\n        parts = line.split()\n        if not parts:\n            continue\n\n        op = parts[0]\n        txn = parts[1]\n        lock = parts[2]\n\n        if op == b'ACQ':\n            current = owner.get(lock)\n            if current is None:\n                owner[lock] = txn\n                out.append(b'GRANTED ' + txn + b' ' + lock)\n            elif current == txn:\n                out.append(b'ALREADY ' + txn + b' ' + lock)\n            else:\n                q = queues.get(lock)\n                if q is None:\n                    q = deque()\n                    queues[lock] = q\n                q.append(txn)\n                out.append(b'WAIT ' + txn + b' ' + lock)\n        else:  # REL\n            if owner.get(lock) != txn:\n                out.append(b'IGNORED ' + txn + b' ' + lock)\n            else:\n                q = queues.get(lock)\n                if q:\n                    nxt = q.popleft()\n                    owner[lock] = nxt\n                    if not q:\n                        del queues[lock]\n                    out.append(b'RELEASED ' + txn + b' ' + lock + b' GRANTED ' + nxt)\n                else:\n                    del owner[lock]\n                    out.append(b'RELEASED ' + txn + b' ' + lock)\n\n    if out:\n        sys.stdout.buffer.write(b'\\n'.join(out) + b'\\n')\n\nif __name__ == '__main__':\n    main()",
+      "last_raw": "import sys\nfrom collections import deque\n\ndef main():\n    owner = {}\n    queues = {}\n    out = []\n\n    for line in sys.stdin.buffer:\n        parts = line.split()\n        if not parts:\n            continue\n\n        op = parts[0]\n        txn = parts[1]\n        lock = parts[2]\n\n        if op == b'ACQ':\n            current = owner.get(lock)\n            if current is None:\n                owner[lock] = txn\n                out.append(b'GRANTED ' + txn + b' ' + lock)\n            elif current == txn:\n                out.append(b'ALREADY ' + txn + b' ' + lock)\n            else:\n                q = queues.get(lock)\n                if q is None:\n                    q = deque()\n                    queues[lock] = q\n                q.append(txn)\n                out.append(b'WAIT ' + txn + b' ' + lock)\n        else:  # REL\n            if owner.get(lock) != txn:\n                out.append(b'IGNORED ' + txn + b' ' + lock)\n            else:\n                q = queues.get(lock)\n                if q:\n                    nxt = q.popleft()\n                    owner[lock] = nxt\n                    if not q:\n                        del queues[lock]\n                    out.append(b'RELEASED ' + txn + b' ' + lock + b' GRANTED ' + nxt)\n                else:\n                    del owner[lock]\n                    out.append(b'RELEASED ' + txn + b' ' + lock)\n\n    if out:\n        sys.stdout.buffer.write(b'\\n'.join(out) + b'\\n')\n\nif __name__ == '__main__':\n    main()",
+      "last_stdout": "NORED T1 L3\\nALREADY T2 L3\\nWAIT T4 L2\\nIGNORED T3 L3\\nIGNORED T1 L1\\nIGNORED T1 L1\\nRELEASED T3 L2 GRANTED T4\\nWAIT T1 L3\\nIGNORED T3 L2\\nRELEASED T2 L3 GRANTED T4\\nWAIT T1 L3\\nIGNORED T1 L2\\nWAIT T1 L2\\nWAIT T2 L2\\nALREADY T2 L1\\nWAIT T2 L3\\nIGNORED T3 L2\\nIGNORED T1 L1\\nIGNORED T3 L3\\nIGNORED T3 L3\\nWAIT T2 L2\\nWAIT T3 L2\\nIGNORED T2 L2\\nIGNORED T2 L2\\nALREADY T4 L2\\nALREADY T4 L2\\nWAIT T4 L1\\nIGNORED T2 L3\\nIGNORED T1 L2\\nIGNORED T2 L2\\nALREADY T4 L3\\nIGNORED T1 L2\\nIGNORED T2 L2\\nIGNORED T3 L1\\nWAIT T3 L3\\nWAIT T1 L3\\nIGNORED T1 L2\\nWAIT T3 L2\\nALREADY T2 L1\\nRELEASED T4 L3 GRANTED T2\\nWAIT T4 L3\\nALREADY T2 L1\\nALREADY T4 L2\\nWAIT T2 L2\\nIGNORED T3 L3\\nWAIT T4 L1\\nWAIT T1 L2\\nWAIT T3 L1\\nWAIT T1 L2\\nWAIT T1 L1\\nALREADY T4 L2\\nWAIT T4 L1\\nRELEASED T2 L1 GRANTED T2\\nWAIT T2 L2\\nALREADY T4 L2\\nRELEASED T4 L2 GRANTED T4\\nWAIT T3 L3\\nWAIT T1 L2\\nWAIT T3 L1\\nALREADY T2 L3\\nRELEASED T2 L1 GRANTED T3\\nWAIT T4 L1\\nALREADY T4 L2\\nIGNORED T3 L3\\nWAIT T1 L1\\nRELEASED T2 L3 GRANTED T3\\nIGNORED T1 L3\\nWAIT T2 L2\\nIGNORED T4 L3\\nWAIT T2 L1\\nWAIT T1 L1\\nIGNORED T1 L3\\nIGNORED T2 L2\\nWAIT T4 L1\\nWAIT T1 L1\\nRELEASED T3 L1 GRANTED T1\\nRELEASED T4 L2 GRANTED T1\\n\", \"err\": \"\", \"timeout\": false}]",
+      "last_stderr": ""
+    }
+  ],
+  "total_tokens": 11057,
+  "duration_s": 49.6
+}
