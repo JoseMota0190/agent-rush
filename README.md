@@ -215,9 +215,18 @@ VULTR_INFERENCE_BASE_URL=https://api.vultrinference.com/v1
    ```
 
 El script crea la VM Ubuntu 24.04, carga la SSH key, copia el proyecto, instala
-Docker + Python, levanta la app con systemd y Caddy en un contenedor con HTTPS
-(`agent-rush.<ip>.sslip.io`). La app escucha en `127.0.0.1:8000` y Caddy hace el
-proxy público.
+Docker + Python, construye la imagen `agent-rush-sandbox:latest` con los
+señuelos de seguridad, levanta la app con systemd y Caddy en un contenedor con
+HTTPS (`agent-rush.<ip>.sslip.io`). La app escucha en `127.0.0.1:8000` y Caddy
+hace el proxy público.
+
+Para actualizar solo la imagen del sandbox en una VM existente:
+
+```bash
+docker build -t agent-rush-sandbox:latest \
+  -f /opt/agent-rush/deploy/sandbox/Dockerfile /opt/agent-rush/deploy/sandbox
+systemctl restart agent-rush
+```
 
 > **Para actualizar la VM existente sin cambiar la IP/URL, no corras
 > `deploy.py`**: copiá `run_engine.py`, `run_server.py` y `web/`, respaldá
