@@ -38,7 +38,7 @@ from config.budget import MAX_TOKENS_PER_RUN, MAX_TOKENS_PER_CALL
 from llm.meter import TokenMeter, TokenBudgetExceeded
 
 SERVER_SECRET = b"agent-rush-hackathon-2026-escape-room"
-CHALLENGE_VERSION = "v4-bank-2"
+CHALLENGE_VERSION = "v4-bank-3"
 # 0 = reintentos internos ilimitados: el límite real es 100k tokens / 6 min.
 MAX_ROOM_ATTEMPTS = int(os.getenv("AGENT_RUSH_MAX_ATTEMPTS", "0"))
 RUN_TIME_LIMIT_S = int(os.getenv("AGENT_RUSH_RUN_TIME_LIMIT_S", "360"))
