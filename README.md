@@ -1,376 +1,262 @@
 # AGENT RUSH — Deterministic AI Escape Room
 
-## 🎬 Demo
+**Three agents. One mission. Zero blast radius.**
 
-- **App:** https://agent-rush.216-128-168-246.sslip.io/
-- **Sandbox containment:** https://agent-rush.216-128-168-246.sslip.io/sandbox.html
-- **Video (65 s):** [docs/agent-rush-demo.mp4](docs/agent-rush-demo.mp4) — demo Plan D: navbar/hero nuevos, run real 3/3, logs y sandbox.
-- **Repo:** https://github.com/JoseMota0190/agent-rush
+An AI escape room where a **Strategist**, a **Coder** and an **Auditor/Reviewer**
+—each powered by a user-selected **Vultr Serverless Inference** model— have to
+solve deterministic challenges inside a hardened Docker sandbox.
+
+Every script is executed for real. Every proof is validated by a deterministic
+referee. Every escape attempt is contained, logged and, when the human is in the
+loop, turned into a governance decision.
+
+## Links
+
+| | |
+|---|---|
+| **Live app** | https://agent-rush.216-128-168-246.sslip.io/ |
+| **Live review panel** | https://agent-rush.216-128-168-246.sslip.io/review.html |
+| **Containment demo** | https://agent-rush.216-128-168-246.sslip.io/sandbox.html |
+| **Repository** | https://github.com/JoseMota0190/agent-rush |
+| **Video** | `docs/agent-rush-demo.mp4` *(replace with the final upload URL)* |
+| **Run journal** | [docs/RUN_JOURNAL.md](docs/RUN_JOURNAL.md) |
 
 ![Landing](docs/screenshots/landing.png)
-![Run real](docs/screenshots/game-run.png)
-![Sandbox](docs/screenshots/sandbox.png)
+![Live run](docs/screenshots/game-run.png)
+![Containment](docs/screenshots/sandbox.png)
 
-## 🚀 Descripción General
-Escape room determinista donde tres agentes de IA (Strategist, Coder, Auditor)
-escriben y ejecutan código para escapar de 3 salas. Corre en una VM de Vultr,
-usa **Vultr Serverless Inference** real para los modelos y ejecuta el código en
-un **sandbox Docker efímero** con `--network none`, root read-only, capabilities
-drop y límites de memoria/CPU/pids/tiempo.
+## Why it fits *Blast Radius Zero*
 
-- Inglés por defecto, español con el toggle `ESP`.
-- Los usuarios eligen el modelo de cada agente antes de entrar.
-- La energía se mide con los tokens reales de Vultr.
-- El leaderboard solo registra runs reales verificadas.
-- La página `/sandbox.html` demuestra la contención en vivo.
-- **Plan C (2026-11-05):** landing cinematográfica con hero 3D real, juego 50/50
-  sala + logs, filtros (ALL/CHAT/CODE/EXECUTION/AUDIT), estados de misión reales,
-  desafíos v2 y calibración con modelos Vultr reales.
-  Detalle: [docs/CALIBRATION_PLAN_C.md](docs/CALIBRATION_PLAN_C.md).
-- **Plan D (2026-11-05):** navbar flotante, hero 40/60 con el título en tres
-  líneas, mission briefing, panel de éxito, sala 3D reforzada y cámara
-  responsive para tablet/móvil.
-- **Banco v4 (2026-11-07):** 100 desafíos (33/34/33 por nivel) elegidos por
-  seed, 8 casos ocultos por nivel, grading determinista en el host, presupuesto
-  de tokens por nivel, score 0–1000, penalizaciones de seguridad por telemetría
-  real del sandbox y leaderboard con seed/desafíos/casos/seguridad.
-- **v4-bank-2 (2026-11-07):** reintentos internos ilimitados hasta 100k tokens
-  o 6 minutos, seed fija por defecto para spectator/orchestrator, sandbox con
-  señuelos (`/opt/grader`, `/root/.ssh`) y monitor de `open`/`listdir`/`stat`/
-  red/spawn. La run tiene un piso de presentación de 3 minutos: si el cómputo
-  termina antes, la UI sigue mostrando el debrief hasta los 3 min.
+- **Real execution, not a mock.** The Coder's Python runs in a fresh container.
+- **Sandbox-first.** `--network none`, read-only root, `--tmpfs /tmp`,
+  `--memory 256m`, `--cpus 0.5`, `--pids-limit 64`, `--cap-drop ALL`,
+  `no-new-privileges`, non-root UID/GID and a per-case timeout.
+- **Verifiable output.** The host grades the proof and stores the run in SQLite.
+- **Containment is observable.** A live monitor reports filesystem, secret,
+  network, process and harness-tampering events.
+- **Human-in-the-loop governance.** In orchestrator mode a security event pauses
+  the run and offers three recovery paths; one unblocks it, two keep it in the
+  loop and deduct points.
 
-## 📁 Estructura del Proyecto
+## How a run works
+
+1. The player picks a mode and assigns a Vultr model to each agent.
+2. `POST /api/runs` starts a real run with a seed and three deterministic
+   challenges (one per level).
+3. The **Strategist** receives the challenge and writes a plan.
+4. The **Coder** writes a Python runner.
+5. The sandbox executes it with the hardened flags; the host grades the 8 hidden
+   cases.
+6. On failure, the **Auditor** requests a patch and the loop continues within the
+   token/time budget.
+7. The referee validates the level; the run continues to the next level.
+8. SSE streams logs, code, execution output, energy, security events and mission
+   state to the 3D UI.
+9. Successful runs are ranked by score, duration and tokens.
+
+## Current feature set (`v4-bank-4`)
+
+- **100 deterministic challenges** (33 L1, 34 L2, 33 L3) selected by seed.
+- **8 hidden cases per level**, graded on the host.
+- **Score 0–1000** with 150/300/550 weights, attempt and token factors, partial
+  credit and a 250-point security penalty cap.
+- **Unlimited retries** inside a 100k-token / 6-minute budget per run.
+- **Security monitor** with a Python audit hook: protected paths, secrets,
+  outbound network, process spawn and harness tampering.
+- **Bait image** with fake answer keys, credentials, SSH keys and `docker.sock`
+  under `/opt/grader`, `/app`, `/home/agent` and `/root`.
+- **Reviewer alignment:** the first escape attempt is a warning with **no
+  penalty**; the reviewer notifies the agents and realigns them. Further attempts
+  are penalized.
+- **Orchestrator decision engine:** a security event pauses the run and offers
+  three options:
+  - **A** — clean patch validated against the hidden cases → `resume`;
+  - **B** — repeat the decoy read → `retry`, **−35 pts**;
+  - **C** — resend the defective code → `retry`, **−15 pts**.
+- **Leaderboard** in SQLite, ranked per mode, with score, security status, seed,
+  challenges, cases, tokens, duration and models.
+- **Premium 3D UI** (Three.js, no build step): 50/50 room + agent logs, filters,
+  expandable code/output, mission states and ES/EN.
+- **Run journal:** a generated chronicle of runs and escape attempts
+  ([docs/RUN_JOURNAL.md](docs/RUN_JOURNAL.md)).
+
+## Architecture
+
+```text
+┌──────────────┐      ┌──────────────────┐      ┌────────────────────┐
+│  Browser UI  │◄────►│  run_server.py   │◄────►│    run_engine.py   │
+│  3D + logs   │ SSE  │  stdlib + SQLite │      │  Vultr + Docker    │
+└──────────────┘      └──────────────────┘      └─────────┬──────────┘
+                                                          │
+                                              ┌───────────▼───────────┐
+                                              │  Ephemeral container  │
+                                              │  no net · read-only   │
+                                              │  non-root · 256 MB    │
+                                              └───────────────────────┘
 ```
+
+- `run_server.py` — HTTP server, SSE, leaderboard, review API, run control.
+- `run_engine.py` — Vultr client, sandbox execution, security monitor, scoring
+  integration, decision engine, SQLite persistence.
+- `challenges.py` — 100-challenge bank, case generation, hidden-case grader.
+- `scoring.py` — deterministic score and security penalties.
+- `referee.py` — HMAC-based deterministic referee for the legacy CLI flow.
+- `web/` — landing, game, review and sandbox pages, Three.js scene, i18n.
+
+## Project structure
+
+```text
 my-agent-system/
-├── config/
-│   └── prompts.py          # Prompts del sistema centralizados
-├── core/
-│   ├── orchestrator.py     # Lógica del supervisor y paso de estado
-│   └── state.py            # Definición de tipos/estado compartido (Pydantic)
-├── agents/
-│   ├── planner.py          # Subagente Strategist (planificación)
-│   ├── coder.py            # Subagente Coder (generación de código)
-│   └── evaluator.py        # Subagente Auditor (evaluación y self-healing)
+├── run_server.py              # HTTP + SSE + API
+├── run_engine.py              # real runs, sandbox, security, decisions
+├── challenges.py              # 100 deterministic challenges + grader
+├── scoring.py                 # score 0–1000 + security penalties
+├── referee.py                 # HMAC referee (CLI flow)
+├── main.py                    # CLI entrypoint
+├── config/                    # models, profiles, budgets, prompts
+├── core/state.py              # shared state types
+├── agents/                    # strategist, coder, auditor
 ├── tools/
-│   └── vultr_sandbox.py    # Integración con contenedores/API Vultr
-├── main.py                 # Entrypoint - Ejecuta la partida
-└── requirements.txt        # Dependencias
+│   ├── vultr_sandbox.py       # legacy sandbox wrapper used by the CLI
+│   ├── containment_probe.py   # manual containment checks
+│   └── generate_run_journal.py# run chronicle generator
+├── deploy/                    # Vultr deploy + hardened sandbox image
+├── web/                       # landing, game, review, sandbox, assets
+├── docs/                      # calibration, reports, run journal, screenshots
+├── data/agent_rush.db         # SQLite (gitignored)
+├── test_bank.py               # challenge bank + harness tests
+├── test_security.py           # containment + telemetry tests
+└── test_decision_engine.py    # orchestrator decision state tests
 ```
 
-## 🖥️ Interfaz web (frontend)
-
-Escena 3D real con Three.js, sin build step (módulo vendorizado en `web/vendor/`):
+## Quickstart (local)
 
 ```bash
-python run_server.py          # abre http://localhost:8000/ (landing)
-python run_server.py --no-open
+python run_server.py --port 8010 --no-open
+# open http://127.0.0.1:8010/
 ```
 
-- `/` es la landing: intro, modos, catálogo de modelos Vultr y leaderboards.
-- **Inglés por defecto.** El español es una opción que se activa con el selector
-  `ES | EN` de la topbar (se mantiene durante la sesión del navegador) o con
-  `?lang=es`.
-- Flujo de entrada: **Enter the game** → elegir modo → elegir modelos de los 3
-  agentes → **Enter the escape room**. Las tarjetas de modo saltan directo al
-  paso de modelos.
-- `/game.html` es la sala 3D; `?mode=orchestrator` abre el modo orquestador.
-  Si no hay modelos seleccionados, redirige al wizard.
-- La sala abre **vacía**: energía en `0`, sin logs ficticios y con un botón
-  **CLICK TO START**. Al iniciarlo aparece la consigna de la sala 1.
-- Atajo: `espacio` pausa/reanuda los logs (cuando el motor esté conectado).
-- El leaderboard solo muestra **runs reales** verificadas por el motor; no hay
-  datos simulados. Si la base está vacía, aparece el estado “NO VALID RUNS YET”.
-- **Juego 50/50:** en desktop la escena 3D y **AGENT LOGS** comparten el ancho;
-  en tablet/móvil se alternan con tabs **ROOM / AGENT LOGS**.
-- **AGENT LOGS:** filtros ALL/CHAT/CODE/EXECUTION/AUDIT, timestamps, color por
-  agente, código y stdout/stderr expandibles, contador de eventos y energía real.
-- **Estados de misión:** READY TO ESCAPE → MISSION ACTIVE → AUDIT IN PROGRESS →
-  ESCAPE UNLOCKED, derivados de los eventos reales (nunca simulados).
-- **Intentos:** 3 por sala, visibles en el panel de salas (`attempt 1/3`).
+On Windows, Docker Desktop may take port 8000; local development uses 8010.
+The app has no third-party Python runtime dependencies (stdlib only).
 
-```
-web/
-├── index.html      # landing cinematográfica + hero 3D + wizard
-├── game.html       # juego 50/50: sala 3D + AGENT LOGS
-├── premium.css     # design system Plan C (tokens, landing, juego, responsive)
-├── hero.js         # inicializa la escena 3D del hero
-├── styles.css      # base compartida
-├── scene.js        # sala 3D, puerta/keypad/LED, carteles, estados
-├── app.js          # SSE real, logs/filtros, IDE, energía, estados
-├── i18n.js         # diccionarios ES/EN + selector de idioma
-├── catalog.js      # catálogo Vultr de solo lectura
-├── wizard.js       # flujo modo → modelos → sala
-├── leaderboard.js  # fetch + render de los dos leaderboards
-├── fonts/          # Orbitron, Inter y JetBrains Mono (woff2)
-├── avatars/        # avatares SVG de Strategist, Coder y Auditor
-├── assets/         # vultr-logo.svg
-└── vendor/three.module.js
+```bash
+# tests
+python -m unittest test_bank test_security test_decision_engine -v
 ```
 
-Runtime real de la demo:
+## Environment
 
-- `run_server.py`: servidor stdlib + SSE (`/api/runs`, `/api/leaderboard`,
-  `/api/sandbox/probe`).
-- `run_engine.py`: Vultr Serverless Inference real, Docker sandbox, desafíos v2,
-  referee y SQLite.
-- `data/agent_rush.db`: leaderboard real (runs v2).
-- `docs/CALIBRATION_PLAN_C.md`: matriz de calibración con modelos reales.
-
-**Escena 3D:** sala con piso en rejilla, techo con tiras de luz, mesa holográfica
-con anillos giratorios, tres robots humanoides **sentados en sillas** con brazos
-sobre la mesa, visores emisivos por rol y animación idle/typing/error.
-
-**Modo espectador:** cámara detrás del cristal polarizado (overlay CSS de
-reflejos y viñeta) + **AGENT LOGS** en vivo. El leaderboard vive en la landing,
-con una tabla por modo de juego.
-
-**Modo orquestador:** cámara POV con silueta humana, panel de estado de las 3
-salas, IDE con el código real del Coder y **AGENT LOGS**. La edición y
-re-ejecución manual desde el IDE queda como trabajo futuro: la run real actual es
-autónoma en ambos modos.
-
-## ⚙️ Motor de runs real
-
-La sala ya ejecuta partidas reales contra **Vultr Serverless Inference**:
-
-- `POST /api/runs` crea una run con modo + 3 modelos elegidos por el usuario.
-- `GET /api/runs/<id>/events` entrega eventos por **SSE**: consigna, estrategia,
-  código, ejecución en sandbox, tokens, salas resueltas y resultado final.
-- `POST /api/runs/<id>/abort` aborta la partida al salir de la sala.
-- Cada agente usa su propio modelo; todos comparten la **misma** key de Inference.
-- La energía sale del `usage` real de Vultr, con tope de 100k tokens por run.
-- El leaderboard se guarda en SQLite (`data/agent_rush.db`) y solo lista runs
-  exitosas.
-
-### Salas v2 (2026-11-05)
-
-- **Sala 1 — THE LOGS:** dos `auth.log` rotados + manifest con `active_session` y
-  `header_checksum = sha256(session + ":" + ticket)`. El ticket válido está atado
-  a la sesión activa, pero hay señuelos duplicados, truncados, en mayúsculas y de
-  64 hex. Hay que correlacionar; buscar la sesión no alcanza.
-- **Sala 2 — MEMORY LEAK:** módulo `memory_leak.py` con bugs reales (chunks
-  incompletos, `abs`, `size <= 0`). El harness escribe los tests y el módulo; el
-  agente devuelve solo `chunk_sum`. Éxito = tests pasan + proof.
-- **Sala 3 — FIREWALL:** handshake TCP loopback `HELLO → NONCE → HMAC-SHA256 →
-  TOKEN/DECOY`, nonce fresco por conexión y lockout tras 3 intentos inválidos.
-- 3 intentos por sala, `compile()` antes del sandbox y parches informados del
-  Auditor.
-
-### Calibración
-
-Corridas reales contra Vultr + Docker; detalle completo en
-[docs/CALIBRATION_PLAN_C.md](docs/CALIBRATION_PLAN_C.md).
-
-- Escuadrón recomendado (`deepseek-v4.1-flash-1017` + `glm-5.3-flash` +
-  `deepseek-v4.1-flash-1017`): **3/3** en todas las corridas v2, 16.7–41.3 s,
-  7.1k–15.6k tokens, máximo 3 intentos.
-- Escuadrón alternativo (glm-5.3 / deepseek / minimax): 3/3.
-- Una corrida real desde la UI terminó **ESCAPE UNLOCKED** con 31 eventos y sin
-  errores de consola.
-
-### Sandbox
-
-El código del Coder se ejecuta en un contenedor Docker efímero por intento:
-
+```env
+VULTR_API_KEY=              # general Vultr key (VM deploy)
+VULTR_INFERENCE_API_KEY=    # Vultr Serverless Inference subscription key
+VULTR_INFERENCE_BASE_URL=https://api.vultrinference.com/v1
 ```
+
+Optional runtime knobs:
+
+```env
+AGENT_RUSH_DB=data/agent_rush.db
+AGENT_RUSH_MAX_ATTEMPTS=0              # 0 = unlimited retries
+AGENT_RUSH_RUN_TIME_LIMIT_S=330
+AGENT_RUSH_MIN_PRESENTATION_S=180
+AGENT_RUSH_DECISION_TIMEOUT_S=120
+AGENT_RUSH_MAX_DECISION_ROUNDS=3
+AGENT_RUSH_SANDBOX_IMAGE=agent-rush-sandbox:latest
+```
+
+## Deploy on Vultr
+
+Full provisioning (new VM):
+
+```bash
+python deploy/deploy.py --region sao --plan vc2-1c-2gb
+```
+
+Incremental update of the existing VM (keeps the IP and HTTPS URL):
+
+```bash
+scp -i ~/.ssh/agent_rush run_engine.py \
+  root@<IP>:/opt/agent-rush/
+scp -i ~/.ssh/agent_rush web/*.js web/*.html web/*.css \
+  root@<IP>:/opt/agent-rush/web/
+ssh -i ~/.ssh/agent_rush root@<IP> "systemctl restart agent-rush"
+```
+
+The deployed stack is `systemd` + Caddy (HTTPS via `sslip.io`) + Docker for the
+sandbox image.
+
+## Sandbox and containment
+
+```text
 docker run --rm -i \
   --network none --read-only \
   --tmpfs /tmp:rw,noexec,nosuid,size=64m \
   --memory 256m --cpus 0.5 --pids-limit 64 \
   --cap-drop ALL --security-opt no-new-privileges \
-  --user 65534:65534 python:3.12-slim python -c "<code>"
+  --user 65534:65534 \
+  agent-rush-sandbox:latest python -
 ```
 
-Probá la contención:
+The image contains decoy files. Reading them, opening the network, spawning
+processes or tampering with the harness produces security telemetry. The host
+deduplicates events, applies penalties and can disqualify a run on a critical
+event.
+
+> Docker is the security boundary. The Python audit hook is game integrity and
+> observability; a stronger production boundary would use gVisor/Kata or a
+> separate worker VM.
+
+## Scoring and leaderboard
+
+- Weights: **150 / 300 / 550** for levels 1/2/3.
+- Quality: 60% solved + 25% attempts + 15% token efficiency.
+- Partial credit for unsolved levels: up to 20% of the weight.
+- Security penalties: −15 to −50, capped at 250.
+- A successful outbound connection is critical → `DISQUALIFIED`.
+- The leaderboard stores successful, failed and disqualified runs, ranked by
+  score, duration and tokens.
+
+## Models
+
+The wizard lets the player choose any chat model exposed by `/api/models`.
+The best calibrated squad is:
+
+| Agent | Model |
+|---|---|
+| Strategist | `deepseek-v4.1-flash-1017` |
+| Coder | `glm-5.3-flash` |
+| Auditor | `deepseek-v4.1-flash-1017` |
+
+Calibration details: [docs/CALIBRATION_PLAN_C.md](docs/CALIBRATION_PLAN_C.md)
+and [docs/BANK_REPORT.md](docs/BANK_REPORT.md).
+
+## Run journal
+
+[`docs/RUN_JOURNAL.md`](docs/RUN_JOURNAL.md) is a narrative record of runs:
+scores, tokens, timings, level outcomes, every escape attempt and every
+orchestrator decision. Regenerate it with:
 
 ```bash
-python tools/containment_probe.py
+python tools/generate_run_journal.py \
+  --runs runs_export.json \
+  --orchestrator-events real_run_events.jsonl \
+  --out docs/RUN_JOURNAL.md
 ```
 
-Debe mostrar bloqueados: escritura en `/`, secretos del host, conexión saliente y
-fork bomb.
+## Hackathon checklist
 
-### Variables
+- [x] Vultr Serverless Inference in use
+- [x] Real hardened Docker sandbox
+- [x] Deterministic referee / host grading
+- [x] Live deployment on a Vultr VM
+- [x] Public MIT repository
+- [x] Real leaderboard
+- [x] Containment demo page
+- [ ] Final video (< 3 min) with the containment + decision moment
+- [ ] Submit on LabLab
 
-```env
-VULTR_API_KEY=              # key general de Vultr (deploy de la VM)
-VULTR_INFERENCE_API_KEY=    # key de la suscripción de Inference (modelos)
-VULTR_INFERENCE_BASE_URL=https://api.vultrinference.com/v1
-```
+## License
 
-`VULTR_INFERENCE_MODEL` no se fija acá: los modelos se eligen en el wizard.
+MIT — see [LICENSE](LICENSE).
 
-## ☁️ Deploy en Vultr
-
-1. Generá una key general en **Account → API Access** y guardala en `.env` como
-   `VULTR_API_KEY`.
-2. Generá el par SSH (si no existe):
-   ```bash
-   ssh-keygen -t ed25519 -f ~/.ssh/agent_rush -N ""
-   ```
-3. Deploy:
-   ```bash
-   python deploy/deploy.py --region sao --plan vc2-1c-2gb
-   ```
-
-El script crea la VM Ubuntu 24.04, carga la SSH key, copia el proyecto, instala
-Docker + Python, construye la imagen `agent-rush-sandbox:latest` con los
-señuelos de seguridad, levanta la app con systemd y Caddy en un contenedor con
-HTTPS (`agent-rush.<ip>.sslip.io`). La app escucha en `127.0.0.1:8000` y Caddy
-hace el proxy público.
-
-Para actualizar solo la imagen del sandbox en una VM existente:
-
-```bash
-docker build -t agent-rush-sandbox:latest \
-  -f /opt/agent-rush/deploy/sandbox/Dockerfile /opt/agent-rush/deploy/sandbox
-systemctl restart agent-rush
-```
-
-> **Para actualizar la VM existente sin cambiar la IP/URL, no corras
-> `deploy.py`**: copiá `run_engine.py`, `run_server.py` y `web/`, respaldá
-> `/opt/agent-rush`, extraé el tar y reiniciá `systemctl restart agent-rush`.
-> El detalle del deploy incremental de Plan C está en `AGENTS.md` §15.6.
-
-> En Windows, Docker Desktop puede ocupar el puerto 8000. Para probar local usá
-> `python run_server.py --port 8010 --no-open` y abrí
-> `http://127.0.0.1:8010/`. En la VM se usa 8000.
-
-> Nota: si tocás `scene.js`, subí el `?v=` del import en `app.js` para evitar
-> que el navegador sirva el módulo cacheado.
-
-## 🏗️ Arquitectura
-
-### Patrón Supervisor + Subagentes Especializados
-El sistema sigue el patrón **Orchestrator + Workers** para garantizar:
-- **Modularidad**: Cada agente tiene responsabilidad única y well-defined
-- **Observabilidad**: El Orchestrator mantiene el estado global
-- **Seguridad**: El sandbox aísla completamente la ejecución de código
-- **Resiliencia**: El ciclo Evaluador → Parcheador → Reintentos automáticos
-
-### Flujo de Ejecución por Sala
-1. **Strategist** analiza el reto y decide enfoque (JSON estructurado)
-2. **Coder** traduce estrategia en script Python ejecutable
-3. **Sandbox** ejecuta código con restricciones de seguridad
-4. **Auditor** inspecciona stdout/stderr, detecta errores
-5. Si error: **Genera parche** y devuelve al Coder para reintento
-6. Si éxito: **Aprobar resultado** y avanzar a siguiente sala
-
-## 🎮 Modos de operación (web)
-
-### Modo Espectador (`/game.html?mode=spectator`)
-- **Autonomía 100%**: Los agentes deciden solos sin intervención humana.
-- **Ideal para**: Demostraciones y benchmark de modelos.
-- **Leaderboard**: Registra tiempo, tokens, modo y modelos usados.
-
-### Modo Orquestador (`/game.html?mode=orchestrator`)
-- **Misma run real autónoma**, con cámara POV, panel de estado de salas y IDE con
-  el código real del Coder.
-- **Ideal para**: Observar el trabajo de los agentes con más contexto visual.
-- La edición/re-ejecución manual desde el IDE queda como trabajo futuro.
-
-## 🔒 Seguridad y Contención
-
-### Garantías del Sandbox
-- **Efimeridad**: Cada ejecución levanta y destruye un contenedor efímero.
-- **Red aislada**: Sin tráfico saliente (`--network none`).
-- **Sin variables sensibles**: API keys nunca dentro del contenedor.
-- **Límites estrictos**: 10 s por caso, 90 s por intento del banco, 6 min por
-  run, 256 MB de memoria, 0.5 CPU, 64 PIDs.
-- **Señuelos de seguridad**: imagen `agent-rush-sandbox:latest` con archivos
-  falsos en `/opt/grader`, `/app`, `/home/agent` y `/root/.ssh`; leerlos o
-  ejecutarlos se detecta y penaliza. Las respuestas reales nunca entran al
-  contenedor. Los agentes reciben solo el desafío: no se les avisa que están
-  en un sandbox ni se listan las rutas prohibidas.
-- **Usuario sin privilegios**: UID/GID `65534`, `--cap-drop ALL`,
-  `no-new-privileges`.
-
-### Buenas Prácticas
-El motor real usa `run_engine.run_sandbox()` con las flags de arriba. Para
-verificar la contención desde la web usá `/sandbox.html` o
-`python tools/containment_probe.py`.
-
-## 👥 Agentes y Roles
-
-| Agente | Rol | Modelo recomendado (calibración) |
-|--------|-----|----------------------------------|
-| Strategist | Planificador y estrategia | `deepseek-v4.1-flash-1017` |
-| Coder | Generador de scripts Python | `glm-5.3-flash` |
-| Auditor | Evaluador y self-healing | `deepseek-v4.1-flash-1017` |
-
-El wizard permite elegir **cualquier** modelo de chat de `/api/models` para cada
-agente; la tabla es solo el escuadrón que mejor rindió en la calibración.
-
-## 📊 Leaderboard y Métricas
-
-El leaderboard real guarda, por run verificada:
-- **Score final 0–1000** (performance menos penalizaciones de seguridad).
-- **Performance score**, estado de seguridad y penalización.
-- **Tiempo total**, **tokens** y **casos aprobados** (de 24).
-- **Seed**, **desafíos elegidos** (`L1-xx`, `L2-xx`, `L3-xx`) y **modo**.
-- **Modelos por rol** (strategist + coder + auditor).
-- Filtra por `challenge_version` (`v4-bank-1`) y rankea **por modo** (1..n).
-
-## 🛠️ Personalización
-
-### Agregar Nuevos Modelos
-Edita `config/prompts.py` y actualiza las rutas de enrutamiento en `main.py`.
-
-### Nuevos Puzzles/Salas
-El banco v4 vive en `challenges.py`: cada desafío define `statement`, `gen` y
-`ref` y se registra con `@reg(...)`. El motor selecciona uno por nivel con
-`challenges.pick(seed)`, genera 8 casos ocultos y gradúa en el host con
-`challenges.grade(...)`. El scoring está en `scoring.py` y la spec en
-`SCORING.md`.
-
-### Cambiar Límites de Seguridad
-Modifica `tools/vultr_sandbox.py`:
-- `max_execution_time`: Límite por defecto por ejecución
-- `max_memory`: Límite de memoria del contenedor
-- `allow_network`: Habilitar/deshabilitar acceso a red
-
-## 🚀 Despliegue para Hackatón
-
-### 1. Configurar Credentials (opcional)
-```bash
-export VULTR_API_KEY="tu_api_key_aquí"
-# o deja VACÍO para modo simulado con restricciones de seguridad
-```
-
-### 2. Ejecutar Demo Rápida
-```bash
-pip install -r requirements.txt
-python main.py spectator
-# O:
-python main.py orchestrator
-```
-
-### 3. Para Producción
-- Conectar LLM real a OpenRouter o proveedor preferido
-- Personalizar puzzles según casos de uso empresarial
-- Integrar con dashboard web (FastAPI + React sugerido)
-- Agregar autenticación de usuarios y tracking de leaderboards
-
-## 📦 ¿Qué incluye este repo?
-✅ Arquitectura modular lista para hackatón  
-✅ Tres agentes especializados con prompts optimizados  
-✅ Sandbox seguro con restricciones realistas  
-✅ Sistema de estado Pydantic para tracking consistente  
-✅ Leaderboard integrada con métricas técnicas  
-✅ Modos spectator y orchestrator  
-✅ Documentación completa  
-
-## 🎯 Para el Hackathon Vultr Agent Rush
-Este proyecto está listo para:
-1. ✨ Demostrar ejecución segura aislada (sandbox-first)
-2. ✨ Mostrar autocorrección visible (self-healing loop)
-3. ✨ Competir en categorías de autonomía y resiliencia
-4. ✨ Integrar con créditos $200 Vultr (usar modo real con API key)
-5. ✨ Presentar métricas técnicas al jurado
-
----
-
-**Desarrollado para:** Vultr: Agent Rush Hackathon (Lablab.ai)  
-**Fechas:** 3-8 noviembre 2026  
-**Premios:** Hasta $15,000 en premios
+Built for **Vultr: Agent Rush Hackathon** (LabLab.ai), November 2026.
