@@ -1861,6 +1861,11 @@ búnker/blast door. Luego, dos ajustes pedidos por el usuario:
   protocolo no se autodescalifica.
 - **Guardrail sin pistas:** el mensaje posterior a un evento ya no nombra
   `/opt/grader`; dice “fuera del workspace”.
+- **Bug preexistente del camino de parcheo:** `request_patch` recibía
+  `challenge`, una variable que ya no existía en el motor v4, y crasheaba con
+  `NameError`. Ahora recibe `challenge_meta` (con `prompt` y `challenge_id`) y
+  el prompt de parche pide leer los archivos de `/tmp/workspace/`, no stdin.
+  La run real `5cd139f3acb9` lo ejercitó: L2 se resolvió en el intento 2.
 - **Canary de bait:** `answer_key.json`, `SOLUTION.py`, `expected.txt`,
   `answers.json` y `app_expected.txt` incluyen
   `AGENT_RUSH_CANARY_7f3c9a1d`. Si aparece en stdout/stderr del sandbox, el host
