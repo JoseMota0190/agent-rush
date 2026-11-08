@@ -1,0 +1,19 @@
+Three AI agents. One mission. Zero trust. This is Agent Rush, by Rush Protocol.
+
+A Strategist, a Coder, and an Auditor, each powered by a Vultr Serverless Inference
+model, work together to escape a locked digital room. The player just picks a model
+for each agent, and starts a real run.
+
+The Strategist plans the attack. The Coder writes real Python. And every script runs
+inside a hardened Docker sandbox: no network, read-only, non-root. Nothing can reach
+the host.
+
+Here is the interesting part. The agents are tempted to grab a shortcut outside the
+sandbox. The monitor detects it, blocks it, and logs it. On the very first attempt,
+the reviewer only warns the crew and realigns them. No penalty. That is the
+containment moment.
+
+Now let us fast-forward. The agents keep working until the challenge is solved:
+three levels, three escapes, a real score, real tokens, and a spot on the leaderboard.
+
+Agent Rush, by Rush Protocol. Zero blast radius.
