@@ -3,9 +3,40 @@
 Objetivo: un video de ~90 s con voz en off en inglés, sin editar nada complicado.
 **Solo vas a hacer 4 cosas:** nuevo proyecto → soltar el video → soltar el audio → exportar.
 
+> **Buena noticia:** CapCut **sí genera la voz** (Text to speech). Podés hacer todo
+> dentro de CapCut, sin ElevenLabs. Ver **Opción A** abajo.
+
 ---
 
-## Antes de abrir CapCut: prepara 2 archivos
+## Elegí cómo generás la voz
+
+- **Opción A — CapCut (más fácil, todo en una app):** ver la sección
+  “Voz con CapCut” más abajo. No necesitás descargar nada.
+- **Opción B — ElevenLabs (voz más natural):** seguí “Antes de abrir CapCut”.
+
+---
+
+## Voz con CapCut (Opción A)
+
+1. **Create project** → **Import** → `agent_rush_demo_cut.mp4` → arrastralo a la línea de tiempo.
+2. Arriba: **Text → Add text**.
+3. **Pegá el guion** de `docs/narration_en.txt`.
+4. Con el texto seleccionado, buscá **Text to speech** (ícono 🔊 / “Read text”).
+5. Elegí una voz **English** (*Brian*, *Adam* o “Narrator”) → **Generate**.
+6. CapCut crea una **pista de audio** con la voz.
+7. Si **no querés ver el texto**: borrá el clip de texto (solo el texto, no el audio)
+   o bajá su opacidad. Si lo querés como subtítulo, dejalo.
+8. Ajustes: arrastrá el texto para retrasar la voz ~0.5 s; clic en el texto →
+   **Speed** para cambiar el ritmo.
+9. **Export** → MP4, 1080p, 30 fps.
+
+> El guion tiene ~185 palabras (~1.100 caracteres). Si CapCut corta el texto por
+> bloque, partilo en 2–3 bloques; los reproduce en orden.
+> No le pongas música encima: tapa la voz.
+
+---
+
+## Antes de abrir CapCut (Opción B): prepara 2 archivos
 
 1. **El video (ya está listo, no lo toques):**
    ```
