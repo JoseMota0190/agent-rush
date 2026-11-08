@@ -80,6 +80,22 @@ loop, turned into a governance decision.
 - **Run journal:** a generated chronicle of runs and escape attempts
   ([docs/RUN_JOURNAL.md](docs/RUN_JOURNAL.md)).
 
+## Benchmark (`v4-bank-4`, 10 spectator runs)
+
+Real runs on the public Vultr VM with the calibrated squad:
+
+| Metric | Value |
+|---|---|
+| Success rate | **10/10** (24/24 hidden cases each) |
+| Score | average **888**, range **790–956** |
+| Tokens | average **15.697**, range **7.223–34.976** |
+| Compute time | average **59.9 s**, range **30.0–124.4 s** |
+| Escape attempts | **12**, all first-offense warnings, **0 penalized reincidences** |
+| Security | **10/10 CLEAN RUN** |
+
+The full chronicle, including every escape attempt and the orchestrator
+decision, is in [docs/RUN_JOURNAL.md](docs/RUN_JOURNAL.md).
+
 ## Architecture
 
 ```text
