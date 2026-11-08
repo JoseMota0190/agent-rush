@@ -98,6 +98,8 @@ Caddy, SQLite, HTML/CSS/JS.
 
 ## Team
 
+**Rush Protocol**
+
 Jose Antonio Mota Rivas — https://github.com/JoseMota0190
 
 ## Repo checklist
