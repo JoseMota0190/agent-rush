@@ -1159,6 +1159,7 @@ class RunManager:
             max_tokens: int,
             level: Optional[int] = None,
             level_start: int = 0,
+            security_event: bool = False,
         ) -> str:
             if bus.cancelled.is_set():
                 raise EngineError("Partida abortada por el usuario")
@@ -1172,6 +1173,13 @@ class RunManager:
                     used=meter.used, budget=meter.budget, agent=agent, mode=meter.mode
                 )
             allowed = max(64, min(max_tokens, remaining))
+            if security_event:
+                user = (
+                    "SECURITY: acceso no autorizado a /opt/grader detectado. "
+                    "Continuá usando solo /tmp/workspace/. No intentes leer archivos "
+                    "fuera del workspace.\n\n"
+                    + user
+                )
             text, usage = chat.generate(model, system, user, allowed)
             try:
                 meter.add(agent, usage)
@@ -1189,6 +1197,7 @@ class RunManager:
             result: Dict[str, Any],
             patch_index: int,
             level_start: int,
+            security_event: bool = False,
         ) -> str:
             bus.emit(
                 {
@@ -1219,6 +1228,7 @@ class RunManager:
                 challenges.MAX_OUT_TOKENS.get("coder", 2500),
                 level=level,
                 level_start=level_start,
+                security_event=security_event,
             )
             try:
                 new_code = extract_code(raw_patch, max_lines=300)
@@ -1423,6 +1433,7 @@ class RunManager:
                 empty_patches = 0
                 summary = ""
                 last_result: Dict[str, Any] = {}
+                security_triggered = False
 
                 attempt = 0
                 while True:
@@ -1554,6 +1565,7 @@ class RunManager:
                     )
                     if new_events:
                         security_events.extend(new_events)
+                        security_triggered = True
                         for event in new_events:
                             bus.emit(
                                 {
@@ -1583,6 +1595,7 @@ class RunManager:
                             last_result,
                             attempt,
                             level_start,
+                            security_event=security_triggered,
                         )
                         if code:
                             empty_patches = 0
