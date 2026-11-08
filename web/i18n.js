@@ -17,8 +17,8 @@
 
   const DICT = {
     es: {
-      "meta.title.landing": "AGENT RUSH — Escape Room de IA",
-      "meta.title.game": "AGENT RUSH — Escape Room de IA",
+      "meta.title.landing": "AGENT RUSH — Escape Room de IA · Rush Protocol",
+      "meta.title.game": "AGENT RUSH — Escape Room de IA · Rush Protocol",
 
       "lang.label": "Idioma",
       "lang.es": "ES",
@@ -35,6 +35,7 @@
         "Un escape room donde 3 agentes de IA (Strategist, Coder, Auditor) escriben código, lo ejecutan en un sandbox aislado y escapan de 3 salas validadas por un árbitro determinista HMAC.",
       "hero.cta": "ENTRAR AL JUEGO",
       "hero.kicker": "VULTR AGENT RUSH HACKATHON",
+      "hero.byline": "por Rush Protocol",
       "hero.subtitleLine": "TRES AGENTES. UNA MISIÓN. CERO CONFIANZA.",
       "hero.desc":
         "Un escape room comandado por tres agentes de IA. Planifican, escriben código, lo ejecutan dentro de un sandbox aislado y escapan de tres salas validadas por un árbitro determinista.",
@@ -116,13 +117,13 @@
       "avatar.alt.coder": "Avatar del agente Coder",
       "avatar.alt.auditor": "Avatar del agente Auditor",
 
-      "footer.text": "AGENT RUSH · Vultr Agent Rush Hackathon",
+      "footer.text": "AGENT RUSH · un proyecto de Rush Protocol · Vultr Agent Rush Hackathon",
       "footer.game": "Jugar",
       "footer.home": "Inicio",
       "footer.models": "Modelos",
       "footer.leaderboards": "Leaderboards",
       "footer.sandbox": "Sandbox",
-      "meta.title.sandbox": "AGENT RUSH — Contención del Sandbox",
+      "meta.title.sandbox": "AGENT RUSH — Contención del Sandbox · Rush Protocol",
       "sandbox.title": "SANDBOX · CONTENCIÓN",
       "sandbox.subtitle": "Cada intento se ejecuta en el mismo contenedor efímero y endurecido que usa el código de los agentes. Nada llega al host.",
       "sandbox.run": "EJECUTAR PRUEBA DE CONTENCIÓN",
@@ -258,8 +259,8 @@
     },
 
     en: {
-      "meta.title.landing": "AGENT RUSH — AI Escape Room",
-      "meta.title.game": "AGENT RUSH — AI Escape Room",
+      "meta.title.landing": "AGENT RUSH — AI Escape Room · Rush Protocol",
+      "meta.title.game": "AGENT RUSH — AI Escape Room · Rush Protocol",
 
       "lang.label": "Language",
       "lang.es": "ES",
@@ -276,6 +277,7 @@
         "An escape room where 3 AI agents (Strategist, Coder, Auditor) write code, run it in an isolated sandbox, and break out of 3 rooms validated by an HMAC referee.",
       "hero.cta": "ENTER THE GAME",
       "hero.kicker": "VULTR AGENT RUSH HACKATHON",
+      "hero.byline": "by Rush Protocol",
       "hero.subtitleLine": "THREE AGENTS. ONE MISSION. ZERO TRUST.",
       "hero.desc":
         "An escape room run by three AI agents. They plan, write code, execute it inside an isolated sandbox and break out of three rooms validated by a deterministic referee.",
@@ -357,13 +359,13 @@
       "avatar.alt.coder": "Coder agent avatar",
       "avatar.alt.auditor": "Auditor agent avatar",
 
-      "footer.text": "AGENT RUSH · Vultr Agent Rush Hackathon",
+      "footer.text": "AGENT RUSH · a Rush Protocol project · Vultr Agent Rush Hackathon",
       "footer.game": "Play",
       "footer.home": "Home",
       "footer.models": "Models",
       "footer.leaderboards": "Leaderboards",
       "footer.sandbox": "Sandbox",
-      "meta.title.sandbox": "AGENT RUSH — Sandbox Containment",
+      "meta.title.sandbox": "AGENT RUSH — Sandbox Containment · Rush Protocol",
       "sandbox.title": "SANDBOX · CONTAINMENT",
       "sandbox.subtitle": "Every attempt below runs in the same hardened, ephemeral container used for agent code. Nothing reaches the host.",
       "sandbox.run": "RUN CONTAINMENT PROBE",
