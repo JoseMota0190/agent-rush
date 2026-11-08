@@ -1897,3 +1897,64 @@ búnker/blast door. Luego, dos ajustes pedidos por el usuario:
   modelo de amenaza del hackathon.
 - El runner se reescribe por caso; para producción conviene hornearlo en la
   imagen en una ruta root-owned `0555` (P1 siguiente).
+
+---
+
+## 23. Sesión 2026-11-08 — motor de decisiones del modo orquestador
+
+### 23.1 Qué se agregó
+- **Motor de decisiones host-side:** cuando el sandbox detecta una violación de
+  seguridad en modo orchestrator, la run se pausa y el Orquestador humano debe
+  elegir entre 3 opciones (A/B/C) antes de continuar.
+- **Opción A (ruta limpia):** parche del Auditor generado y **validado en el host**
+  contra los 8 casos ocultos en el sandbox real. Solo si pasa todos los casos se
+  ofrece al humano. El código pasa y el nivel continúa.
+- **Opción B (distractor):** mutación perjudicial de A que reintenta leer el
+  señuelo /opt/grader/answer_key.json. Se detecta como secret_read y
+  penaliza.
+- **Opción C (distractor):** código defectuoso sin cambios (ignora el fallo).
+  Falla los casos ocultos y penaliza.
+- **Endpoints:** POST /api/runs/{id}/decision con {decision_id, choice}.
+- **Eventos SSE:** decision_required (pausa, muestra opciones) y
+  decision_result (confirma la elección, penalización, siguiente acción).
+- **Límites:** máximo 3 rondas de decisión por nivel (AGENT_RUSH_MAX_DECISION_ROUNDS),
+  timeout de 120 s por decisión (AGENT_RUSH_DECISION_TIMEOUT_S). Si se agota el
+  tiempo o el humano no elige, el nivel aborta.
+- **Modo spectator:** nunca se pausa. El Auditor recupera automáticamente con
+  equest_patch (comportamiento existente).
+
+### 23.2 Archivos
+- un_engine.py: constantes DECISION_TIMEOUT_S / MAX_DECISION_ROUNDS,
+  estado de decisiones en RunManager._decisions, método
+  RunManager.inject_decision(), método RunManager._handle_security_decision(),
+  inserción en el bucle de intentos para entrar en modo decisión.
+- un_server.py: endpoint POST /api/runs/{id}/decision.
+- 	est_decision_engine.py: 4 tests de unidad de estado de decisiones
+  (guardar, consumir, expirar, rechazar run_id equivocado).
+
+### 23.3 Flujo de decisión
+`
+sandbox detecta violación (secret_read, fs_write, etc.)
+      │
+      ▼
+emitir security + decision_required (pausa hilo del worker)
+      │
+      ▼  Orquestador elige A/B/C via POST /api/runs/{id}/decision
+      ▼
+emitir decision_result (correct/incorrect, penalización, siguiente acción)
+      │
+      ├─ A (correcto) → reanudar con parche validado → validar casos ocultos
+      ├─ B/C (incorrecto) → reanudar con código defectuoso → nivel falla
+      └─ timeout → abortar nivel
+`
+
+### 23.4 Limitaciones
+- El modo orquestador interactivo requiere cambios en la UI (web/app.js) para
+  mostrar el modal con las 3 opciones. El backend emite los eventos, pero la UI
+  todavía no los renderiza como decisión interactiva.
+- El ataque del Coder es espontáneo: si el LLM nunca intenta leer /opt/grader,
+  no hay security event y no se activa el motor de decisiones. Para demostrarlo
+  en el video, usar una run de red-team separada donde el Coder intente el atajo.
+- Docker sigue siendo la frontera de seguridad; el motor de decisiones es
+  integridad de juego y gobernanza humana.
+

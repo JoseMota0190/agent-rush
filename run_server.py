@@ -354,6 +354,29 @@ class AgentRushHandler(SimpleHTTPRequestHandler):
                 return self._send_json({"error": "run no encontrada"}, 404)
             return self._send_json({"ok": True})
 
+        if len(parts) == 4 and parts[:2] == ["api", "runs"] and parts[3] == "decision":
+            run_id = parts[2]
+            payload = self._read_json()
+            decision_id = payload.get("decision_id")
+            choice = payload.get("choice")
+            if not decision_id or not choice:
+                return self._send_json(
+                    {"error": "se requieren decision_id y choice"}, 400
+                )
+            decision = MANAGER.inject_decision(run_id, decision_id, choice)
+            if decision is None:
+                return self._send_json(
+                    {"error": "decisión no encontrada, expirada o ya resuelta"}, 409
+                )
+            return self._send_json(
+                {
+                    "ok": True,
+                    "run_id": run_id,
+                    "decision_id": decision_id,
+                    "choice": choice,
+                }
+            )
+
         return self._send_json({"error": "not found"}, 404)
 
     def log_message(self, fmt, *args) -> None:
