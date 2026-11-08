@@ -593,3 +593,204 @@
     animation: none !important;
   }
 }
+/* ============================================================
+   ORCHESTRATOR SECURITY DECISION
+   ============================================================ */
+.decision-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 120;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 20%, rgba(255, 173, 37, 0.08), transparent 55%),
+    rgba(2, 7, 14, 0.86);
+  backdrop-filter: blur(7px);
+}
+
+.decision-overlay[hidden] {
+  display: none;
+}
+
+.decision-panel {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  border: 1px solid var(--line, #17344b);
+  border-radius: 16px;
+  background: linear-gradient(165deg, #0c1928 0%, #08131f 100%);
+  box-shadow:
+    0 0 0 1px rgba(255, 173, 37, 0.16),
+    0 28px 80px rgba(0, 0, 0, 0.65);
+}
+
+.decision-head {
+  padding: 22px 24px 16px;
+  border-bottom: 1px solid var(--line, #17344b);
+}
+
+.decision-kicker {
+  display: inline-block;
+  margin-bottom: 8px;
+  color: var(--orange, #ffad25);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.decision-head h2 {
+  margin: 0 0 8px;
+  font-family: Orbitron, Inter, sans-serif;
+  font-size: clamp(17px, 2.4vw, 24px);
+  letter-spacing: 0.05em;
+  color: #f3f7fb;
+}
+
+.decision-head p {
+  margin: 0;
+  color: var(--muted, #8fa3b8);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.decision-security {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border: 1px solid rgba(255, 173, 37, 0.32);
+  border-radius: 9px;
+  background: rgba(255, 173, 37, 0.07);
+  color: #ffd28a;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.decision-options {
+  display: grid;
+  gap: 10px;
+  padding: 16px 24px;
+}
+
+.decision-option {
+  display: block;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid var(--line, #17344b);
+  border-radius: 11px;
+  background: rgba(8, 19, 31, 0.9);
+  color: #dfe9f2;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, background 0.15s ease;
+}
+
+.decision-option:hover:not(:disabled),
+.decision-option:focus-visible {
+  border-color: var(--orange, #ffad25);
+  background: rgba(255, 173, 37, 0.06);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.decision-option:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.decision-option-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.decision-option-key {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: rgba(255, 173, 37, 0.14);
+  color: var(--orange, #ffad25);
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.decision-option-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.decision-option-badge {
+  margin-left: auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
+.decision-option-badge.ok {
+  background: rgba(19, 219, 140, 0.14);
+  color: var(--green, #13db8c);
+}
+
+.decision-option-badge.bad {
+  background: rgba(255, 90, 90, 0.12);
+  color: #ff7a7a;
+}
+
+.decision-option-summary {
+  margin: 0 0 5px;
+  color: #9fb2c4;
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 10.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.decision-option-rationale {
+  margin: 0;
+  color: #71869a;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.decision-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 13px 24px 18px;
+  border-top: 1px solid var(--line, #17344b);
+  color: var(--muted, #8fa3b8);
+  font-size: 11px;
+}
+
+#decisionTimer {
+  color: var(--orange, #ffad25);
+  font-family: "JetBrains Mono", Consolas, monospace;
+}
+
+.decision-note {
+  color: #71869a;
+}
+
+@media (max-width: 560px) {
+  .decision-overlay {
+    padding: 12px;
+  }
+
+  .decision-head,
+  .decision-options,
+  .decision-foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

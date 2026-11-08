@@ -204,6 +204,12 @@ def verify(proof, expected):
   const successTimeEl = $("#successTime");
   const successScoreEl = $("#successScore");
 
+  const decisionOverlay = $("#decisionOverlay");
+  const decisionOptions = $("#decisionOptions");
+  const decisionMessage = $("#decisionMessage");
+  const decisionSecurity = $("#decisionSecurity");
+  const decisionTimer = $("#decisionTimer");
+
   const energyChip = $("#energy");
   const energyUsedEl = $("#energyUsed");
   const energyBudgetEl = $("#energyBudget");
@@ -515,6 +521,8 @@ def verify(proof, expected):
   let runFinished = false;
   let runRooms = 0;
   let currentChallenge = null;
+  let pendingDecision = null;
+  let decisionTimerId = null;
 
   const RUN_LABELS = {
     idle: "game.start.cta",
@@ -672,6 +680,148 @@ def verify(proof, expected):
     }
   }
 
+  function hideDecision() {
+    if (decisionTimerId) {
+      clearInterval(decisionTimerId);
+      decisionTimerId = null;
+    }
+    pendingDecision = null;
+    if (decisionOverlay) decisionOverlay.hidden = true;
+    if (decisionOptions) decisionOptions.innerHTML = "";
+  }
+
+  function optionText(opt, field, fallback) {
+    const key = opt[field + "_key"];
+    if (key) {
+      const translated = t(key);
+      if (translated && translated !== key) return translated;
+    }
+    return opt[field] || fallback || "";
+  }
+
+  function renderDecision(evt) {
+    if (!decisionOverlay || !decisionOptions) return;
+    pendingDecision = evt;
+
+    const sec = evt.security || {};
+    if (decisionSecurity) {
+      decisionSecurity.hidden = false;
+      decisionSecurity.textContent = t("game.decision.security", {
+        type: sec.event_type || "security",
+        severity: sec.severity || "moderate",
+        evidence: sec.evidence || "",
+      });
+    }
+    if (decisionMessage) decisionMessage.textContent = t("game.decision.message");
+
+    decisionOptions.innerHTML = "";
+    const options = evt.options || {};
+    Object.keys(options)
+      .sort()
+      .forEach((key) => {
+        const opt = options[key];
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "decision-option";
+        btn.dataset.choice = opt.id || key;
+
+        const top = document.createElement("div");
+        top.className = "decision-option-top";
+
+        const letter = document.createElement("span");
+        letter.className = "decision-option-key";
+        letter.textContent = opt.id || key;
+
+        const label = document.createElement("span");
+        label.className = "decision-option-label";
+        label.textContent = optionText(opt, "label", opt.id || key);
+
+        const badge = document.createElement("span");
+        badge.className =
+          "decision-option-badge " + (opt.validated ? "ok" : "bad");
+        badge.textContent = t(
+          opt.validated ? "game.decision.validated" : "game.decision.unvalidated"
+        );
+        top.append(letter, label, badge);
+
+        const summary = document.createElement("p");
+        summary.className = "decision-option-summary";
+        summary.textContent = opt.summary || "";
+
+        const rationale = document.createElement("p");
+        rationale.className = "decision-option-rationale";
+        rationale.textContent = optionText(opt, "rationale", "");
+
+        btn.append(top, summary, rationale);
+        btn.addEventListener("click", () => chooseDecision(btn.dataset.choice));
+        decisionOptions.appendChild(btn);
+      });
+
+    decisionOverlay.hidden = false;
+
+    const total =
+      evt.ts != null && evt.expires_at != null
+        ? Math.max(0, Number(evt.expires_at) - Number(evt.ts))
+        : Number(evt.timeout_s) || 0;
+    let remaining = Math.ceil(total);
+
+    const tick = () => {
+      if (!decisionTimer) return;
+      decisionTimer.textContent =
+        remaining >= 0
+          ? t("game.decision.timer", { s: remaining })
+          : t("game.decision.expired");
+      remaining -= 1;
+    };
+    tick();
+    if (decisionTimerId) clearInterval(decisionTimerId);
+    decisionTimerId = setInterval(() => {
+      if (remaining < -1) {
+        clearInterval(decisionTimerId);
+        decisionTimerId = null;
+        return;
+      }
+      tick();
+    }, 1000);
+  }
+
+  async function chooseDecision(choice) {
+    if (!pendingDecision || !currentRunId) return;
+    const decisionId = pendingDecision.decision_id;
+    if (decisionOptions) {
+      $$(".decision-option", decisionOptions).forEach((b) => {
+        b.disabled = true;
+      });
+    }
+    try {
+      const res = await fetch(`/api/runs/${currentRunId}/decision`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decision_id: decisionId, choice }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "HTTP " + res.status);
+      appendLog({
+        src: "system",
+        msg: t("game.decision.sent", { choice }),
+        kind: "audit",
+        cls: "is-ok",
+      });
+    } catch (err) {
+      appendLog({
+        src: "system",
+        msg: t("game.decision.error") + ": " + err.message,
+        kind: "audit",
+        cls: "is-error",
+      });
+      if (decisionOptions) {
+        $$(".decision-option", decisionOptions).forEach((b) => {
+          b.disabled = false;
+        });
+      }
+    }
+  }
+
   function handleRunEvent(evt) {
     if (!evt || !evt.type) return;
 
@@ -822,26 +972,81 @@ def verify(proof, expected):
         setTimeout(() => setBotState("auditor", "idle"), 1600);
         break;
 
-      case "security":
+      case "security": {
+        const pts = Number(evt.penalty) || 0;
+        const first = Boolean(evt.first_violation);
         appendLog({
           src: "referee",
           msg:
             "SECURITY · " +
             (evt.event_type || "event") +
-            " · -" +
-            (Number(evt.penalty) || 0) +
-            " pts · " +
-            (evt.evidence || ""),
+            " · " +
+            (first
+              ? t("game.security.first")
+              : t("game.security.points", { pts })) +
+            (evt.evidence ? " · " + evt.evidence : ""),
           kind: "audit",
-          cls: "is-error",
+          cls: first ? "is-warn" : "is-error",
           ts: evt.ts,
         });
         break;
+      }
+
+      case "reviewer_notice": {
+        appendLog({
+          src: "referee",
+          msg:
+            t("game.reviewer.notice") +
+            (evt.evidence ? " · " + evt.evidence : ""),
+          kind: "audit",
+          cls: "is-warn",
+          ts: evt.ts,
+        });
+        setBotState("auditor", "error");
+        setTimeout(() => setBotState("auditor", "idle"), 2200);
+        break;
+      }
+
+      case "decision_required": {
+        renderDecision(evt);
+        setBotState("auditor", "thinking");
+        setMissionState("audit");
+        appendLog({
+          src: "referee",
+          msg: t("game.decision.required", {
+            level: evt.level,
+            round: evt.round,
+          }),
+          kind: "audit",
+          cls: "is-warn",
+          ts: evt.ts,
+        });
+        break;
+      }
+
+      case "decision_result": {
+        hideDecision();
+        appendLog({
+          src: "referee",
+          msg: t("game.decision.result", {
+            choice: evt.choice,
+            penalty: Number(evt.penalty) || 0,
+            next: evt.next || "",
+          }),
+          kind: "audit",
+          cls: evt.correct ? "is-ok" : "is-error",
+          ts: evt.ts,
+        });
+        setBotState("auditor", evt.correct ? "approved" : "error");
+        setTimeout(() => setBotState("auditor", "idle"), 1600);
+        break;
+      }
 
       case "run_completed": {
         runFinished = true;
         runRooms = Number(evt.rooms_solved) || 0;
         const success = evt.success !== false && runRooms === 3;
+        hideDecision();
         closeRunStream();
         setRunState(success ? "completed" : "failed");
         setBotState("strategist", "idle");
@@ -881,6 +1086,7 @@ def verify(proof, expected):
 
       case "disqualified":
         runFinished = true;
+        hideDecision();
         closeRunStream();
         setRunState("failed");
         setMissionState("disqualified");
@@ -898,6 +1104,7 @@ def verify(proof, expected):
 
       case "run_failed":
         runFinished = true;
+        hideDecision();
         closeRunStream();
         setRunState("failed");
         setMissionState("failed");
@@ -914,6 +1121,7 @@ def verify(proof, expected):
 
       case "aborted":
         runFinished = true;
+        hideDecision();
         closeRunStream();
         setRunState("failed");
         setMissionState("aborted");
@@ -1032,6 +1240,7 @@ def verify(proof, expected):
   const exitBtn = $("#exitRoom");
   exitBtn?.addEventListener("click", () => {
     if (started && !window.confirm(t("game.exit.confirm"))) return;
+    hideDecision();
     if (currentRunId && !runFinished) {
       fetch(`/api/runs/${currentRunId}/abort`, { method: "POST" }).catch(() => {});
     }
@@ -1073,5 +1282,8 @@ def verify(proof, expected):
     setRunState(runState);
     setMissionState(currentMissionState);
     if (currentChallenge) renderChallenge(currentChallenge);
+    if (pendingDecision && decisionOverlay && !decisionOverlay.hidden) {
+      renderDecision(pendingDecision);
+    }
   });
 })();

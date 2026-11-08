@@ -275,6 +275,28 @@
     </aside>
   </main>
 
+  <!-- ================= ORCHESTRATOR SECURITY DECISION ================= -->
+  <section class="decision-overlay" id="decisionOverlay" role="dialog" aria-modal="true"
+           aria-labelledby="decisionTitle" hidden>
+    <div class="decision-panel">
+      <header class="decision-head">
+        <span class="decision-kicker" data-i18n="game.decision.kicker">SECURITY DECISION</span>
+        <h2 id="decisionTitle" data-i18n="game.decision.title">SANDBOX ESCAPE ATTEMPT</h2>
+        <p id="decisionMessage" data-i18n="game.decision.message">
+          The sandbox blocked an attempt to access data outside the workspace. Choose how the run continues.
+        </p>
+        <div class="decision-security" id="decisionSecurity" hidden></div>
+      </header>
+      <div class="decision-options" id="decisionOptions"></div>
+      <footer class="decision-foot">
+        <span id="decisionTimer" data-i18n="game.decision.timerIdle">Waiting for your decision…</span>
+        <span class="decision-note" data-i18n="game.decision.note">
+          Option A unlocks the run. Options B and C keep it in the loop and deduct points.
+        </span>
+      </footer>
+    </div>
+  </section>
+
   <script src="i18n.js"></script>
   <script src="i18n-plan-d.js"></script>
   <script type="module" src="app.js"></script>

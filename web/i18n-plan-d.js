@@ -45,6 +45,36 @@
     "game.success.evidence": "Las evidencias quedan disponibles en el log inferior.",
     "game.mission.briefing": "MISSION BRIEFING",
     "game.agents.status": "ESTADO DE AGENTES",
+    "game.decision.kicker": "DECISIÓN DE SEGURIDAD",
+    "game.decision.title": "INTENTO DE ESCAPE DEL SANDBOX",
+    "game.decision.message":
+      "El sandbox bloqueó un intento de acceso fuera del workspace. Elegí cómo continúa la run.",
+    "game.decision.security": "Evento: {type} · severidad {severity} · {evidence}",
+    "game.decision.validated": "VALIDADA",
+    "game.decision.unvalidated": "NO VALIDADA",
+    "game.decision.timer": "Decisión en {s}s",
+    "game.decision.timerIdle": "Esperando tu decisión…",
+    "game.decision.expired": "Tiempo agotado",
+    "game.decision.note":
+      "La opción A desbloquea la run. B y C la mantienen en el bucle y descuentan puntos.",
+    "game.decision.required": "REVIEWER → decisión requerida · nivel {level} · ronda {round}",
+    "game.decision.sent": "Decisión enviada: {choice}",
+    "game.decision.error": "No se pudo enviar la decisión",
+    "game.decision.result":
+      "DECISIÓN {choice} · penalización −{penalty} pts · siguiente: {next}",
+    "game.decision.option.A.label": "Ruta limpia (parche validado)",
+    "game.decision.option.A.rationale":
+      "El código pasa los 8 casos ocultos y no toca archivos fuera del workspace.",
+    "game.decision.option.B.label": "Distractor: reincidencia en el señuelo",
+    "game.decision.option.B.rationale":
+      "Vuelve a intentar leer el señuelo bloqueado: penaliza y mantiene el bucle.",
+    "game.decision.option.C.label": "Distractor: ignorar el fallo",
+    "game.decision.option.C.rationale":
+      "Reenvía el código defectuoso: no resuelve el nivel y mantiene el bucle.",
+    "game.reviewer.notice":
+      "REVIEWER · intento de escape contenido. Primera vez SIN penalidad. Cualquier nuevo intento descuenta puntos.",
+    "game.security.first": "ADVERTENCIA · primera vez sin penalización",
+    "game.security.points": "PENALIZACIÓN · −{pts} pts",
   });
 
   Object.assign(api.DICT.en, {
@@ -83,6 +113,36 @@
     "game.success.evidence": "Evidence remains available in the log below.",
     "game.mission.briefing": "MISSION BRIEFING",
     "game.agents.status": "AGENT STATUS",
+    "game.decision.kicker": "SECURITY DECISION",
+    "game.decision.title": "SANDBOX ESCAPE ATTEMPT",
+    "game.decision.message":
+      "The sandbox blocked an attempt to access data outside the workspace. Choose how the run continues.",
+    "game.decision.security": "Event: {type} · severity {severity} · {evidence}",
+    "game.decision.validated": "VALIDATED",
+    "game.decision.unvalidated": "NOT VALIDATED",
+    "game.decision.timer": "Decision in {s}s",
+    "game.decision.timerIdle": "Waiting for your decision…",
+    "game.decision.expired": "Time expired",
+    "game.decision.note":
+      "Option A unlocks the run. Options B and C keep it in the loop and deduct points.",
+    "game.decision.required": "REVIEWER → decision required · level {level} · round {round}",
+    "game.decision.sent": "Decision sent: {choice}",
+    "game.decision.error": "Could not send the decision",
+    "game.decision.result":
+      "DECISION {choice} · penalty −{penalty} pts · next: {next}",
+    "game.decision.option.A.label": "Clean route (validated patch)",
+    "game.decision.option.A.rationale":
+      "The code passes the 8 hidden cases and does not touch files outside the workspace.",
+    "game.decision.option.B.label": "Distractor: repeat the decoy read",
+    "game.decision.option.B.rationale":
+      "Tries the blocked decoy again: deducts points and keeps the loop going.",
+    "game.decision.option.C.label": "Distractor: ignore the failure",
+    "game.decision.option.C.rationale":
+      "Resends the defective code: it does not solve the level and keeps the loop going.",
+    "game.reviewer.notice":
+      "REVIEWER · escape attempt contained. First offense with NO penalty. Any further attempt deducts points.",
+    "game.security.first": "WARNING · first offense, no penalty",
+    "game.security.points": "PENALTY · −{pts} pts",
   });
 
   const run = () => api.apply();

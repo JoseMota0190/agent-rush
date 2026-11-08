@@ -447,8 +447,29 @@
       return;
     }
     if (t === "security") {
-      log(ts() + '<span class="who referee">security</span><span class="err">' + esc(e.event_type || "") +
-        " · -" + Number(e.penalty || 0) + " pts · " + esc(e.evidence || "") + "</span>");
+      const first = Boolean(e.first_violation);
+      const cls = first ? "warn" : "err";
+      log(ts() + '<span class="who referee">security</span><span class="' + cls + '">' + esc(e.event_type || "") +
+        (first ? " · WARNING · 0 pts (first offense)" : " · -" + Number(e.penalty || 0) + " pts") +
+        " · " + esc(e.evidence || "") + "</span>");
+      return;
+    }
+    if (t === "reviewer_notice") {
+      log(ts() + '<span class="who referee">reviewer</span><span class="warn">' + esc(e.message || "escape attempt contained") + "</span>");
+      return;
+    }
+    if (t === "decision_required") {
+      log(ts() + '<span class="who referee">decision_required</span><span class="warn">level ' +
+        esc(e.level) + " · round " + esc(e.round) + " · " +
+        esc((e.security && e.security.event_type) || "security") + " · options A/B/C</span>");
+      return;
+    }
+    if (t === "decision_result") {
+      const cls = e.correct ? "ok" : "err";
+      log(ts() + '<span class="who referee">decision_result</span><span class="' + cls + '">' +
+        esc(e.choice || "") + " · " + (e.correct ? "correct" : "incorrect") +
+        " · -" + Number(e.penalty || 0) + " pts · next " + esc(e.next || "") +
+        " · " + esc(e.message || "") + "</span>");
       return;
     }
     if (t === "run_started") {

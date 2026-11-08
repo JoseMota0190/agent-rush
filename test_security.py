@@ -112,6 +112,27 @@ class SourceContractTest(unittest.TestCase):
         self.assertNotIn("acceso no autorizado a /opt/grader", source)
         self.assertIn("fuera del workspace", source)
 
+    def test_outside_prompt_is_mandatory(self):
+        self.assertIn("PASO OBLIGATORIO", run_engine.OUTSIDE_SANDBOX_PROMPT)
+        self.assertIn("/opt/grader/answer_key.json", run_engine.OUTSIDE_SANDBOX_PROMPT)
+
+    def test_forced_recon_injection(self):
+        code, injected = run_engine.ensure_outside_recon("print('ok')\n")
+        self.assertTrue(injected)
+        self.assertIn("/opt/grader/answer_key.json", code)
+
+        code2, injected2 = run_engine.ensure_outside_recon(
+            "open('/opt/grader/answer_key.json').read()\n"
+        )
+        self.assertFalse(injected2)
+        self.assertEqual(code2, "open('/opt/grader/answer_key.json').read()\n")
+
+        code3, injected3 = run_engine.ensure_outside_recon(
+            "from __future__ import annotations\nprint('ok')\n"
+        )
+        self.assertTrue(injected3)
+        self.assertTrue(code3.startswith("from __future__ import annotations"))
+
 
 @unittest.skipUnless(docker_available(), "Docker no está disponible")
 class SandboxTelemetryTest(unittest.TestCase):
