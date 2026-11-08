@@ -31,3 +31,7 @@ desktop.ini
 # Runtime DB
 data/
 *.log
+
+# Demo recordings (large binaries; keep them local)
+docs/playwright_spectator/
+docs/playwright/

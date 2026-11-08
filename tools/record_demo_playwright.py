@@ -57,17 +57,18 @@ def wait_until_free(base_url: str, timeout_s: int = 1500) -> None:
 
 
 def find_ffmpeg() -> str | None:
-    """Busca el ffmpeg que trae Playwright o uno del PATH."""
-    candidates = []
+    """Busca un ffmpeg con libx264: primero el del PATH, luego el de Playwright."""
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
     local = os.environ.get("LOCALAPPDATA")
     if local:
         mp = Path(local) / "ms-playwright"
         if mp.is_dir():
-            candidates += list(mp.glob("ffmpeg-*/ffmpeg*.exe"))
-    found = shutil.which("ffmpeg")
-    if found:
-        candidates.append(Path(found))
-    return str(candidates[0]) if candidates else None
+            built = list(mp.glob("ffmpeg-*/ffmpeg*.exe"))
+            if built:
+                return str(built[0])
+    return None
 
 
 def convert_to_mp4(ffmpeg: str | None, src: Path, dst: Path) -> bool:
@@ -159,7 +160,7 @@ def main() -> None:
             try:
                 page.wait_for_function(
                     "() => { const el = document.querySelector('#logStream'); "
-                    "return el && /SECURITY|REVIEWER/.test(el.innerText); }",
+                    "return el && /REVIEWER|escape attempt/i.test(el.innerText); }",
                     timeout=240000,
                 )
                 page.wait_for_timeout(1500)
