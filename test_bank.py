@@ -201,7 +201,8 @@ class TestChallengeBank(unittest.TestCase):
         cases = challenges.build_workspace(cid, seed)
         harness = challenges.workspace_source("print('x')", cases)
         self.assertIn("@@RESULT@@", harness)
-        self.assertIn("subprocess.run", harness)
+        self.assertIn("subprocess", harness)
+        self.assertIn("run_case", harness)
         # Las salidas esperadas no deben viajar al sandbox.
         for _, _, expected in cases:
             if len(expected) >= 12:

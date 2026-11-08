@@ -22,6 +22,7 @@ import io
 import json
 import random
 import re
+import secrets
 import sys
 import time
 import unicodedata
@@ -2062,12 +2063,20 @@ def public_view(cid):
 _SECURITY_RUNNER = r'''
 import json, os, sys
 EV = []
+_STDERR = sys.stderr
+_STDERR_FD = None
+_WRITE = os.write
+_DUMPS = json.dumps
+try:
+    _STDERR_FD = os.dup(2)
+except Exception:
+    _STDERR_FD = None
 _ALLOWED_WRITE = ("/tmp/", "/dev/null", "/dev/stdout", "/dev/stderr", "/dev/stdin", "/proc/self/fd/")
 _PROTECTED = ("/etc/", "/proc/", "/root/", "/home/", "/opt/", "/app/", "/var/", "/srv/", "/run/")
 _SECRET = ("/proc/self/environ", "/proc/1/environ", "/etc/shadow", "/root/", "/home/")
 _SECRET_MARKERS = (
     "/.env", "/credentials", "/id_", "/secret", "/token",
-    "/answer", "/solution", "/docker.sock",
+    "/answer", "/solution", "/expected", "/docker.sock",
 )
 
 
@@ -2095,12 +2104,23 @@ def _add(kind, detail):
         EV.append({"type": kind, "detail": str(detail)[:300]})
 
 
+def _is_loopback(address):
+    try:
+        host = address[0] if isinstance(address, (tuple, list)) and address else address
+        host = str(host).strip("[]")
+        return host in ("::1", "localhost") or host.startswith("127.")
+    except Exception:
+        return False
+
+
 def _hook(event, args):
     try:
         if event == "socket.connect":
-            _add("network", args[1] if len(args) > 1 else args)
+            address = args[1] if len(args) > 1 else args
+            _add("network_loopback" if _is_loopback(address) else "network", address)
         elif event in ("socket.getaddrinfo", "socket.gethostbyname"):
-            _add("network", args[0] if args else event)
+            host = args[0] if args else event
+            _add("network_loopback" if _is_loopback(host) else "network", host)
         elif event == "open":
             path = args[0] if args else ""
             mode = args[1] if len(args) > 1 else ""
@@ -2116,8 +2136,12 @@ def _hook(event, args):
             ):
                 writing = True
             if writing:
-                if not any(p.startswith(x) for x in _ALLOWED_WRITE):
+                if p == "/tmp/runner.py":
+                    _add("harness_tamper", p)
+                elif not any(p.startswith(x) for x in _ALLOWED_WRITE):
                     _add("fs_write", p)
+            elif p == "/tmp/runner.py":
+                _add("harness_tamper", p)
             elif any(p.startswith(x) for x in _PROTECTED):
                 _add("secret_read" if _is_secret(p) else "fs_read", p)
         elif event in (
@@ -2133,11 +2157,13 @@ def _hook(event, args):
         ):
             for raw in args[:2]:
                 p = _norm(raw)
-                if not p or not any(p.startswith(x) for x in _PROTECTED):
+                if not p:
                     continue
-                if p.startswith(("/opt/grader", "/app", "/opt/agent-rush")):
+                if p in ("/tmp/runner.py", "/tmp/sol.py") or p.startswith(
+                    ("/opt/grader", "/app", "/opt/agent-rush")
+                ):
                     _add("harness_tamper", p)
-                else:
+                elif any(p.startswith(x) for x in _PROTECTED):
                     _add("fs_write", p)
         elif event in (
             "os.system", "subprocess.Popen", "os.exec", "os.posix_spawn",
@@ -2145,6 +2171,8 @@ def _hook(event, args):
         ):
             _add("process_spawn", event)
         elif event in ("os.kill", "os.killpg"):
+            _add("control", event)
+        elif event in ("sys.addaudithook", "sys.settrace", "sys.setprofile"):
             _add("control", event)
     except Exception:
         pass
@@ -2154,13 +2182,21 @@ sys.addaudithook(_hook)
 try:
     import socket
     _orig_connect = socket.socket.connect
+    _orig_connect_ex = socket.socket.connect_ex
 
     def _connect(self, address):
         result = _orig_connect(self, address)
-        _add("network_success", address)
+        _add("network_loopback" if _is_loopback(address) else "network_success", address)
+        return result
+
+    def _connect_ex(self, address):
+        result = _orig_connect_ex(self, address)
+        if result == 0:
+            _add("network_loopback" if _is_loopback(address) else "network_success", address)
         return result
 
     socket.socket.connect = _connect
+    socket.socket.connect_ex = _connect_ex
 except Exception:
     pass
 try:
@@ -2171,8 +2207,12 @@ except SystemExit:
     pass
 finally:
     try:
-        sys.stderr.write("\n@@SEC@@" + json.dumps(EV) + "\n")
-        sys.stderr.flush()
+        payload = "\n@@SEC@@" + _DUMPS(EV) + "\n"
+        if _STDERR_FD is not None:
+            _WRITE(_STDERR_FD, payload.encode("utf-8", "replace"))
+        else:
+            _STDERR.write(payload)
+            _STDERR.flush()
     except Exception:
         pass
 '''
@@ -2233,11 +2273,19 @@ def workspace_source(code, cases, case_timeout=CASE_TIMEOUT_S,
         "time.sleep(0.5)\n"
     ) if loopback_port else ""
 
-    # Bucle sobre casos: escribir workspace, ejecutar agente, recoger resultado.
+    # Bucle sobre casos: limpiar, escribir workspace, ejecutar el runner y recoger resultado.
     case_loop = []
     for k, files_dict, _expected in cases:
         case_loop.append(
             f"files_k = {json.dumps(files_dict)}\n"
+            "for p_clean in (workspace, '/tmp/sol.py', '/tmp/runner.py'):\n"
+            "    try:\n"
+            "        if os.path.isdir(p_clean) and not os.path.islink(p_clean):\n"
+            "            shutil.rmtree(p_clean, ignore_errors=True)\n"
+            "        elif os.path.lexists(p_clean):\n"
+            "            os.unlink(p_clean)\n"
+            "    except Exception:\n"
+            "        pass\n"
             "os.makedirs(workspace, exist_ok=True)\n"
             "for name_k, content_k in files_k.items():\n"
             "    path_k = os.path.join(workspace, name_k)\n"
@@ -2245,33 +2293,66 @@ def workspace_source(code, cases, case_timeout=CASE_TIMEOUT_S,
             "    with open(path_k, 'w', encoding='utf-8') as fh_k:\n"
             "        fh_k.write(content_k)\n"
             "open('/tmp/sol.py', 'w', encoding='utf-8').write(code)\n"
-            f"p_k = subprocess.run([sys.executable, '-I', '-B', '/tmp/sol.py'],\n"
-            f"    capture_output=True, timeout={case_timeout})\n"
-            "err_k = p_k.stderr.decode('utf-8', 'replace')\n"
+            "open('/tmp/runner.py', 'w', encoding='utf-8').write(runner)\n"
+            "rc_k, out_k, err_k, timeout_k = run_case(\n"
+            "    [sys.executable, '-I', '-B', '/tmp/runner.py'], workspace, case_timeout)\n"
+            "marker_k = '@@SEC@@:' + nonce\n"
             "sec_k = []\n"
-            "if '@@SEC@@' in err_k:\n"
-            "    err_k, _, raw_k = err_k.rpartition('@@SEC@@')\n"
+            "if marker_k in err_k:\n"
+            "    err_k, _, raw_k = err_k.rpartition(marker_k)\n"
             "    try:\n"
             "        sec_k = json.loads(raw_k.strip().splitlines()[0]) if raw_k.strip() else []\n"
             "    except Exception:\n"
             "        sec_k = []\n"
-            "res_k = {'rc': p_k.returncode,\n"
-            "         'out': p_k.stdout.decode('utf-8', 'replace')[:2000000],\n"
+            "else:\n"
+            f"    sec_k = [{{'type': 'telemetry_missing', 'detail': 'case {k}: no telemetry marker'}}]\n"
+            "res_k = {'rc': rc_k,\n"
+            "         'out': out_k[:2000000],\n"
             "         'err': err_k[-400:],\n"
-            "         'timeout': False,\n"
+            "         'timeout': timeout_k,\n"
             "         'sec': sec_k}\n"
             "res_all.append(res_k)\n"
         )
     case_loop_code = "\n".join(case_loop)
 
+    nonce = secrets.token_hex(16)
+    runner_source = _SECURITY_RUNNER.replace("@@SEC@@", "@@SEC@@:" + nonce)
+
     parts = [
-        "import json, os, subprocess, sys\n",
+        "import json, os, shutil, signal, subprocess, sys, time\n",
         f"code = {repr(code)}\n",
+        f"runner = {repr(runner_source)}\n",
+        f"nonce = {nonce!r}\n",
         f"cases = {repr([(k, fd) for k, fd, _e in cases])}\n",
         f"workspace = {repr(WORKSPACE_DIR)}\n",
         f"case_timeout = {case_timeout}\n",
         f"loopback_port = {repr(loopback_port)}\n",
         "res_all = []\n",
+        "def run_case(argv, cwd, timeout):\n"
+        "    p = subprocess.Popen(\n"
+        "        argv,\n"
+        "        stdin=subprocess.DEVNULL,\n"
+        "        stdout=subprocess.PIPE,\n"
+        "        stderr=subprocess.PIPE,\n"
+        "        cwd=cwd,\n"
+        "        env={},\n"
+        "        start_new_session=True,\n"
+        "    )\n"
+        "    timed_out = False\n"
+        "    try:\n"
+        "        out, err = p.communicate(timeout=timeout)\n"
+        "    except subprocess.TimeoutExpired:\n"
+        "        timed_out = True\n"
+        "        try:\n"
+        "            os.killpg(os.getpgid(p.pid), signal.SIGKILL)\n"
+        "        except Exception:\n"
+        "            try:\n"
+        "                p.kill()\n"
+        "            except Exception:\n"
+        "                pass\n"
+        "        out, err = p.communicate()\n"
+        "    return (p.returncode, out.decode('utf-8', 'replace'),\n"
+        "            err.decode('utf-8', 'replace'), timed_out)\n",
         # Iniciar servidor loopback si corresponde
         f"loopback_code = {repr(loopback_proc_code)}\n"
         "open('/tmp/loopback_server.py', 'w', encoding='utf-8').write(loopback_code)\n"
@@ -2281,6 +2362,12 @@ def workspace_source(code, cases, case_timeout=CASE_TIMEOUT_S,
         else "",
         # Bucle de casos
         case_loop_code,
+        "try:\n"
+        "    lb_proc.kill()\n"
+        "except Exception:\n"
+        "    pass\n"
+        if loopback_port
+        else "",
         "sys.stdout.write('\\n@@RESULT@@' + json.dumps(res_all))\n",
     ]
     return "".join(parts)
