@@ -35,3 +35,4 @@ data/
 # Demo recordings (large binaries; keep them local)
 docs/playwright_spectator/
 docs/playwright/
+docs/pitch/preview/

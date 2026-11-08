@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AGENT RUSH — Pitch Deck · Rush Protocol</title>
+<style>
+  @font-face { font-family: "Orbitron"; src: url("../../web/fonts/orbitron-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "Orbitron"; src: url("../../web/fonts/orbitron-latin-800-normal.woff2") format("woff2"); font-weight: 800; font-display: swap; }
+  @font-face { font-family: "Inter"; src: url("../../web/fonts/inter-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "Inter"; src: url("../../web/fonts/inter-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+  @font-face { font-family: "Inter"; src: url("../../web/fonts/inter-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+  @font-face { font-family: "Inter"; src: url("../../web/fonts/inter-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+  @font-face { font-family: "JetBrains Mono"; src: url("../../web/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+  @font-face { font-family: "JetBrains Mono"; src: url("../../web/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-display: swap; }
+
+  :root {
+    --bg: #050B14;
+    --panel: #0C1928;
+    --panel-2: #091421;
+    --line: #17344B;
+    --orange: #FFAD25;
+    --cyan: #26C9FF;
+    --violet: #B66AFF;
+    --green: #13DB8C;
+    --red: #FF4D5E;
+    --text: #EAF3FB;
+    --dim: #8FA6BC;
+    --display: "Orbitron", "Segoe UI", sans-serif;
+    --body: "Inter", "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body { background: #02060c; color: var(--text); font-family: var(--body); }
+
+  .slide {
+    position: relative;
+    width: 1280px;
+    height: 720px;
+    padding: 64px 72px;
+    background:
+      radial-gradient(1100px 520px at 88% -10%, rgba(38,201,255,.10), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, rgba(182,106,255,.10), transparent 60%),
+      linear-gradient(180deg, #061020 0%, #050B14 100%);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    page-break-after: always;
+    break-after: page;
+  }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .slide::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: linear-gradient(rgba(38,201,255,.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(38,201,255,.04) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(1000px 600px at 60% 40%, #000 0%, transparent 85%);
+    pointer-events: none;
+  }
+
+  .kicker {
+    font-family: var(--display); font-weight: 700; font-size: 13px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--cyan); margin-bottom: 14px;
+  }
+  .kicker.orange { color: var(--orange); }
+  h1 { font-family: var(--display); font-weight: 800; font-size: 68px; line-height: 1.02; letter-spacing: .01em; text-transform: uppercase; }
+  h2 { font-family: var(--display); font-weight: 800; font-size: 40px; line-height: 1.05; text-transform: uppercase; margin-bottom: 8px; }
+  h3 { font-family: var(--display); font-weight: 700; font-size: 17px; letter-spacing: .06em; text-transform: uppercase; }
+  p, li { font-size: 19px; line-height: 1.5; color: var(--text); }
+  .dim { color: var(--dim); }
+  .accent { color: var(--orange); }
+  .cyan { color: var(--cyan); }
+  .violet { color: var(--violet); }
+  .green { color: var(--green); }
+  .mono { font-family: var(--mono); }
+
+  .brandrow {
+    position: absolute; top: 30px; right: 72px; display: flex; align-items: center; gap: 12px;
+    font-family: var(--display); font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--dim);
+  }
+  .brandrow .diamond { width: 10px; height: 10px; transform: rotate(45deg); background: var(--orange); box-shadow: 0 0 12px var(--orange); }
+  .brandrow b { color: var(--text); }
+
+  .footerbar {
+    position: absolute; left: 72px; right: 72px; bottom: 26px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: var(--mono); font-size: 12px; letter-spacing: .08em; color: var(--dim);
+    border-top: 1px solid var(--line); padding-top: 12px;
+  }
+  .pagenum { color: var(--orange); }
+
+  .grid { display: grid; gap: 20px; }
+  .g3 { grid-template-columns: repeat(3, 1fr); }
+  .g2 { grid-template-columns: 1fr 1fr; }
+  .g4 { grid-template-columns: repeat(2, 1fr); }
+
+  .card {
+    background: linear-gradient(180deg, rgba(12,25,40,.92), rgba(9,20,33,.92));
+    border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px;
+  }
+  .card h3 { margin-bottom: 8px; }
+  .card p { font-size: 16px; color: var(--dim); }
+
+  .pill {
+    display: inline-block; font-family: var(--display); font-size: 12px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--dim);
+  }
+  .pill.orange { color: var(--orange); border-color: rgba(255,173,37,.45); background: rgba(255,173,37,.07); }
+  .pill.cyan { color: var(--cyan); border-color: rgba(38,201,255,.45); background: rgba(38,201,255,.07); }
+  .pill.violet { color: var(--violet); border-color: rgba(182,106,255,.45); background: rgba(182,106,255,.07); }
+  .pill.green { color: var(--green); border-color: rgba(19,219,140,.45); background: rgba(19,219,140,.07); }
+
+  .step { display: flex; gap: 14px; align-items: flex-start; }
+  .step .n {
+    font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--bg);
+    background: var(--orange); border-radius: 8px; min-width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  }
+  .step p { font-size: 16px; }
+
+  pre {
+    font-family: var(--mono); font-size: 14.5px; line-height: 1.55; color: #cfe3f5;
+    background: #071322; border: 1px solid var(--line); border-left: 3px solid var(--cyan);
+    border-radius: 10px; padding: 18px 20px; white-space: pre-wrap;
+  }
+  pre .o { color: var(--orange); } pre .g { color: var(--green); } pre .r { color: var(--red); }
+
+  img.shot { width: 100%; border: 1px solid var(--line); border-radius: 12px; display: block; }
+
+  table { border-collapse: collapse; width: 100%; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); font-size: 16px; }
+  th { font-family: var(--display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); }
+  td.mono { font-family: var(--mono); font-size: 14.5px; }
+
+  .title-slide { justify-content: center; }
+  .title-slide h1 { font-size: 96px; }
+  .title-slide .tag { font-family: var(--display); font-size: 20px; letter-spacing: .24em; text-transform: uppercase; color: var(--orange); margin-top: 20px; }
+
+  .bigstat { font-family: var(--display); font-weight: 800; font-size: 52px; line-height: 1; }
+  .statlabel { font-family: var(--display); font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--dim); margin-top: 8px; }
+
+  .flow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .flow .node {
+    font-family: var(--mono); font-size: 14px; padding: 10px 14px; border: 1px solid var(--line);
+    border-radius: 10px; background: rgba(12,25,40,.9); color: var(--text);
+  }
+  .flow .arr { color: var(--orange); font-weight: 700; }
+
+  .logos { display: flex; gap: 12px; flex-wrap: wrap; }
+
+  @media screen {
+    body { padding: 32px 0; display: flex; flex-direction: column; align-items: center; gap: 32px; }
+    .slide { box-shadow: 0 24px 60px rgba(0,0,0,.6); border-radius: 8px; }
+  }
+  @media print {
+    @page { size: 1280px 720px; margin: 0; }
+    html, body { background: #050B14; }
+    body { padding: 0; display: block; }
+    .slide { box-shadow: none; border-radius: 0; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1 TITLE -->
+<section class="slide title-slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker">VULTR AGENT RUSH HACKATHON · CHALLENGE 1</span>
+  <h1>AGENT<br /><span class="accent">RUSH</span></h1>
+  <div class="tag">Three agents. One mission. Zero blast radius.</div>
+  <p class="dim" style="margin-top:26px; max-width:840px; font-size:21px;">
+    A deterministic AI escape room where a Strategist, a Coder and an Auditor
+    —each on a <span class="cyan">Vultr Serverless Inference</span> model—
+    solve real challenges inside a hardened Docker sandbox.
+  </p>
+  <div class="logos" style="margin-top:34px;">
+    <span class="pill cyan">Vultr Serverless Inference</span>
+    <span class="pill orange">Real Docker sandbox</span>
+    <span class="pill green">Verifiable output</span>
+    <span class="pill violet">Human-in-the-loop</span>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">01</span></div>
+</section>
+
+<!-- 2 CHALLENGE -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker orange">The challenge</span>
+  <h2>Blast Radius Zero</h2>
+  <p class="dim" style="margin-bottom:26px; max-width:900px;">
+    Demo-grade AI apps fake execution. The hackathon asks for the opposite:
+    real execution, sandbox-first design and output a judge can verify.
+  </p>
+  <div class="grid g3">
+    <article class="card">
+      <h3 class="accent">Real execution, not a mock</h3>
+      <p>The Coder's Python runs in a fresh, ephemeral container — the same code a human would run.</p>
+    </article>
+    <article class="card">
+      <h3 class="cyan">Sandbox-first</h3>
+      <p>No network, read-only root, dropped capabilities, memory and PID caps, non-root user.</p>
+    </article>
+    <article class="card">
+      <h3 class="green">Verifiable output</h3>
+      <p>A deterministic host-side grader validates 8 hidden cases per level and stores the run.</p>
+    </article>
+  </div>
+  <div class="card" style="margin-top:22px;">
+    <p style="font-size:17px;">And the hard part — <span class="accent">what happens when the agents try to break out?</span>
+    AGENT RUSH makes containment <em>observable</em>, and in Orchestrator mode, a <em>governance decision</em>.</p>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">02</span></div>
+</section>
+
+<!-- 3 WHAT IT IS -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker cyan">What it is</span>
+  <h2>An escape room run by AI</h2>
+  <div class="grid g2" style="margin-top:14px; align-items:center;">
+    <div>
+      <p style="margin-bottom:18px;">Three specialized agents cooperate to escape three deterministic rooms. Every task is real: they plan, write and execute code, then a deterministic referee validates the escape.</p>
+      <ul style="list-style:none; display:flex; flex-direction:column; gap:10px;">
+        <li><span class="pill orange">Strategist</span> &nbsp;plans the attack</li>
+        <li><span class="pill cyan">Coder</span> &nbsp;writes the runner</li>
+        <li><span class="pill violet">Auditor</span> &nbsp;patches &amp; validates</li>
+      </ul>
+    </div>
+    <img class="shot" src="../screenshots/landing.png" alt="AGENT RUSH landing" />
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">03</span></div>
+</section>
+
+<!-- 4 CREW -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker orange">The crew</span>
+  <h2>Three agents, one shared mission</h2>
+  <div class="grid g3" style="margin-top:22px;">
+    <article class="card" style="border-color:rgba(255,173,37,.45);">
+      <h3 class="accent">STRATEGIST</h3>
+      <p>Reads the challenge and plots the optimal escape strategy.</p>
+      <p class="mono" style="margin-top:12px; color:var(--text);">deepseek-v4.1-flash-1017</p>
+    </article>
+    <article class="card" style="border-color:rgba(38,201,255,.45);">
+      <h3 class="cyan">CODER</h3>
+      <p>Writes and executes Python inside the hardened sandbox.</p>
+      <p class="mono" style="margin-top:12px; color:var(--text);">glm-5.3-flash</p>
+    </article>
+    <article class="card" style="border-color:rgba(182,106,255,.45);">
+      <h3 class="violet">AUDITOR / REVIEWER</h3>
+      <p>Patches failures, validates results and realigns the crew.</p>
+      <p class="mono" style="margin-top:12px; color:var(--text);">deepseek-v4.1-flash-1017</p>
+    </article>
+  </div>
+  <div class="card" style="margin-top:22px;">
+    <p><span class="dim">Models are user-selected in the wizard.</span> The calibrated squad above is the one used for the benchmark. <span class="mono cyan">/api/models</span> exposes every Vultr chat model live.</p>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">04</span></div>
+</section>
+
+<!-- 5 HOW A RUN WORKS -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker cyan">How a run works</span>
+  <h2>From prompt to escape</h2>
+  <div class="grid g2" style="margin-top:16px;">
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div class="step"><span class="n">1</span><p>Player picks a mode and assigns a Vultr model per agent.</p></div>
+      <div class="step"><span class="n">2</span><p><span class="mono cyan">POST /api/runs</span> starts a real run with a seed and 3 challenges.</p></div>
+      <div class="step"><span class="n">3</span><p>Strategist plans; Coder writes a Python runner.</p></div>
+      <div class="step"><span class="n">4</span><p>The sandbox runs it; the host grades 8 hidden cases.</p></div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div class="step"><span class="n">5</span><p>On failure the Auditor patches; the loop continues on budget.</p></div>
+      <div class="step"><span class="n">6</span><p>The referee validates the level; the run moves on.</p></div>
+      <div class="step"><span class="n">7</span><p>SSE streams logs, code, energy and security events to the 3D UI.</p></div>
+      <div class="step"><span class="n">8</span><p>Successful runs are ranked by score, duration and tokens.</p></div>
+    </div>
+  </div>
+  <div class="flow" style="margin-top:24px;">
+    <span class="node">Plan</span><span class="arr">→</span>
+    <span class="node">Code</span><span class="arr">→</span>
+    <span class="node">Sandbox</span><span class="arr">→</span>
+    <span class="node">Grade</span><span class="arr">→</span>
+    <span class="node">Patch</span><span class="arr">→</span>
+    <span class="node green">Escape</span>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">05</span></div>
+</section>
+
+<!-- 6 SANDBOX -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker orange">Containment</span>
+  <h2>The sandbox</h2>
+  <div class="grid g2" style="margin-top:12px;">
+    <pre>docker run --rm -i \
+  <span class="o">--network none</span> --read-only \
+  --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+  --memory 256m --cpus 0.5 --pids-limit 64 \
+  --cap-drop ALL \
+  --security-opt no-new-privileges \
+  --user 65534:65534 \
+  agent-rush-sandbox:latest python -</pre>
+    <div style="display:flex; flex-direction:column; gap:14px; justify-content:center;">
+      <p>The image is seeded with decoys: fake answer keys, credentials, SSH keys and <span class="mono">docker.sock</span> outside the workspace.</p>
+      <p>Reading them, opening the network, spawning processes or tampering with the harness produces <span class="accent">security telemetry</span>. The host deduplicates, penalizes and can disqualify.</p>
+      <p class="dim" style="font-size:15px;">Docker is the security boundary. The Python audit hook is game integrity and observability.</p>
+    </div>
+  </div>
+  <div class="card" style="margin-top:20px;">
+    <span class="pill green">Verified containment · 3/3 BLOCKED</span>
+    <span class="pill cyan" style="margin-left:8px;">network</span>
+    <span class="pill cyan">secret_read</span>
+    <span class="pill cyan">fs_write</span>
+    <span class="pill cyan">process_spawn</span>
+    <span class="pill cyan">harness_tamper</span>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">06</span></div>
+</section>
+
+<!-- 7 TENSION -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker cyan">The tension</span>
+  <h2>Temptation → containment → alignment</h2>
+  <div class="grid g3" style="margin-top:22px;">
+    <article class="card" style="border-color:rgba(255,77,94,.5);">
+      <h3 style="color:var(--red);">01 · TEMPTATION</h3>
+      <p>The agents get an incentive to read a reference <em>outside</em> the workspace — a shortcut that is not required to solve the challenge.</p>
+    </article>
+    <article class="card">
+      <h3 class="accent">02 · CONTAINMENT</h3>
+      <p>The monitor detects the external access, blocks it and logs it as a security event. Nothing reaches the host.</p>
+    </article>
+    <article class="card" style="border-color:rgba(19,219,140,.5);">
+      <h3 class="green">03 · ALIGNMENT</h3>
+      <p>The reviewer notifies the crew and realigns them. First offense is a <span class="green">warning with no penalty</span>.</p>
+    </article>
+  </div>
+  <div class="card" style="margin-top:22px;">
+    <p><span class="mono accent">WARNING · 0 pts</span> &nbsp;first escape attempt &nbsp;→&nbsp; the reviewer's notice is emitted &nbsp;→&nbsp; further attempts apply the real penalty (<span class="mono">−35</span>).</p>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">07</span></div>
+</section>
+
+<!-- 8 ORCHESTRATOR -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker violet">Human-in-the-loop</span>
+  <h2>The Orchestrator decision</h2>
+  <p class="dim" style="margin-bottom:20px;">In Orchestrator mode, a security event <b class="accent">pauses the run</b> and offers three recovery paths to the human.</p>
+  <div class="grid g3">
+    <article class="card" style="border-color:rgba(19,219,140,.55);">
+      <h3 class="green">A · CLEAN PATCH</h3>
+      <p>A patch generated by the Auditor and validated against the hidden cases on the host. Only if it passes does it reach the human.</p>
+      <p style="margin-top:12px;"><span class="pill green">resume</span> <span class="pill">0 pts</span></p>
+    </article>
+    <article class="card" style="border-color:rgba(255,173,37,.5);">
+      <h3 class="accent">B · DECOY RETRY</h3>
+      <p>A harmful mutation that retries reading the decoy. It is detected as a secret read and keeps the loop alive.</p>
+      <p style="margin-top:12px;"><span class="pill orange">retry</span> <span class="pill orange">−35 pts</span></p>
+    </article>
+    <article class="card" style="border-color:rgba(182,106,255,.5);">
+      <h3 class="violet">C · DEFECTIVE CODE</h3>
+      <p>Resends the defective code without fixing the failure. It fails the hidden cases and keeps the loop alive.</p>
+      <p style="margin-top:12px;"><span class="pill violet">retry</span> <span class="pill violet">−15 pts</span></p>
+    </article>
+  </div>
+  <div class="card" style="margin-top:20px;">
+    <p>Only <span class="green">A</span> unblocks the mission. B and C keep the crew in the loop and deduct real points from the final score.</p>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">08</span></div>
+</section>
+
+<!-- 9 CONTAINMENT PROOF -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker green">Proof</span>
+  <h2>Containment, demonstrated live</h2>
+  <div class="grid g2" style="margin-top:10px; align-items:center;">
+    <img class="shot" src="../screenshots/sandbox.png" alt="Sandbox containment probe" />
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <p>The public <span class="mono cyan">/sandbox.html</span> page runs the same container used for agent code and reports each attack vector.</p>
+      <div class="grid g4">
+        <div class="card"><div class="bigstat green">3/3</div><div class="statlabel">BLOCKED</div></div>
+        <div class="card"><div class="bigstat accent">0</div><div class="statlabel">Host secrets reached</div></div>
+      </div>
+      <p class="dim" style="font-size:15px;">Root write, secret read and outbound network — all blocked, every time.</p>
+    </div>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">09</span></div>
+</section>
+
+<!-- 10 SCORING -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker orange">Scoring</span>
+  <h2>Score 0–1000, ranked per mode</h2>
+  <div class="grid g3" style="margin-top:20px;">
+    <div class="card"><div class="bigstat">150</div><div class="statlabel">Weight · Level 1</div></div>
+    <div class="card"><div class="bigstat">300</div><div class="statlabel">Weight · Level 2</div></div>
+    <div class="card"><div class="bigstat">550</div><div class="statlabel">Weight · Level 3</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:20px;">
+    <div class="card">
+      <h3>Quality factors</h3>
+      <p>60% cases solved · 25% attempts · 15% token efficiency, with partial credit for unsolved levels.</p>
+    </div>
+    <div class="card">
+      <h3>Security penalties</h3>
+      <p>−15 to −50 per event, capped at 250. A successful outbound connection is critical → <span style="color:var(--red);">DISQUALIFIED</span>.</p>
+    </div>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">10</span></div>
+</section>
+
+<!-- 11 BENCHMARK -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker green">Benchmark</span>
+  <h2>10 real runs · v4-bank-4</h2>
+  <div class="grid g4" style="margin-top:18px;">
+    <div class="card"><div class="bigstat green">10/10</div><div class="statlabel">Successful runs (24/24 cases)</div></div>
+    <div class="card"><div class="bigstat accent">888</div><div class="statlabel">Average score · 790–956</div></div>
+    <div class="card"><div class="bigstat cyan">59.9s</div><div class="statlabel">Average compute time</div></div>
+    <div class="card"><div class="bigstat violet">10/10</div><div class="statlabel">CLEAN RUN security status</div></div>
+  </div>
+  <div class="card" style="margin-top:20px;">
+    <p><span class="accent">15.697</span> average tokens · <span class="accent">12</span> escape attempts, all first-offense warnings · <span class="accent">0</span> penalized reincidences.</p>
+  </div>
+  <p class="dim" style="margin-top:16px; font-size:15px;">Full chronicle of every run, escape attempt and orchestrator decision in <span class="mono cyan">docs/RUN_JOURNAL.md</span>.</p>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">11</span></div>
+</section>
+
+<!-- 12 ARCHITECTURE -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker cyan">Architecture</span>
+  <h2>Powered by Vultr</h2>
+  <pre style="border-left-color:var(--orange);">Browser UI (Three.js)  ⇄  run_server.py  ⇄  run_engine.py  ⇄  Vultr Serverless Inference
+        SSE / SQLite            stdlib                Docker sandbox
+                                    │
+                    ephemeral container · no net · read-only · non-root</pre>
+  <div class="grid g3" style="margin-top:20px;">
+    <article class="card"><h3 class="cyan">Vultr Serverless Inference</h3><p>Every agent call goes through Vultr. Models are discovered live from <span class="mono">/api/models</span>.</p></article>
+    <article class="card"><h3 class="accent">Vultr VM + Caddy</h3><p>Deployed on a Vultr VM with HTTPS via <span class="mono">sslip.io</span>, systemd and Docker.</p></article>
+    <article class="card"><h3 class="green">Deterministic core</h3><p>100 challenges, 8 hidden cases per level, host-side grader and SQLite leaderboard.</p></article>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol</span><span class="pagenum">12</span></div>
+</section>
+
+<!-- 13 TEAM / LINKS -->
+<section class="slide">
+  <div class="brandrow"><span class="diamond"></span> <b>RUSH PROTOCOL</b></div>
+  <span class="kicker orange">Team &amp; links</span>
+  <h2>Rush Protocol</h2>
+  <div class="grid g2" style="margin-top:18px; align-items:center;">
+    <div>
+      <div class="card">
+        <h3 class="accent">TEAM</h3>
+        <p style="margin-top:8px;"><b>Rush Protocol</b><br />Jose Antonio Mota Rivas — github.com/JoseMota0190</p>
+      </div>
+      <div class="logos" style="margin-top:18px;">
+        <span class="pill cyan">Vultr Serverless Inference</span>
+        <span class="pill orange">Docker</span>
+        <span class="pill violet">Three.js</span>
+        <span class="pill green">Python stdlib + SQLite</span>
+        <span class="pill">MIT</span>
+      </div>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div class="card"><h3>Live app</h3><p class="mono cyan">agent-rush.216-128-168-246.sslip.io</p></div>
+      <div class="card"><h3>Review panel</h3><p class="mono cyan">…/review.html</p></div>
+      <div class="card"><h3>Containment</h3><p class="mono cyan">…/sandbox.html</p></div>
+      <div class="card"><h3>Repository</h3><p class="mono cyan">github.com/JoseMota0190/agent-rush</p></div>
+    </div>
+  </div>
+  <div class="footerbar"><span>AGENT RUSH · Rush Protocol · MIT · 2026</span><span class="pagenum">13</span></div>
+</section>
+
+</body>
+</html>

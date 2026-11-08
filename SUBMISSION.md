@@ -8,6 +8,7 @@
 - **Public repo (MIT):** https://github.com/JoseMota0190/agent-rush
 - **Run journal:** https://github.com/JoseMota0190/agent-rush/blob/master/docs/RUN_JOURNAL.md
 - **Video:** `<PENDING — upload the final cut to YouTube (unlisted) or Loom and paste the URL here>`
+- **Pitch deck (PDF):** https://github.com/JoseMota0190/agent-rush/blob/master/docs/pitch/AGENT_RUSH_pitch.pdf
 
 ## Title
 
