@@ -113,9 +113,9 @@ Jose Antonio Mota Rivas — https://github.com/JoseMota0190
 - [x] Real Docker sandbox and containment proof
 - [x] Real leaderboard with verified runs
 - [x] Run journal with escape attempts and decisions
-- [ ] Record the final video (< 3 min)
+- [x] Record the final video (< 3 min)
 - [ ] Upload the video to YouTube/Loom if the form asks for a URL
-- [ ] Submit the LabLab form
+- [x] Submit the LabLab form (submitted 2026-11-08 — "Congratulations! You have successfully submitted your project for the Vultr: Agent Rush Hackathon event!")
 
 ## How to run locally
 
